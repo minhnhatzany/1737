@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { PostingBuildingDb, ensureCaseList, ensurePostingIfNeeded, getPosting, isOfficialRank, perkFx, postingHere, randInt } from "../engine.js";
 import { Faction, MenAtArmType, totalPops } from "../models.js";
 import { logLine } from "../log.js";
@@ -138,7 +139,7 @@ export function actionLocalPatrol(state) {
   const p = state.player;
   if (p.theLuc < 25) return { ok: false, msg: "Thể lực không đủ (cần 25)." };
   p.theLuc -= 25;
-  const ok = Math.random() < (0.35 + (p.muuMeo || 0) * 0.004 + (po.garrison || 0) / 4000);
+  const ok = rng(state) < (0.35 + (p.muuMeo || 0) * 0.004 + (po.garrison || 0) / 4000);
   if (ok) {
     const fine = 40 + randInt(0, 80);
     po.treasury += fine;

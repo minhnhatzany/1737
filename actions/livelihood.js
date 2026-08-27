@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile } from "./clan.js";
 import { randInt } from "../engine.js";
 import { Faction, PlayerRank, RegionId, totalPops } from "../models.js";
@@ -30,7 +31,7 @@ export function actionCayRuong(state) {
       const c = state.clans?.find(x => x.id === cid);
       return c && (isClanHostile(c) || clanAvgOpinionToPlayer(state, cid) < -20);
     });
-    if (localHostile && Math.random() < preset.sabotageChance) {
+    if (localHostile && rng(state) < preset.sabotageChance) {
       thoc = Math.max(0, thoc - 2);
       logLine(state, "Bị dòng họ đối nghịch phá việc đồng áng, mất bớt sản lượng.", true);
     }
@@ -119,7 +120,7 @@ export function actionChanNuoiLon(state) {
   p.tien -= 8;
   const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * (state._quanLyBonus || 1)));
   p.inventory.thit_lon = (p.inventory.thit_lon || 0) + qty;
-  p.uyTinCong = Math.min(9999, (p.uyTinCong || 0) + (Math.random() < 0.35 ? 1 : 0));
+  p.uyTinCong = Math.min(9999, (p.uyTinCong || 0) + (rng(state) < 0.35 ? 1 : 0));
   logLine(state, `🐖 Xuất chuồng lợn, thu được ${qty} mẻ thịt. Mang ra chợ bán sẽ lời hơn.`);
   return { ok: true, feedback: [{ text: `+${qty} Thịt lợn`, tone: "good" }, { text: "-8 Quan vốn", tone: "bad" }, { text: "-18 TL", tone: "bad" }], sfx: "coin" };
 }
@@ -132,7 +133,7 @@ export function actionNauRuou(state) {
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 16;
   p.thocCaNhan = Math.max(0, (p.thocCaNhan || 0) - 2);
-  const qty = 1 + (Math.random() < 0.45 ? 1 : 0);
+  const qty = 1 + (rng(state) < 0.45 ? 1 : 0);
   p.inventory.ruou = (p.inventory.ruou || 0) + qty;
   logLine(state, `🍶 Nấu rượu thủ công, ủ được ${qty} hũ rượu.`);
   return { ok: true, feedback: [{ text: `+${qty} Rượu`, tone: "good" }, { text: "-2 Thóc", tone: "bad" }, { text: "-16 TL", tone: "bad" }], sfx: "murmur" };
@@ -181,7 +182,7 @@ export function actionBuonLauMuoi(state) {
     const preset = getClanPressurePreset(state);
     catchRate *= preset.smuggleCatchMul;
   }
-  if (Math.random() < catchRate) {
+  if (rng(state) < catchRate) {
     p.trongSoDenLy = true;
     logLine(state, "Bị tuần tráng phát hiện! Bị tịch thu tiền muối và ghi vào sổ bìa đen.");
     return { ok: true, shake: true, sfx: "caiVa" };
@@ -225,7 +226,7 @@ export function actionLuyenVo(state) {
   p.theLuc -= 30;
   // Slow stat progression: accumulate training; only occasionally convert to +1
   if (typeof p._voTrainAccum !== "number") p._voTrainAccum = 0;
-  const gain = (Math.random() < 0.18) ? 2 : 1; // rarely "great session"
+  const gain = (rng(state) < 0.18) ? 2 : 1; // rarely "great session"
   p._voTrainAccum += gain;
   let ups = 0;
   while (p._voTrainAccum >= 4) { p._voTrainAccum -= 4; ups++; }

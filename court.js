@@ -1,9 +1,8 @@
+import { rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { PlayerRank, RegionId, RankLabel } from "./models.js";
 import { logLine } from "./log.js";
 import { planActivity, activityStatus } from "./engine.js";
 
-function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
-function rng() { return Math.random(); }
 
 function monthsAheadTo(monthIndexNow, dayNow, targetMonthIndex, latestRegisterDay = 10) {
   // monthIndex: 1..12

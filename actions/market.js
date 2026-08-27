@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { ItemsDb, MARKET_MOODS, MARKET_TRADER_NAMES, RegionsDb, randInt } from "../engine.js";
 import { Faction } from "../models.js";
 import { logLine } from "../log.js";
@@ -102,7 +103,7 @@ export function actionMarketHaggle(state, itemKey) {
   const cur = state._marketHaggle[itemKey];
   if (cur && cur.ym === ym) return { ok: false, msg: "Tháng này đã mặc cả mặt hàng này rồi." };
   const chance = Math.max(0.2, Math.min(0.9, 0.26 + (p.ngoaiGiao || 0) * 0.007 + (p.muuMeo || 0) * 0.002 + (p.merchantTier || 0) * 0.045));
-  if (Math.random() < chance) {
+  if (rng(state) < chance) {
     const buyMul = 0.90 - Math.min(0.05, (p.merchantTier || 0) * 0.01);
     const sellMul = 1.06 + Math.min(0.05, (p.merchantTier || 0) * 0.01);
     state._marketHaggle[itemKey] = { ym, buyMul, sellMul, success: true };
@@ -135,7 +136,7 @@ export function rollMonthlyMarketScene(state) {
   const mood = MARKET_MOODS[randInt(0, MARKET_MOODS.length - 1)];
   const trader = MARKET_TRADER_NAMES[randInt(0, MARKET_TRADER_NAMES.length - 1)];
   const qty = 6 + randInt(0, 10) + Math.max(0, Math.floor((state.player?.merchantTier || 0) * 1.5));
-  const price = Math.max(30, Math.floor((ItemsDb[focusItem]?.basePrice || 10) * qty * (1.2 + Math.random() * 0.5)));
+  const price = Math.max(30, Math.floor((ItemsDb[focusItem]?.basePrice || 10) * qty * (1.2 + rng(state) * 0.5)));
   state._marketScene = {
     ym,
     trader,

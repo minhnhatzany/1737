@@ -1,3 +1,5 @@
+import { initSeed, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
+export { initSeed, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
 import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRaidSupply, actionRebelRecruitLocal, actionRebelTrain, addPrisoner } from "./actions/rebel.js";
@@ -123,11 +125,9 @@ export const ItemsDb = {
 export const DAYS_PER_MONTH = 30;
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-function randInt(a, b)   { return a + Math.floor(Math.random() * (b - a + 1)); }
 
 /** Chuẩn hoá save cũ: ledger + snap morale/lương. */
 
-function rng()           { return Math.random(); }
 
 const HO_NAMES  = ["Nguyễn","Trần","Lê","Phạm","Hoàng","Phan","Vũ","Đặng","Bùi","Đỗ"];
 const TEN_DEM   = ["Văn","Công","Minh","Quốc","Hữu","Đình","Thế","Kim"];
@@ -409,7 +409,9 @@ export const PropertyDb = {
   },
 };
 
-export function createInitialState(playerName = "Vô Danh") {
+export function createInitialState(playerName = "Vô Danh", seed = null) {
+  const rngSeed = initSeed(seed !== null ? seed : Date.now());
+  const rngState = rngSeed;
   const clans = [
     new Clan({ name: "Họ Nguyễn", quyenLuc: 80, ruongDat: 24, trungThanh: 55 }),
     new Clan({ name: "Họ Trần",   quyenLuc: 65, ruongDat: 18, trungThanh: 48 }),
@@ -780,7 +782,7 @@ function tickTravel(state) {
   const perDay = travelThocPerDay(p.quanSo);
 
   // Road events (for special trips like exams/tournaments)
-  if (state.travel?.opts?.roadEvents && !state.pendingEvent && Math.random() < 0.06) {
+  if (state.travel?.opts?.roadEvents && !state.pendingEvent && rng(state) < 0.06) {
     const kind = ["bandit", "scholar", "broker", "inn"][randInt(0, 3)];
     if (kind === "bandit") {
       state.pendingEvent = {
@@ -794,7 +796,7 @@ function tickTravel(state) {
             logLine(s, `Nộp ${lost} quan để thoát nạn trên đường.`);
           }},
           { label: "Đánh mở đường (thử Võ)", impact:[{label:"Nguy hiểm",color:"#ffd43b"}], apply(s){
-            const ok = Math.random() < (0.35 + (s.player.voThuat||0)*0.006);
+            const ok = rng(state) < (0.35 + (s.player.voThuat||0)*0.006);
             if (ok) { logLine(s, "Đánh bật bọn cướp, đoàn người thoát nạn!"); s.player.danhVong += 10; }
             else { const loss = Math.min(s.player.tien, 40 + randInt(0, 80)); s.player.tien -= loss; s.player.theLuc = Math.max(0, s.player.theLuc - 25); logLine(s, `Bị thương và mất ${loss} quan.`, true); }
           }},
@@ -861,7 +863,7 @@ function tickTravel(state) {
     // Attrition when no supplies
     const missing = perDay - p.thocCaNhan;
     p.thocCaNhan = 0;
-    const loss = Math.min(p.quanSo, Math.ceil((missing + 1) * (10 + Math.random() * 25)));
+    const loss = Math.min(p.quanSo, Math.ceil((missing + 1) * (10 + rng(state) * 25)));
     p.quanSo = Math.max(0, p.quanSo - loss);
     if (typeof p.hp === "number") p.hp = Math.max(1, p.hp - 2);
     logLine(state, `🥀 Thiếu lương hành quân: mất ${loss} quân vì rã ngũ/kiệt sức.`, true);
@@ -1196,7 +1198,7 @@ function tryGenerateTransferEdict(state) {
   // Low monthly chance; higher if corruption/unrest is high (court "stirs the pot")
   const po = getPosting(state);
   const risk = 0.02 + Math.min(0.03, (po?.corruption || 0) * 0.00025) + Math.min(0.02, Math.max(0, (state.village.unrest - 35)) * 0.00025);
-  if (Math.random() >= risk) return;
+  if (rng(state) >= risk) return;
 
   const pick = pickRandomHuyenSameRegion(state);
   if (!pick) return;
@@ -1241,7 +1243,7 @@ function tryGenerateTransferEdict(state) {
       { label: "Kháng lệnh (liều)", impact:[{label:"Nguy hiểm",color:"#ff6b6b"}], apply(s){
         ensurePostingOrderState(s);
         const p = s.player;
-        const ok = Math.random() < (0.18 + (p.ngoaiGiao||0)*0.002 + (p.muuMeo||0)*0.002);
+        const ok = rng(state) < (0.18 + (p.ngoaiGiao||0)*0.002 + (p.muuMeo||0)*0.002);
         if (ok) {
           p.uyTinCong = Math.max(0, p.uyTinCong - 20);
           logLine(s, "Ngươi khéo lời lảng tránh, tạm thoát lần này... nhưng triều đã để mắt.", true);
@@ -1266,7 +1268,7 @@ function ensureCaseList(po) {
 function addCase(po, c) {
   ensureCaseList(po);
   po._caseSeq = (po._caseSeq || 1) + 1;
-  const id = `case_${po.huyenId}_${po._caseSeq}_${Math.floor(Math.random() * 9999)}`;
+  const id = `case_${po.huyenId}_${po._caseSeq}_${Math.floor(rng() * 9999)}`;
   po.cases.push({ id, ...c });
 }
 
@@ -1314,9 +1316,9 @@ function generateMonthlyCases(state, po) {
   if (po.lastCaseYm === ymKeyShort(state)) return;
   po.lastCaseYm = ymKeyShort(state);
   // Generate 1-2 cases per month, more if unrest high
-  const n = (state.village.unrest >= 70) ? 2 : (Math.random() < 0.55 ? 1 : 0);
+  const n = (state.village.unrest >= 70) ? 2 : (rng(state) < 0.55 ? 1 : 0);
   // Clan rivalry is a core local politics driver for officials
-  if (Math.random() < 0.70) maybeAddClanRivalryCase(state, po);
+  if (rng(state) < 0.70) maybeAddClanRivalryCase(state, po);
   for (let i = 0; i < n; i++) {
     const r = randInt(1, 5);
     if (r === 1) {
@@ -1340,7 +1342,7 @@ function generateMonthlyCases(state, po) {
         desc: "Hai họ xô xát, có người gãy tay. Nếu xử sai sẽ sinh thù.",
         due: `trong tháng ${state.monthIndex}`,
         choices: [
-          { label: "Dàn hòa (thử Ngoại Giao)", apply(s){ const ok=Math.random()<(0.35+(s.player.ngoaiGiao||0)*0.006); if(ok){ s.village.unrest=Math.max(0,s.village.unrest-7); s.player.uyTinCong+=8; logLine(s,"Dàn hòa thành công, dân phục."); } else { s.village.unrest=Math.min(100,s.village.unrest+5); logLine(s,"Dàn hòa thất bại, họ hàng kéo đến gây sức ép.", true);} } },
+          { label: "Dàn hòa (thử Ngoại Giao)", apply(s){ const ok=rng(state)<(0.35+(s.player.ngoaiGiao||0)*0.006); if(ok){ s.village.unrest=Math.max(0,s.village.unrest-7); s.player.uyTinCong+=8; logLine(s,"Dàn hòa thành công, dân phục."); } else { s.village.unrest=Math.min(100,s.village.unrest+5); logLine(s,"Dàn hòa thất bại, họ hàng kéo đến gây sức ép.", true);} } },
           { label: "Phạt mỗi bên (thu tiền)", apply(s){ const po=getPosting(s); if(!po) return; po.treasury += 60; s.village.unrest=Math.max(0,s.village.unrest-3); logLine(s,"Phạt tiền cả hai. Im chuyện tạm thời."); } },
           { label: "Thiên vị (tham ô)", apply(s){ const po=getPosting(s); if(!po) return; po.corruption=Math.min(100,(po.corruption||0)+8); s.player.tien += 70; s.village.unrest=Math.min(100,s.village.unrest+10); logLine(s,"Thiên vị nhận lót tay. Dân oán tăng.", true);} },
         ]
@@ -1353,7 +1355,7 @@ function generateMonthlyCases(state, po) {
         desc: "Có người chết bên bờ ruộng. Dân hoang mang. Nếu không tìm ra hung thủ, bất ổn tăng.",
         due: `trong tháng ${state.monthIndex}`,
         choices: [
-          { label: "Tra án (thử Mưu Mẹo)", apply(s){ const ok=Math.random()<(0.25+(s.player.muuMeo||0)*0.006); if(ok){ s.village.unrest=Math.max(0,s.village.unrest-10); s.player.uyTinCong+=12; logLine(s,"Tìm ra hung thủ, xử nghiêm. Dân yên."); } else { s.village.unrest=Math.min(100,s.village.unrest+12); logLine(s,"Tra án bế tắc. Dân đồn ma quỷ, loạn tăng!", true);} } },
+          { label: "Tra án (thử Mưu Mẹo)", apply(s){ const ok=rng(state)<(0.25+(s.player.muuMeo||0)*0.006); if(ok){ s.village.unrest=Math.max(0,s.village.unrest-10); s.player.uyTinCong+=12; logLine(s,"Tìm ra hung thủ, xử nghiêm. Dân yên."); } else { s.village.unrest=Math.min(100,s.village.unrest+12); logLine(s,"Tra án bế tắc. Dân đồn ma quỷ, loạn tăng!", true);} } },
           { label: "Giới nghiêm (tuần nhiều)", apply(s){ const po=getPosting(s); if(!po) return; po.garrison += 20; s.village.unrest=Math.max(0,s.village.unrest-6); s.player.uyTinCong-=3; logLine(s,"Giới nghiêm ban đêm. Dân khó chịu nhưng đỡ sợ."); } },
           { label: "Bịt miệng (tham ô)", apply(s){ const po=getPosting(s); if(!po) return; po.corruption=Math.min(100,(po.corruption||0)+12); s.player.tien += 120; s.village.unrest=Math.min(100,s.village.unrest+15); logLine(s,"Bịt miệng, làm ngơ. Oán khí dâng.", true);} },
         ]
@@ -1617,7 +1619,7 @@ function resolveBacCu(state) {
     let matches = [];
     for (let i = 0; i < current.length; i += 2) {
       const A = current[i], B = current[i + 1];
-      const aWin = (A.isPlayer ? (Math.random() < winProb(A, B)) : (!B.isPlayer ? (A.skill + randInt(0, 20) >= B.skill + randInt(0, 20)) : (Math.random() >= winProb(B, A))));
+      const aWin = (A.isPlayer ? (rng(state) < winProb(A, B)) : (!B.isPlayer ? (A.skill + randInt(0, 20) >= B.skill + randInt(0, 20)) : (rng(state) >= winProb(B, A))));
       const winner = aWin ? A : B;
       matches.push({ a: A, b: B, winner });
       logs.push(`Vòng ${r}: ${A.name} vs ${B.name} → thắng: ${winner.name}`);
@@ -1642,7 +1644,7 @@ function resolveBacCu(state) {
     return { ok: true, msg: "WIN" };
   } else {
     p.theLuc = Math.max(0, p.theLuc - 40);
-    if (Math.random() < 0.25) { p.dangOm = true; p.theLuc = 0; }
+    if (rng(state) < 0.25) { p.dangOm = true; p.theLuc = 0; }
     logLine(state, "🥊 Thất bại ở lôi đài. Bị đánh vỡ mặt mũi!", true);
     return { ok: true, msg: "LOSE" };
   }
@@ -1939,7 +1941,7 @@ function syncHuyenBannerFromXaBalance(state, huyenId) {
 /** Tuần phu / hương dân đoàn tái chiếm dần xã — không cần mũi chủ lực vạn người. */
 function tickImperialGrassrootsRecovery(state) {
   if (isWarTruceActive(state)) return;
-  if (Math.random() > 0.02) return;
+  if (rng(state) > 0.02) return;
   const regions = getAllRegions();
   const ids = [];
   for (const r of regions) {
@@ -2005,7 +2007,7 @@ function applyPartialLowerControl(state, huyenId, faction, captureMode = "contes
   if (captureMode === "major") { minShare = 0.40; maxShare = 0.62; }
   if (captureMode === "soft") { minShare = 0.16; maxShare = 0.40; }
   if (captureMode === "insurgent") { minShare = 0.05; maxShare = 0.22; }
-  const share = minShare + Math.random() * (maxShare - minShare);
+  const share = minShare + rng(state) * (maxShare - minShare);
   const want = Math.max(1, Math.min(allXa.length, Math.floor(allXa.length * share)));
   const picked = new Set();
   while (picked.size < want) picked.add(allXa[randInt(0, allXa.length - 1)]);
@@ -2084,7 +2086,7 @@ function tickLowerGeographyScramble(state) {
   if (isWarTruceActive(state)) return;
   ensureAdvancedWarState(state);
   if (!state.factions?.trieuDinh || !state.factions?.nghiaQuan) return;
-  if (Math.random() > 0.38) return;
+  if (rng(state) > 0.38) return;
   const entries = getAllWarHuyenEntries(state).filter(e => e.historicalBattle || getHuyenControl(state, e.huyenId) === Faction.NGHIA_QUAN);
   if (!entries.length) return;
   const e = entries[randInt(0, entries.length - 1)];
@@ -2098,12 +2100,12 @@ function tickLowerGeographyScramble(state) {
   const xa = xas[randInt(0, xas.length - 1)];
   const cur = xa.control;
   const hCtrl = getHuyenControl(state, e.huyenId);
-  const roll = Math.random();
+  const roll = rng(state);
   let next = cur;
   if (roll < 0.34) next = hCtrl;
   else if (roll < 0.68) next = hCtrl === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
   else next = cur === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
-  if (next === cur && Math.random() < 0.35) return;
+  if (next === cur && rng(state) < 0.35) return;
   xa.control = next;
   const xaArr = Object.values(tPick.xa || {});
   const own = xaArr.filter(x => x.control === Faction.NGHIA_QUAN).length;
@@ -2462,7 +2464,7 @@ function isControlledByRebelsHere(state) {
 // ================= PRISONERS ================= //
 function nextPrisonerId(state) {
   state._prisonerSeq = (state._prisonerSeq || 1) + 1;
-  return `pr_${state._prisonerSeq}_${Math.floor(Math.random() * 9999)}`;
+  return `pr_${state._prisonerSeq}_${Math.floor(rng(state) * 9999)}`;
 }
 
 export const MaaDb = {
@@ -2545,7 +2547,7 @@ function simulateConquest(state, npc, flag) {
   }
 
   const actionStr = flag === "nghia_quan" ? "đánh chiếm" : "thu phục";
-  if (Math.random() < 0.3) {
+  if (rng(state) < 0.3) {
     logLine(state, `Cấp báo: Đạo quân của ${npc.name} vừa ${actionStr} ${xaObj.name} (${tongObj.name}, ${phu.huyen[randHuyenId]?.name || ""}).`);
   }
   if (flag === "nghia_quan") {
@@ -2576,11 +2578,11 @@ function updateEconomy(state) {
     state.village.khoThoc = 0;
     state.village.unrest += 10;
     state.village.pops.nong = Math.max(10, state.village.pops.nong - randInt(2, 5));
-    if (Math.random() < 0.3) logLine(state, "Dân đói, lúa cạn. Có kẻ bỏ xứ mà đi.");
+    if (rng(state) < 0.3) logLine(state, "Dân đói, lúa cạn. Có kẻ bỏ xứ mà đi.");
   }
   
   // Biến động giá hàng ngày mô phỏng cung cầu (tăng giảm 10%)
-  state.marketPriceFluctuation = 0.9 + Math.random() * 0.2;
+  state.marketPriceFluctuation = 0.9 + rng(state) * 0.2;
 }
 
 function updateNPCs(state) {
@@ -2598,11 +2600,11 @@ function updateNPCs(state) {
       npc.uyTin += 15;
       let clan = state.clanById[npc.clanId];
       if (clan) clan.quyenLuc += 10;
-      if (Math.random() < 0.05) logLine(state, `${npc.name} mới đút lót lên quan phủ.`);
+      if (rng(state) < 0.05) logLine(state, `${npc.name} mới đút lót lên quan phủ.`);
     }
 
     if (npc.opinion < -20 && Object.values(state.officials).includes(npc.id)) {
-      if (Math.random() < 0.05 && state.player.tien > 0) {
+      if (rng(state) < 0.05 && state.player.tien > 0) {
         let phat = randInt(5, 15);
         state.player.tien = Math.max(0, state.player.tien - phat);
         logLine(state, `${npc.name} kiếm cớ phạt vạ bạn ${phat} quan vì tư thù!`);
@@ -2614,7 +2616,7 @@ function updateNPCs(state) {
     const canSabotage =
       (p.faction !== Faction.NGHIA_QUAN) ||
       (p.faction === Faction.NGHIA_QUAN && npc.faction === Faction.NGHIA_QUAN);
-    if (canSabotage && npc.opinion <= -50 && Math.random() < 0.05) {
+    if (canSabotage && npc.opinion <= -50 && rng(state) < 0.05) {
       const roll = randInt(1, 4);
       if (roll === 1) {
         // Đầu độc nhẹ
@@ -2641,7 +2643,7 @@ function updateNPCs(state) {
     }
 
     // World activity: NPCs live without you (low-frequency headlines)
-    if (Math.random() < 0.02) {
+    if (rng(state) < 0.02) {
       const r = randInt(1, 5);
       if (r === 1) logLine(state, `Tin đồn: ${npc.name} vừa gả cưới kết thân với một nhà giàu có.`);
       else if (r === 2) logLine(state, `Chợ phiên: ${npc.name} gom hàng tích trữ, giá cả xôn xao.`);
@@ -2669,7 +2671,7 @@ function updateNPCs(state) {
       if (npc.faction === Faction.TRIEU_DINH) npc.tien += 20; // Triều đình thu thuế nhanh giàu
       
       // Upgrade MAA for NPCs
-      if (Math.random() < 0.1 && npc.armies.length < 5 && npc.tien > 1000) {
+      if (rng(state) < 0.1 && npc.armies.length < 5 && npc.tien > 1000) {
          let newType = npc.faction === Faction.TRIEU_DINH 
               ? ["nhat_binh", "uu_binh", "trong_ky", "phao_binh"][randInt(0,3)] 
               : ["dan_binh", "thuong_binh", "cung_no", "khinh_ky"][randInt(0,3)];
@@ -2680,7 +2682,7 @@ function updateNPCs(state) {
          }
       }
       // Upgrade existing NPC MAA
-      if (Math.random() < 0.2 && npc.tien >= 1500 && npc.armies.length > 0) {
+      if (rng(state) < 0.2 && npc.tien >= 1500 && npc.armies.length > 0) {
          let targetMaa = npc.armies[randInt(0, npc.armies.length - 1)];
          if ((targetMaa.level || 1) < 10) {
              let bonusCount = targetMaa.type === "phao_binh" ? 20 : 300;
@@ -2692,13 +2694,13 @@ function updateNPCs(state) {
       }
 
       if (npc.faction === Faction.NGHIA_QUAN) {
-        if (Math.random() < 0.2) { // 20% mỗi tháng hành động
+        if (rng(state) < 0.2) { // 20% mỗi tháng hành động
            let recruit = randInt(20, 50);
            npc.quanSo += recruit; // Levy / dân binh tụ tập
            npc.armies[0].count += recruit;
            let p = state.player;
            // 50% di chuyển sang vùng của người chơi nếu đang ở gần
-           if (Math.random() < 0.5 && npc.currentRegion !== p.currentRegion) {
+           if (rng(state) < 0.5 && npc.currentRegion !== p.currentRegion) {
               npc.currentRegion = p.currentRegion;
               logLine(state, `Cấp báo: Khởi nghĩa của ${npc.name} (${npc.quanSo} quân) đang tràn qua các vùng!`);
               if (!state._battleChaos) state._battleChaos = {};
@@ -2707,25 +2709,25 @@ function updateNPCs(state) {
            }
         }
         // AI Conquering Nodes (Vết dầu loang)
-        if (Math.random() < 0.3 && npc.quanSo >= 50) {
+        if (rng(state) < 0.3 && npc.quanSo >= 50) {
            simulateConquest(state, npc, "nghia_quan");
         }
       } else if (npc.faction === Faction.TRIEU_DINH && npc.quanSo >= 50) {
-        if (Math.random() < 0.2) {
+        if (rng(state) < 0.2) {
            if (state.village.unrest > 40) {
              state.village.unrest = Math.max(0, state.village.unrest - 15);
-             if (Math.random() < 0.5) logLine(state, `Chấn chỉnh: Quan quân của ${npc.name} vừa càn quét dẹp loạn khu vực!`);
+             if (rng(state) < 0.5) logLine(state, `Chấn chỉnh: Quan quân của ${npc.name} vừa càn quét dẹp loạn khu vực!`);
            }
         }
         // AI Reconquering Nodes (Vết dầu loang ngược)
-        if (Math.random() < 0.3) {
+        if (rng(state) < 0.3) {
            simulateConquest(state, npc, "trieu_dinh");
         }
       }
     }
 
     // NPC cảm tình cao → tự sinh event nhỏ (được quà/thông tin)
-    if (npc.opinion >= 80 && Math.random() < 0.02) {
+    if (npc.opinion >= 80 && rng(state) < 0.02) {
       let gift = randInt(10, 30);
       state.player.tien += gift;
       logLine(state, `${npc.name} (cảm tình: ${npc.opinion}) gửi tặng ${gift} quan bày tỏ lòng biết ơn.`);
@@ -2851,7 +2853,7 @@ export function gameTick(state) {
       if (state.thoiTiet === Weather.LU)  { dChildren += Math.floor(v.demo.children * 0.0007); dElderly += Math.floor(v.demo.elderly * 0.0006); }
 
       // Random disasters: locust/famine/plague/flood (affects pops, thóc, unrest)
-      const dRoll = Math.random();
+      const dRoll = rng(state);
       if (dRoll < 0.035 * pressure) {
         // locusts / crop failure
         const loss = 80 + randInt(0, 180);
@@ -2860,7 +2862,7 @@ export function gameTick(state) {
         logLine(state, `🦗 Châu chấu phá hoại. Kho thóc hao hụt (${loss}). Dân kêu trời.`, true);
       } else if (dRoll < 0.060 * pressure) {
         // plague
-        const extra = Math.floor((v.demo.children + v.demo.men + v.demo.women + v.demo.elderly) * (0.0012 + Math.random() * 0.0018));
+        const extra = Math.floor((v.demo.children + v.demo.men + v.demo.women + v.demo.elderly) * (0.0012 + rng(state) * 0.0018));
         dChildren += Math.floor(extra * 0.35);
         dMen      += Math.floor(extra * 0.25);
         dWomen    += Math.floor(extra * 0.20);
@@ -2876,9 +2878,9 @@ export function gameTick(state) {
       }
 
       // Sưu cao, lao dịch (nặng thời Trịnh Giang)
-      const corvee = giangEra ? (2 + randInt(0, 4)) : (1 + (Math.random() < 0.5 ? 1 : 0));
+      const corvee = giangEra ? (2 + randInt(0, 4)) : (1 + (rng(state) < 0.5 ? 1 : 0));
       v.unrest = Math.min(100, v.unrest + Math.floor(corvee * 2.2));
-      if (giangEra && Math.random() < 0.45) {
+      if (giangEra && rng(state) < 0.45) {
         const skim = 10 + randInt(0, 25);
         v.quyLang = Math.max(0, v.quyLang - skim);
         logLine(state, `📜 Lao dịch & sưu dịch tăng. Nha lại vơ vét thêm (${skim}Q).`, false);
@@ -2964,7 +2966,7 @@ export function gameTick(state) {
       if (po && (po.corruption || 0) > 35) hints.push("Sổ sách mờ ám — thanh tra có thể ghé bất kỳ lúc nào.");
       if ((state.village.unrest || 0) > 65) hints.push("Dân oán cao — loạn có thể bùng lên, nghĩa quân hút người nhanh.");
       if (state.thoiTiet === Weather.HAN || state.thoiTiet === Weather.LU) hints.push("Thời tiết xấu — kho thóc và phủ dụ sẽ quan trọng.");
-      if (hints.length > 0 && Math.random() < 0.75) {
+      if (hints.length > 0 && rng(state) < 0.75) {
         logLine(state, `🕯️ Tin mật: ${hints[randInt(0, hints.length - 1)]}`, false);
       }
     }
@@ -2982,7 +2984,7 @@ export function gameTick(state) {
     tryGenerateTransferEdict(state);
 
     // Kiểm tra cái chết tự nhiên (mỗi tháng)
-    if (state.player.age > 50 && Math.random() < ((state.player.age - 50) * 0.005)) {
+    if (state.player.age > 50 && rng(state) < ((state.player.age - 50) * 0.005)) {
       if (state.player.giaDinh.con > 0) {
         logLine(state, `ĐỜI NGƯỜI CHẤM DỨT Ở TUỔI ${state.player.age}! Con trai nối dõi tiếp quản.`, true);
         state.player.age = 18;
@@ -3087,7 +3089,7 @@ export function gameTick(state) {
     if (!state.pendingEvent && po && postingHere(state) && state.player.faction === Faction.TRIEU_DINH) {
       const yearGate = (po.lastAuditYear || 0) !== state.ban;
       const risk = 0.006 + (po.corruption || 0) * 0.00020 + Math.max(0, (state.village.unrest - 35)) * 0.00014;
-      if (yearGate && Math.random() < risk) {
+      if (yearGate && rng(state) < risk) {
         po.lastAuditYear = state.ban;
         const p = state.player;
         const fine = 200 + Math.floor((po.corruption || 0) * 6) + Math.floor(state.village.unrest * 2);
@@ -3139,7 +3141,7 @@ export function gameTick(state) {
               const p = s.player;
               const po = getPosting(s);
               if (!po) return;
-              const ok = Math.random() < (0.12 + (p.muuMeo||0)*0.002);
+              const ok = rng(state) < (0.12 + (p.muuMeo||0)*0.002);
               if (ok) {
                 logLine(s, "Dùng mưu che mắt thanh tra. Thoát trong gang tấc!", true);
                 po.corruption = Math.min(100, (po.corruption||0) + 8);
@@ -3179,7 +3181,7 @@ export function gameTick(state) {
   if (!state.pendingEvent && poNow && postingHere(state)) {
     const ctrl = getHuyenControl(state, poNow.huyenId);
     const danger = (ctrl === Faction.NGHIA_QUAN) || (state.village.unrest >= 75);
-    if (danger && Math.random() < 0.12) {
+    if (danger && rng(state) < 0.12) {
       state.pendingEvent = {
         id: "local_uprising",
         title: "⚔️ Loạn bùng tại địa phương",
@@ -3318,13 +3320,13 @@ function strategicAiTrainFieldForces(state, faction) {
   store.treasury = Math.max(0, (store.treasury || 0) - budget);
   store.granary = Math.max(0, (store.granary || 0) - grain);
   if (sideIsAtk) {
-    snap.atkQual = Math.min(1.55, (snap.atkQual || 1.0) + 0.012 + Math.random() * 0.015);
+    snap.atkQual = Math.min(1.55, (snap.atkQual || 1.0) + 0.012 + rng(state) * 0.015);
     snap.atkCmd = Math.min(98, (snap.atkCmd || 50) + randInt(0, 1));
-    snap.atkKnights = Math.max(1, Math.floor((snap.atkKnights || 1) + 1 + Math.random() * 1.2));
+    snap.atkKnights = Math.max(1, Math.floor((snap.atkKnights || 1) + 1 + rng(state) * 1.2));
   } else {
-    snap.defQual = Math.min(1.55, (snap.defQual || 1.0) + 0.012 + Math.random() * 0.015);
+    snap.defQual = Math.min(1.55, (snap.defQual || 1.0) + 0.012 + rng(state) * 0.015);
     snap.defCmd = Math.min(98, (snap.defCmd || 50) + randInt(0, 1));
-    snap.defKnights = Math.max(1, Math.floor((snap.defKnights || 1) + 1 + Math.random() * 1.2));
+    snap.defKnights = Math.max(1, Math.floor((snap.defKnights || 1) + 1 + rng(state) * 1.2));
   }
 }
 
@@ -3356,9 +3358,9 @@ function strategicAiCounterRaidPlayer(state, faction, entries) {
 
   const enemy = faction === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
   const enemyDef = estimateHuyenDefense(state, picked, enemy);
-  const myAtk = mobileTroops * 3.2 + 240 + Math.random() * 260;
+  const myAtk = mobileTroops * 3.2 + 240 + rng(state) * 260;
   const chance = Math.max(0.16, Math.min(0.78, 0.32 + (myAtk - enemyDef) / 1800));
-  if (Math.random() < chance) {
+  if (rng(state) < chance) {
     setHuyenControl(state, picked.huyenId, faction);
     warStatInc(state, "flips", 1);
     if (!state._huyenGarrisons) state._huyenGarrisons = {};
@@ -3402,7 +3404,7 @@ function strategicAiRaidWeakEnemy(state, faction, entries) {
     .sort((a, b) => b.score - a.score)[0];
   if (!target) return false;
   const chance = Math.max(0.10, Math.min(0.74, 0.30 + target.score / 1700));
-  if (Math.random() >= chance) return false;
+  if (rng(state) >= chance) return false;
   setHuyenControl(state, target.e.huyenId, faction, faction === Faction.TRIEU_DINH ? "soft" : "contest");
   warStatInc(state, "flips", 1);
   if (!state._huyenGarrisons) state._huyenGarrisons = {};
@@ -3461,7 +3463,7 @@ function updateSeasonalCampaigns(state) {
   // Pick up to 2 operations per month (scaled lightly by global unrest)
   const phase = currentWarPhase(state);
   const baseOps = phase === "clash" ? 3 : phase === "march" ? 3 : phase === "mobilize" ? 2 : 2;
-  const ops = baseOps + ((state.village.unrest || 0) >= 60 && Math.random() < 0.35 ? 1 : 0);
+  const ops = baseOps + ((state.village.unrest || 0) >= 60 && rng(state) < 0.35 ? 1 : 0);
   let flips = 0;
   for (let i = 0; i < ops; i++) {
     if (candidates.length === 0) break;
@@ -3490,7 +3492,7 @@ function updateSeasonalCampaigns(state) {
     // Require some minimum strength to attempt flipping control.
     const commitGate = (season === "spring" || season === "summer") ? 0.85 : 0.95;
     if (ratio < commitGate) {
-      if (Math.random() < 0.22) {
+      if (rng(state) < 0.22) {
         const phuName = getPhu(c.r.id, c.phuId)?.name || c.phuId;
         const hName = c.h.name || c.h.id;
         recordWarRegionalIncident(state, c.r.id, c.r.name, {
@@ -3512,7 +3514,7 @@ function updateSeasonalCampaigns(state) {
     const momentum = (side === Faction.NGHIA_QUAN) ? (c.bs.thangVong / 100) : (1 - c.bs.thangVong / 100);
     const ratioBoost = Math.max(0, Math.min(0.30, (ratio - 1) * 0.22));
     const chance = Math.max(0.10, Math.min(0.60, (0.18 + momentum * 0.35 + ratioBoost) * fatigue));
-    if (Math.random() < chance) {
+    if (rng(state) < chance) {
       setHuyenControl(state, c.h.id, side, "soft");
       warStatInc(state, "flips", 1);
       markWarFrontPulse(state);
@@ -3539,7 +3541,7 @@ function updateSeasonalCampaigns(state) {
         note: `Giành thế kiểm soát (${season}) — có tiếp tế & mộ binh vá chỗ hổng.`,
       });
     } else {
-      if (Math.random() < 0.55) {
+      if (rng(state) < 0.55) {
         const phuName = getPhu(c.r.id, c.phuId)?.name || c.phuId;
         const hName = c.h.name || c.h.id;
         recordWarRegionalIncident(state, c.r.id, c.r.name, {
@@ -3558,7 +3560,7 @@ function updateSeasonalCampaigns(state) {
   }
 
   if (flips > 0) {
-    if (Math.random() < 0.12) pushCelebration(state, "CHIẾN BÁO", `${sideName} mở chiến dịch mùa ${season}. Bản đồ chuyển động.`, "battle");
+    if (rng(state) < 0.12) pushCelebration(state, "CHIẾN BÁO", `${sideName} mở chiến dịch mùa ${season}. Bản đồ chuyển động.`, "battle");
   }
 }
 
@@ -3589,7 +3591,7 @@ function processMonthlyTaxes(state) {
 
     if (tax > 0) {
       let lyTruong = state.npcById[state.officials.lyTruong];
-      if (lyTruong && lyTruong.opinion > 60 && Math.random() < 0.4) {
+      if (lyTruong && lyTruong.opinion > 60 && rng(state) < 0.4) {
         logLine(state, `Lý trưởng ${lyTruong.name} nể mặt, lén gạch tên bạn khỏi sổ thuế dư. Miễn thuế!`);
       } else {
         if (state.player.tien >= tax) {
@@ -3664,13 +3666,13 @@ function processMonthlyFactionInfighting(state) {
     if (!store) continue;
     const lowSupply = (store.treasury || 0) < 35000 || (store.granary || 0) < 32000;
     const pressure = (state.village?.unrest || 0) > 72;
-    if (!(lowSupply && pressure) || Math.random() >= 0.22) continue;
+    if (!(lowSupply && pressure) || rng(state) >= 0.22) continue;
     const mine = entries.filter(e => getHuyenControl(state, e.huyenId) === side);
     if (mine.length === 0) continue;
     const pick = mine[randInt(0, mine.length - 1)];
     const g = state._huyenGarrisons?.[pick.huyenId];
     if (g && g.faction === side) {
-      const loss = Math.max(20, Math.floor((g.quan || 0) * (0.10 + Math.random() * 0.16)));
+      const loss = Math.max(20, Math.floor((g.quan || 0) * (0.10 + rng(state) * 0.16)));
       g.quan = Math.max(0, (g.quan || 0) - loss);
       g.morale = Math.max(25, (g.morale || 70) - 18);
       if (g.quan <= 0) delete state._huyenGarrisons[pick.huyenId];
@@ -3922,7 +3924,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
 
   if (win) {
     if (isRebel) {
-      const loot = 200 + Math.floor(Math.random() * 300);
+      const loot = 200 + Math.floor(rng(state) * 300);
       p.tien += loot;
       p.uyTinCong += 50;
       setWanted(state, p.wantedLevel + 1, "Cướp bóc quân lương");
@@ -3964,7 +3966,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
 
   // If we routed the enemy, sometimes we capture their commander (CK3-ish)
   if (win && result.capture?.victim === "commander" && result.capture.kind === "captured") {
-    const prisoner = addPrisoner(state, { name: result.capture.victimName, side: isRebel ? "trieu_dinh" : "nghia_quan", value: 250 + Math.floor(Math.random() * 400) });
+    const prisoner = addPrisoner(state, { name: result.capture.victimName, side: isRebel ? "trieu_dinh" : "nghia_quan", value: 250 + Math.floor(rng(state) * 400) });
     pushCelebration(state, "BẮT TƯỚNG", `Bắt sống <strong>${prisoner.name}</strong>. Có thể giam/chuộc/chém/thả.`, "battle");
     state.pendingEvent = {
       id: "captured_commander",
@@ -3997,7 +3999,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
             else { logLine(s, "Không đủ tiền chuộc! Bị giam thêm, sức khỏe suy kiệt.", true); s.player.theLuc = Math.max(0, s.player.theLuc - 40); if (typeof s.player.hp==="number") s.player.hp = Math.max(1, s.player.hp - 8); }
           }},
           { label: "Trốn ngục (thử Mưu Mẹo)", impact:[{label:"Nguy hiểm",color:"#ffd43b"}], apply(s){
-            const ok = Math.random() < (0.25 + (s.player.muuMeo||0)*0.006);
+            const ok = rng(state) < (0.25 + (s.player.muuMeo||0)*0.006);
             if (ok) { logLine(s, "Thoát ngục trong đêm! Nhưng tàn quân tán loạn.", true); s.player.theLuc = Math.max(0, s.player.theLuc - 25); }
             else { logLine(s, "Trốn thất bại, bị đánh đập.", true); s.player.theLuc = 0; s.player.dangOm = true; if (typeof s.player.hp==="number") s.player.hp = Math.max(1, s.player.hp - 12); }
           }},
@@ -4080,7 +4082,7 @@ export function actionAttackVillage(state, targetLangId, focusHuyenId = null) {
     // Lực lượng phòng thủ xã (dựa trên dân số); vùng triều đình kiểm soát có thêm dân binh trang
     let defCount = Math.floor(targetXa.pop / 10);
     if (xaCtrl === Faction.TRIEU_DINH) {
-      defCount += 110 + Math.floor(Math.random() * 70);
+      defCount += 110 + Math.floor(rng(state) * 70);
     }
     const defender = {
         name: "Dân binh " + targetXa.name,
@@ -4157,7 +4159,7 @@ export function checkWantedArrest(state) {
   const evasionMult = 1 - (Math.min(100, p.voThuat || 0) / 200);
   arrestChance *= evasionMult;
 
-  if (Math.random() < arrestChance) {
+  if (rng(state) < arrestChance) {
     // Perk: amnesty once per year (Âm mưu)
     const amnesty = (perkFx(state, "amnestyPerYear", 0) || 0) > 0;
     if (amnesty && state._amnestyYear !== state.ban) {
@@ -4209,7 +4211,7 @@ export function checkWantedArrest(state) {
 }
 
 // Helper exports for war/legacy.js
-export { clamp, currentYmSerial, ensurePostingIfNeeded, estimateHuyenDefense, getFactionStore, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, randInt, strategicAiCounterRaidPlayer, strategicAiRaidWeakEnemy, strategicAiReinforceWeakControl, strategicAiTrainFieldForces, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
+export { clamp, currentYmSerial, ensurePostingIfNeeded, estimateHuyenDefense, getFactionStore, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, strategicAiCounterRaidPlayer, strategicAiRaidWeakEnemy, strategicAiReinforceWeakControl, strategicAiTrainFieldForces, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
 
 // Re-exports from war/legacy.js
 export {

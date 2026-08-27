@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "./core/rng.js";
 import { PlayerRank } from "./models.js";
 import { pushCelebration, randInt, ymKey } from "./engine.js";
 import { logLine } from "./log.js";

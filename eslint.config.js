@@ -28,7 +28,10 @@ export default [
         isNaN: "readonly",
         isFinite: "readonly",
         encodeURIComponent: "readonly",
-        decodeURIComponent: "readonly"
+        decodeURIComponent: "readonly",
+        prompt: "readonly",
+        confirm: "readonly",
+        requestAnimationFrame: "readonly"
       }
     },
     rules: {

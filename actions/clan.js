@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { addCase, clamp, daySerial, getPosting, randInt, scheduleDelayedEffect } from "../engine.js";
 import { ClanAttitude, Faction, PlayerRank } from "../models.js";
 import { logLine } from "../log.js";
@@ -111,19 +112,19 @@ export function tickLocalClansMonthly(state, po) {
 
     // Support: donate to local treasury / help with garrison.
     const friendly = isClanFriendly(clan) || op >= 55;
-    if (friendly && Math.random() < 0.55) {
-      const donation = Math.max(20, Math.floor((clan.quyenLuc || 20) * (0.8 + Math.random() * 1.2)));
+    if (friendly && rng(state) < 0.55) {
+      const donation = Math.max(20, Math.floor((clan.quyenLuc || 20) * (0.8 + rng(state) * 1.2)));
       po.treasury = (po.treasury || 0) + donation;
       // small unrest decrease if they fund relief
-      if (Math.random() < 0.35) state.village.unrest = Math.max(0, (state.village.unrest || 0) - 3);
+      if (rng(state) < 0.35) state.village.unrest = Math.max(0, (state.village.unrest || 0) - 3);
       logLine(state, `🤝 Dòng họ ${clan.name} ủng hộ quan phủ: +${donation}Q vào kho bạc địa phương.`, false);
       continue;
     }
 
     // Opposition: sabotage / whisper campaigns when hostile or hated (unless terrified).
     const hostile = isClanHostile(clan) || op <= -15;
-    if (hostile && fear < 80 && Math.random() < 0.40) {
-      const harm = Math.max(1, Math.floor((clan.quyenLuc || 20) * (0.25 + Math.random() * 0.35)));
+    if (hostile && fear < 80 && rng(state) < 0.40) {
+      const harm = Math.max(1, Math.floor((clan.quyenLuc || 20) * (0.25 + rng(state) * 0.35)));
       po.corruption = clamp((po.corruption || 0) + 4 + Math.floor(harm / 10), 0, 100);
       state.village.unrest = clamp((state.village.unrest || 0) + 4 + Math.floor(harm / 12), 0, 100);
       logLine(state, `😠 Dòng họ ${clan.name} ngầm chống đối: dân xì xào, việc quan khó thông suốt.`, true);
@@ -135,7 +136,7 @@ export function maybeAddClanRivalryCase(state, po) {
   if (ids.length < 2) return;
   // Rivalry probability: higher when unrest or corruption is high.
   const base = 0.10 + Math.max(0, (state.village.unrest - 30)) * 0.001 + Math.max(0, (po.corruption || 0) - 20) * 0.001;
-  if (Math.random() > Math.min(0.35, base)) return;
+  if (rng(state) > Math.min(0.35, base)) return;
   const a = ids[randInt(0, ids.length - 1)];
   let b = ids[randInt(0, ids.length - 1)];
   if (b === a) b = ids[(ids.indexOf(a) + 1) % ids.length];
@@ -151,7 +152,7 @@ export function maybeAddClanRivalryCase(state, po) {
     due: `trong tháng ${state.monthIndex}`,
     choices: [
       { label: "Hoà giải (thử Ngoại Giao)", apply(s){
-        const ok = Math.random() < (0.35 + (s.player.ngoaiGiao||0) * 0.006);
+        const ok = rng(state) < (0.35 + (s.player.ngoaiGiao||0) * 0.006);
         if (ok) {
           adjustClanMembersOpinion(s, a, +10);
           adjustClanMembersOpinion(s, b, +10);
@@ -205,7 +206,7 @@ export function tickClanPressureForCommoner(state) {
     // Hidden levy: protection is useful but not free.
     const levy = preset.levyMin + randInt(0, preset.levySpan);
     p.tien = Math.max(0, p.tien - levy);
-    if (Math.random() < 0.45) {
+    if (rng(state) < 0.45) {
       p.theLuc = clamp((p.theLuc || 0) + 3, 0, 100);
       logLine(state, `🛡️ ${patron.name} thu tô ngầm ${levy}Q nhưng cử người dẹp rối, bạn làm ăn yên ổn hơn.`, false);
     } else {
@@ -218,14 +219,14 @@ export function tickClanPressureForCommoner(state) {
       .map(cid => state.clans?.find(c => c.id === cid))
       .filter(Boolean)
       .find(c => isClanHostile(c) || clanAvgOpinionToPlayer(state, c.id) < -25);
-    if (hostileRival && Math.random() < preset.retaliationChance) {
+    if (hostileRival && rng(state) < preset.retaliationChance) {
       const loss = preset.retaliationLossMin + randInt(0, preset.retaliationLossSpan);
       p.tien = Math.max(0, p.tien - loss);
       p.uyTinCong = Math.max(0, (p.uyTinCong || 0) - 2);
       logLine(state, `🪓 Người của ${hostileRival.name} trả đũa vì bạn nương ${patron.name}: mất ${loss}Q và mất mặt ngoài chợ.`, true);
     }
     // Friendly patron occasionally calls in favors later.
-    if (Math.random() < 0.12) {
+    if (rng(state) < 0.12) {
       scheduleDelayedEffect(state, {
         type: "clan_favor_callin",
         clanId: patron.id,
@@ -241,7 +242,7 @@ export function tickClanPressureForCommoner(state) {
     .map(cid => state.clans?.find(c => c.id === cid))
     .filter(Boolean)
     .sort((a, b) => (b.quyenLuc || 0) - (a.quyenLuc || 0))[0];
-  if (bully && Math.random() < preset.extortChance) {
+  if (bully && rng(state) < preset.extortChance) {
     const extort = preset.extortMin + randInt(0, preset.extortSpan);
     p.tien = Math.max(0, p.tien - extort);
     p.theLuc = Math.max(0, (p.theLuc || 0) - preset.extortStamina);
@@ -295,7 +296,7 @@ export function actionClanMediate(state, clanAId, clanBId) {
   if (p.tien < 15) return { ok: false, msg: "Cần 15 quan trà nước/đãi đằng để mở lời dàn hòa." };
   p.theLuc -= 20;
   p.tien -= 15;
-  const success = Math.random() < Math.min(0.9, 0.35 + (p.ngoaiGiao || 0) * 0.01 + (p.muuMeo || 0) * 0.004);
+  const success = rng(state) < Math.min(0.9, 0.35 + (p.ngoaiGiao || 0) * 0.01 + (p.muuMeo || 0) * 0.004);
   if (success) {
     adjustClanMembersOpinion(state, a.id, +10, -6);
     adjustClanMembersOpinion(state, b.id, +10, -6);
@@ -373,12 +374,12 @@ export function actionClanMischief(state, clanId, type) {
 
   p.theLuc -= job.stamina;
   const successChance = Math.min(0.88, 0.42 + (p.muuMeo || 0) * 0.008 + (p.voThuat || 0) * 0.003);
-  const success = Math.random() < successChance;
+  const success = rng(state) < successChance;
 
   if (!state._clanQuestStats) state._clanQuestStats = { total: 0, trom_ga: 0, pha_vuon: 0, boi_ban: 0, mediate: 0 };
 
   if (success) {
-    const reward = Math.floor(job.baseReward * (0.85 + Math.random() * 0.5));
+    const reward = Math.floor(job.baseReward * (0.85 + rng(state) * 0.5));
     p.tien += reward;
     p.danhVong += 2;
     state.village.unrest = clamp((state.village.unrest || 0) + 2, 0, 100);
@@ -387,8 +388,8 @@ export function actionClanMischief(state, clanId, type) {
     changeClanFavor(state, patron.id, +6);
     changeClanFavor(state, target.id, -8);
     patron.attitude = ClanAttitude.KINH;
-    if (Math.random() < 0.35) target.attitude = ClanAttitude.THU;
-    if (Math.random() < 0.45) {
+    if (rng(state) < 0.35) target.attitude = ClanAttitude.THU;
+    if (rng(state) < 0.45) {
       scheduleDelayedEffect(state, {
         type: "clan_retaliation",
         clanId: target.id,
@@ -514,7 +515,7 @@ export function actionExecuteClanMission(state) {
   changeClanFavor(state, patron.id, +6);
   changeClanFavor(state, target.id, -8);
   patron.attitude = ClanAttitude.KINH;
-  if (Math.random() < 0.45) {
+  if (rng(state) < 0.45) {
     scheduleDelayedEffect(state, {
       type: "clan_retaliation",
       clanId: target.id,

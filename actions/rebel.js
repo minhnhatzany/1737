@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { getBattleState, getHuyen } from "../map_data.js";
 import { ensureRebel, getHuyenControl, isControlledByRebelsHere, nextPrisonerId } from "../engine.js";
 import { Faction, totalPops } from "../models.js";
@@ -10,7 +11,7 @@ export function actionRebelTrain(state) {
   if (p.thocCaNhan < 8) return { ok: false, msg: "Thiếu lương để luyện quân (cần 8 thóc)." };
   p.theLuc -= 25;
   p.thocCaNhan -= 8;
-  const gain = Math.max(5, Math.floor(p.quanSo * (0.01 + Math.random() * 0.02)));
+  const gain = Math.max(5, Math.floor(p.quanSo * (0.01 + rng(state) * 0.02)));
   p.quanSo += gain;
   p.voThuat = Math.min(100, p.voThuat + 0.5);
   logLine(state, `🥁 Luyện binh suốt ngày. Quân nhuệ tăng, tàn quân tụ về thêm ${gain} người.`);
@@ -23,17 +24,17 @@ export function actionRebelRaidSupply(state) {
   if (p.quanSo < 30) return { ok: false, msg: "Quân quá ít để tập kích (cần 30+)." };
   p.theLuc -= 35;
   const risk = 0.22 + Math.max(0, (p.wantedLevel || 0) * 0.02);
-  const success = Math.random() > risk;
+  const success = rng(state) > risk;
   if (success) {
-    const thoc = 30 + Math.floor(Math.random() * 60) + Math.floor(p.quanSo * 0.01);
-    const tien = 20 + Math.floor(Math.random() * 80);
+    const thoc = 30 + Math.floor(rng(state) * 60) + Math.floor(p.quanSo * 0.01);
+    const tien = 20 + Math.floor(rng(state) * 80);
     p.thocCaNhan += thoc;
     p.tien += tien;
     p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 1);
     logLine(state, `🥷 Tập kích kho lương địch. Cướp được ${thoc} thóc và ${tien} quan!`, true);
     return { ok: true, feedback: [{ text: `+${thoc} Thóc`, tone: "good" }, { text: `+${tien} Quan`, tone: "good" }, { text: "+Truy nã", tone: "bad" }], sfx: "coin" };
   } else {
-    const loss = Math.ceil(p.quanSo * (0.06 + Math.random() * 0.12));
+    const loss = Math.ceil(p.quanSo * (0.06 + rng(state) * 0.12));
     p.quanSo = Math.max(0, p.quanSo - loss);
     p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 2);
     if (typeof p.hp === "number") p.hp = Math.max(1, p.hp - 6);
@@ -49,7 +50,7 @@ export function actionRebelAidPeople(state) {
   if (p.thocCaNhan < 15) return { ok: false, msg: "Cần 15 thóc để cứu tế." };
   p.theLuc -= 20;
   p.thocCaNhan -= 15;
-  const uy = 12 + Math.floor(Math.random() * 10);
+  const uy = 12 + Math.floor(rng(state) * 10);
   p.uyTinCong += uy;
   state.village.unrest = Math.max(0, state.village.unrest - 8);
   logLine(state, `🤝 Phát chẩn cứu tế. Dân vùng chiếm đóng cảm kích, bất ổn giảm mạnh.`, true);
@@ -64,9 +65,9 @@ export function actionRebelBurnYamen(state) {
   const ctrl = getHuyenControl(state, p.currentHuyen);
   if (ctrl !== Faction.TRIEU_DINH) return { ok: false, msg: "Ở đất đã kiểm soát rồi, đốt phủ nha làm gì?" };
   p.theLuc -= 45;
-  const success = Math.random() < (0.35 + (p.muuMeo || 0) * 0.004);
+  const success = rng(state) < (0.35 + (p.muuMeo || 0) * 0.004);
   if (success) {
-    const dmg = 6 + Math.floor(Math.random() * 10);
+    const dmg = 6 + Math.floor(rng(state) * 10);
     state.village.unrest = Math.min(100, state.village.unrest + 10);
     p.danhVong += 20;
     p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 2);
@@ -76,7 +77,7 @@ export function actionRebelBurnYamen(state) {
     logLine(state, `🔥 Đốt phủ nha, phá sổ sách thuế. Quan quân rối loạn, thế trận nghiêng về nghĩa quân!`, true);
     return { ok: true, feedback: [{ text: "+Danh vọng", tone: "good" }, { text: "+Truy nã", tone: "bad" }], sfx: "battle" };
   } else {
-    const loss = Math.ceil(p.quanSo * (0.10 + Math.random() * 0.12));
+    const loss = Math.ceil(p.quanSo * (0.10 + rng(state) * 0.12));
     p.quanSo = Math.max(0, p.quanSo - loss);
     p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 3);
     logLine(state, `🚨 Đốt phủ nha hỏng. Bị kỵ binh đuổi giết, mất ${loss} quân!`, true);
@@ -145,7 +146,7 @@ export function actionPrisonerRansom(state, prisonerId) {
   if (idx < 0) return { ok: false, msg: "Không tìm thấy tù binh." };
   const pr = state.prisoners[idx];
   const chancePay = 0.55;
-  if (Math.random() < chancePay) {
+  if (rng(state) < chancePay) {
     state.player.tien += pr.value;
     state.prisoners.splice(idx, 1);
     logLine(state, `💰 Nhận tiền chuộc ${pr.value} quan cho ${pr.name}.`);

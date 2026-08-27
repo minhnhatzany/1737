@@ -1,8 +1,7 @@
+import { rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { PlayerRank, Faction, RegionId, NpcTrait } from "./models.js";
 import { logLine } from "./log.js";
 
-function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
-function rng() { return Math.random(); }
 
 // ============================================================
 // POOL SỰ KIỆN — 50+ sự kiện, đa dạng con đường nhân vật

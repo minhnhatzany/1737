@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { Faction, RegionId } from "../models.js";
 import { logLine } from "../log.js";
 import { getAllRegions, getRegion, getBattleState } from "../map_data.js";
@@ -156,7 +157,7 @@ export function planMonthlyWarConvoys(state, entries) {
     const from = mine[randInt(0, mine.length - 1)];
     const to = enemy[randInt(0, enemy.length - 1)];
     const made = createWarConvoy(state, side, from, to);
-    if (made && Math.random() < 0.35) {
+    if (made && rng(state) < 0.35) {
       const toName = to.name || to.huyenId;
       const sideName = side === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình";
       logLine(state, `🚚 ${sideName} mở tuyến vận lương bí mật hướng ${toName}.`, false);
@@ -176,9 +177,9 @@ export function tickWarConvoysDaily(state, entries) {
     const ambushBase = 0.13 + (toEntry && getHuyenControl(state, toEntry.huyenId) === enemy ? 0.16 : 0.04);
     const escortMitigation = Math.max(0.04, 1 - (cv.escort || 50) / 180);
     const ambushChance = Math.max(0.06, Math.min(0.65, ambushBase * escortMitigation));
-    if (Math.random() < ambushChance) {
-      const stolenCash = Math.floor((cv.payloadCash || 0) * (0.36 + Math.random() * 0.22));
-      const stolenGrain = Math.floor((cv.payloadGrain || 0) * (0.40 + Math.random() * 0.20));
+    if (rng(state) < ambushChance) {
+      const stolenCash = Math.floor((cv.payloadCash || 0) * (0.36 + rng(state) * 0.22));
+      const stolenGrain = Math.floor((cv.payloadGrain || 0) * (0.40 + rng(state) * 0.20));
       cv.payloadCash = Math.max(0, (cv.payloadCash || 0) - stolenCash);
       cv.payloadGrain = Math.max(0, (cv.payloadGrain || 0) - stolenGrain);
       const enemyStore = getFactionStore(state, enemy);
@@ -187,7 +188,7 @@ export function tickWarConvoysDaily(state, entries) {
         enemyStore.granary = (enemyStore.granary || 0) + stolenGrain;
       }
       warStatInc(state, "convoysRaided", 1);
-      if (Math.random() < 0.45) logLine(state, `🗡️ Đoàn vận lương ${cv.id} bị phục kích, mất ${stolenCash}Q và ${stolenGrain} thóc.`, true);
+      if (rng(state) < 0.45) logLine(state, `🗡️ Đoàn vận lương ${cv.id} bị phục kích, mất ${stolenCash}Q và ${stolenGrain} thóc.`, true);
     }
     if (cv.etaDays > 0) {
       alive.push(cv);
@@ -213,7 +214,7 @@ export function tryMonthlyWarTruce(state) {
   const nq = getFactionStore(state, Faction.NGHIA_QUAN);
   if (!tri || !nq) return;
   const bothExhausted = (tri.treasury || 0) < 65000 && (nq.treasury || 0) < 45000 && (tri.granary || 0) < 70000 && (nq.granary || 0) < 48000;
-  if (!bothExhausted || Math.random() >= 0.28) return;
+  if (!bothExhausted || rng(state) >= 0.28) return;
   state._warAi.truceUntilYm = currentYmSerial(state) + 1;
   warStatInc(state, "truceMonths", 1);
   logLine(state, "🕊️ Hai phe tạm đình chiến để chỉnh đốn quân lương. Chiến tuyến lắng xuống ngắn hạn.", true);
@@ -226,7 +227,7 @@ export function tickWarObjectivesMonthly(state, entries) {
   if (state._warObjectives.lastRollYm === ym) return;
   state._warObjectives.lastRollYm = ym;
   if (!state._warObjectives.current || state._warObjectives.current.done) {
-    const side = Math.random() < 0.5 ? Faction.NGHIA_QUAN : Faction.TRIEU_DINH;
+    const side = rng(state) < 0.5 ? Faction.NGHIA_QUAN : Faction.TRIEU_DINH;
     const types = ["hold_control", "strike_khuhuyen", "starve_enemy"];
     const type = types[randInt(0, types.length - 1)];
     const target = entries[randInt(0, entries.length - 1)];
@@ -350,7 +351,7 @@ export function tickStrategicWarAi(state) {
   strategicAiRecruitWarChest(state, Faction.TRIEU_DINH);
   strategicAiRecruitWarChest(state, Faction.NGHIA_QUAN);
 
-  const order = Math.random() < 0.5
+  const order = rng(state) < 0.5
     ? [Faction.TRIEU_DINH, Faction.NGHIA_QUAN]
     : [Faction.NGHIA_QUAN, Faction.TRIEU_DINH];
   for (const side of order) {
@@ -494,8 +495,8 @@ export function tickLiveBattles(state) {
 
         if (shouldPauseOps) {
           // Operational pause: mostly skirmish/fortify/supply recovery instead of daily frontal clash.
-          const skirmA = Math.max(0, Math.floor(atk * (0.0008 + Math.random() * 0.0018) * truceMult));
-          const skirmD = Math.max(0, Math.floor(def * (0.0008 + Math.random() * 0.0018) * truceMult));
+          const skirmA = Math.max(0, Math.floor(atk * (0.0008 + rng(state) * 0.0018) * truceMult));
+          const skirmD = Math.max(0, Math.floor(def * (0.0008 + rng(state) * 0.0018) * truceMult));
           atk = Math.max(0, atk - skirmA);
           def = Math.max(0, def - skirmD);
           snap.atkForce = atk;
@@ -504,7 +505,7 @@ export function tickLiveBattles(state) {
           snap.defMorale = clamp((snap.defMorale ?? 60) + 0.9, 8, 100);
           snap.atkLuong = clamp((snap.atkLuong ?? 50) + 1.8, 4, 100);
           snap.defLuong = clamp((snap.defLuong ?? 50) + 1.8, 4, 100);
-          if (Math.random() < 0.08) {
+          if (rng(state) < 0.08) {
             logLine(state, `⛺ ${bs.name}: hai bên tạm ngưng giao chiến lớn để vá đội hình, gom lương và bố trí lại tuyến.`, false);
           }
           continue;
@@ -515,18 +516,18 @@ export function tickLiveBattles(state) {
         const earlyAtkPow = Math.max(1, atk * aQual * (1 + aKn * 0.035) * aCmdMul);
         const earlyDefPow = Math.max(1, def * dQual * (1 + dKn * 0.035) * dCmdMul);
         const earlyRatio = (earlyAtkPow + 1) / (earlyDefPow + 1);
-        if (earlyRatio > 1.45 && dCmd >= 62 && Math.random() < 0.24) {
+        if (earlyRatio > 1.45 && dCmd >= 62 && rng(state) < 0.24) {
           const disengage = Math.max(0, Math.floor(def * (0.05 + dCmd * 0.00045)));
           def = Math.max(0, def - disengage);
           const ambushHit = Math.floor(atk * (0.008 + dCmd * 0.00012));
           atk = Math.max(0, atk - ambushHit);
-          if (Math.random() < 0.28) logLine(state, `🎯 Quân thủ chủ động rút mỏng đội hình rồi phục kích hồi mã thương.`, true);
-        } else if (earlyRatio < 0.68 && aCmd >= 62 && Math.random() < 0.24) {
+          if (rng(state) < 0.28) logLine(state, `🎯 Quân thủ chủ động rút mỏng đội hình rồi phục kích hồi mã thương.`, true);
+        } else if (earlyRatio < 0.68 && aCmd >= 62 && rng(state) < 0.24) {
           const disengage = Math.max(0, Math.floor(atk * (0.05 + aCmd * 0.00045)));
           atk = Math.max(0, atk - disengage);
           const ambushHit = Math.floor(def * (0.008 + aCmd * 0.00012));
           def = Math.max(0, def - ambushHit);
-          if (Math.random() < 0.28) logLine(state, `🎯 Quân công giả thoái, cắt đuôi rồi đánh hồi mã.`, true);
+          if (rng(state) < 0.28) logLine(state, `🎯 Quân công giả thoái, cắt đuôi rồi đánh hồi mã.`, true);
         }
 
         // Rebel-side recruitment: nearby peasants join quickly, especially in summer and high unrest.
@@ -549,26 +550,26 @@ export function tickLiveBattles(state) {
         if (defIsRebel) def += Math.floor(joined * 0.65);
 
         // Ambushes in rough terrain: chance to spike losses on the stronger/elite side.
-        if (isRoughTerrain && Math.random() < (0.06 + unrest * 0.0006)) {
+        if (isRoughTerrain && rng(state) < (0.06 + unrest * 0.0006)) {
           const atkPower0 = Math.max(1, atk * aQual * (1 + aKn * 0.035) * aCmdMul);
           const defPower0 = Math.max(1, def * dQual * (1 + dKn * 0.035) * dCmdMul);
           const strongerIsAtk = atkPower0 > defPower0;
-          const hit = Math.max(1, Math.floor((strongerIsAtk ? atk : def) * (0.015 + Math.random() * 0.015) * truceMult));
+          const hit = Math.max(1, Math.floor((strongerIsAtk ? atk : def) * (0.015 + rng(state) * 0.015) * truceMult));
           if (strongerIsAtk) atk = Math.max(0, atk - hit);
           else def = Math.max(0, def - hit);
-          if (Math.random() < 0.08) logLine(state, `🌲 Phục kích địa hình hiểm: một cánh quân bị úp sọt, thiệt hại nặng.`, true);
+          if (rng(state) < 0.08) logLine(state, `🌲 Phục kích địa hình hiểm: một cánh quân bị úp sọt, thiệt hại nặng.`, true);
         }
 
         // River warfare: more swingy, rebels can leverage numbers/rafts to bloody elites.
-        if (isRiverTerrain && Math.random() < (0.05 + unrest * 0.0003)) {
+        if (isRiverTerrain && rng(state) < (0.05 + unrest * 0.0003)) {
           const river = riverNameFor(r.id);
           const atkPower0 = Math.max(1, atk * aQual * (1 + aKn * 0.035) * aCmdMul);
           const defPower0 = Math.max(1, def * dQual * (1 + dKn * 0.035) * dCmdMul);
           const strongerIsAtk = atkPower0 > defPower0;
-          const hit = Math.max(1, Math.floor((strongerIsAtk ? atk : def) * (0.010 + Math.random() * 0.012) * truceMult));
+          const hit = Math.max(1, Math.floor((strongerIsAtk ? atk : def) * (0.010 + rng(state) * 0.012) * truceMult));
           if (strongerIsAtk) atk = Math.max(0, atk - hit);
           else def = Math.max(0, def - hit);
-          if (Math.random() < 0.12) logLine(state, `🚣 Thủy chiến trên ${river}: thuyền bè xung kích, quân tinh nhuệ cũng phải chao đảo.`, true);
+          if (rng(state) < 0.12) logLine(state, `🚣 Thủy chiến trên ${river}: thuyền bè xung kích, quân tinh nhuệ cũng phải chao đảo.`, true);
         }
 
         // Daily casualties scale with opposing "effective power" and chaos (more chaos = more swingy)
@@ -585,40 +586,40 @@ export function tickLiveBattles(state) {
           atkDmgMul = 0.58;
           defDmgMul = 1.1;
           snap.thangVong = Math.max(5, Math.min(95, Math.round((snap.thangVong || 50) - 1.1)));
-          if (Math.random() < 0.06) logLine(state, "🪓 Quân công tạm rút để giữ cốt, vẫn vây quấy — không để địch nghỉ tay.", false);
+          if (rng(state) < 0.06) logLine(state, "🪓 Quân công tạm rút để giữ cốt, vẫn vây quấy — không để địch nghỉ tay.", false);
         } else if (powerRatio > 3.2 && dQual < 0.98 && def < atk * 0.45) {
           defDmgMul = 0.58;
           atkDmgMul = 1.1;
           snap.thangVong = Math.max(5, Math.min(95, Math.round((snap.thangVong || 50) + 1.1)));
-          if (Math.random() < 0.06) logLine(state, "🪓 Quân thủ co cụm trấn, cánh tinh nhuệ ra đánh úp để cầm chân.", false);
+          if (rng(state) < 0.06) logLine(state, "🪓 Quân thủ co cụm trấn, cánh tinh nhuệ ra đánh úp để cầm chân.", false);
         }
         const dayDmg = 1.22;
-        let atkLoss = Math.max(0, Math.floor((defPower * (0.0022 + Math.random() * 0.0024)) * dayDmg * swing * defDmgMul / Math.max(0.9, aQual)));
-        let defLoss = Math.max(0, Math.floor((atkPower * (0.0022 + Math.random() * 0.0024)) * dayDmg * (1.6 - swing) * atkDmgMul / Math.max(0.9, dQual)));
+        let atkLoss = Math.max(0, Math.floor((defPower * (0.0022 + rng(state) * 0.0024)) * dayDmg * swing * defDmgMul / Math.max(0.9, aQual)));
+        let defLoss = Math.max(0, Math.floor((atkPower * (0.0022 + rng(state) * 0.0024)) * dayDmg * (1.6 - swing) * atkDmgMul / Math.max(0.9, dQual)));
         atkLoss = Math.max(0, Math.floor(atkLoss * truceMult));
         defLoss = Math.max(0, Math.floor(defLoss * truceMult));
         atk = Math.max(0, atk - atkLoss);
         def = Math.max(0, def - defLoss);
 
         // Truy kích / phản xung: thêm một lớp hao tổn ngắn, dễ “thấy” chiến sự đang chạy.
-        if (Math.random() < 0.17 * truceMult && atk >= 120 && def >= 120) {
+        if (rng(state) < 0.17 * truceMult && atk >= 120 && def >= 120) {
           const ap2 = Math.max(1, atk * aQual * (1 + aKn * 0.035) * aCmdMul);
           const dp2 = Math.max(1, def * dQual * (1 + dKn * 0.035) * dCmdMul);
-          if (ap2 > dp2 * 1.12 && Math.random() < 0.52) {
-            const cut = Math.max(1, Math.floor(def * (0.004 + Math.random() * 0.007)));
+          if (ap2 > dp2 * 1.12 && rng(state) < 0.52) {
+            const cut = Math.max(1, Math.floor(def * (0.004 + rng(state) * 0.007)));
             def = Math.max(0, def - cut);
             defLoss += cut;
-            if (Math.random() < 0.38) logLine(state, `🏇 ${bs.name}: thắng thế truy kích — quét thêm đuôi đội địch.`, false);
-          } else if (dp2 > ap2 * 1.12 && Math.random() < 0.52) {
-            const cut = Math.max(1, Math.floor(atk * (0.004 + Math.random() * 0.007)));
+            if (rng(state) < 0.38) logLine(state, `🏇 ${bs.name}: thắng thế truy kích — quét thêm đuôi đội địch.`, false);
+          } else if (dp2 > ap2 * 1.12 && rng(state) < 0.52) {
+            const cut = Math.max(1, Math.floor(atk * (0.004 + rng(state) * 0.007)));
             atk = Math.max(0, atk - cut);
             atkLoss += cut;
-            if (Math.random() < 0.38) logLine(state, "🏇 Quan quân bám đuổi — nghĩa binh rơi rụng dọc đường rút.", false);
+            if (rng(state) < 0.38) logLine(state, "🏇 Quan quân bám đuổi — nghĩa binh rơi rụng dọc đường rút.", false);
           }
         }
 
         const join0 = Math.floor((joined || 0) * 0.65);
-        if (join0 >= 55 && Math.random() < 0.22) {
+        if (join0 >= 55 && rng(state) < 0.22) {
           const side = atkIsRebel ? "nghĩa quân" : (defIsRebel ? "nghĩa quân" : "hai bên");
           logLine(state, `🥁 ${bs.name}: dân binh theo cờ ${side} +~${join0} người trong ngày.`, false);
         }
@@ -730,8 +731,8 @@ export function processMonthlyWarEconomyAI(state) {
   const triNeed = (tri.treasury || 0) < 90000 || (tri.granary || 0) < 75000;
   if (triNeed) {
     const controlled = Math.max(1, collectWarControlStats(state).td || 1);
-    const taxCash = Math.floor(controlled * (170 + Math.random() * 140));
-    const taxGrain = Math.floor(controlled * (120 + Math.random() * 120));
+    const taxCash = Math.floor(controlled * (170 + rng(state) * 140));
+    const taxGrain = Math.floor(controlled * (120 + rng(state) * 120));
     tri.treasury = (tri.treasury || 0) + taxCash;
     tri.granary = (tri.granary || 0) + taxGrain;
     warStatInc(state, "localRequisition", taxCash + taxGrain);
@@ -743,10 +744,10 @@ export function processMonthlyWarEconomyAI(state) {
   ensurePostingIfNeeded(state);
   const po = getPosting(state);
   const p = state.player;
-  if (!state.pendingEvent && p?.faction === Faction.TRIEU_DINH && po && postingHere(state) && Math.random() < 0.34) {
-    const reqCash = Math.max(60, Math.floor((po.treasury || 0) * (0.22 + Math.random() * 0.16)));
-    const reqGrain = Math.max(45, Math.floor((state.village?.khoThoc || 0) * (0.04 + Math.random() * 0.03)));
-    const reqTroops = Math.max(20, Math.floor((po.garrison || 0) * (0.16 + Math.random() * 0.14)));
+  if (!state.pendingEvent && p?.faction === Faction.TRIEU_DINH && po && postingHere(state) && rng(state) < 0.34) {
+    const reqCash = Math.max(60, Math.floor((po.treasury || 0) * (0.22 + rng(state) * 0.16)));
+    const reqGrain = Math.max(45, Math.floor((state.village?.khoThoc || 0) * (0.04 + rng(state) * 0.03)));
+    const reqTroops = Math.max(20, Math.floor((po.garrison || 0) * (0.16 + rng(state) * 0.14)));
     state.pendingEvent = {
       id: "imperial_war_supply_order",
       title: "📜 Công văn trưng phát chiến dịch",
@@ -798,9 +799,9 @@ export function processMonthlyWarEconomyAI(state) {
 
   // Nghĩa quân: cướp vận lương + tự xoay kinh tế chiến tranh.
   const convoyRaidChance = 0.28 + Math.min(0.22, (state.village?.unrest || 0) * 0.0022);
-  if (Math.random() < convoyRaidChance) {
-    const raidCash = Math.max(120, Math.floor((tri.treasury || 0) * (0.008 + Math.random() * 0.008)));
-    const raidGrain = Math.max(100, Math.floor((tri.granary || 0) * (0.010 + Math.random() * 0.010)));
+  if (rng(state) < convoyRaidChance) {
+    const raidCash = Math.max(120, Math.floor((tri.treasury || 0) * (0.008 + rng(state) * 0.008)));
+    const raidGrain = Math.max(100, Math.floor((tri.granary || 0) * (0.010 + rng(state) * 0.010)));
     tri.treasury = Math.max(0, (tri.treasury || 0) - raidCash);
     tri.granary = Math.max(0, (tri.granary || 0) - raidGrain);
     nq.treasury = (nq.treasury || 0) + Math.floor(raidCash * 0.72);
@@ -809,12 +810,12 @@ export function processMonthlyWarEconomyAI(state) {
     logLine(state, `🗡️ Nghĩa quân phục kích đoàn vận lương: triều mất ${raidCash}Q và ${raidGrain} thóc.`, true);
   }
 
-  const rebelFarm = Math.max(80, Math.floor((state.village?._eligibleLevyWide || 120) * (0.16 + Math.random() * 0.10)));
-  const rebelRecruit = Math.max(30, Math.floor((state.village?.unrest || 0) * (0.6 + Math.random() * 0.5)));
+  const rebelFarm = Math.max(80, Math.floor((state.village?._eligibleLevyWide || 120) * (0.16 + rng(state) * 0.10)));
+  const rebelRecruit = Math.max(30, Math.floor((state.village?.unrest || 0) * (0.6 + rng(state) * 0.5)));
   nq.granary = (nq.granary || 0) + rebelFarm;
   nq.armies = nq.armies || [];
   nq.armies.push({ id: `nq_wave_${Date.now()}_${randInt(100,999)}`, count: rebelRecruit, morale: 60 + randInt(0, 15), source: "levy" });
-  if (Math.random() < 0.55) {
+  if (rng(state) < 0.55) {
     logLine(state, `🌾 Nghĩa quân tự tổ chức trồng cấy & chiêu dân theo cờ: +${rebelFarm} thóc, +${rebelRecruit} quân tân mộ.`, false);
   }
 }

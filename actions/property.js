@@ -1,3 +1,4 @@
+import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { MaaDb, PropertyDb, RegionsDb, hasPerk } from "../engine.js";
 import { Faction, PlayerRank, RankLabel } from "../models.js";
 import { logLine } from "../log.js";
@@ -46,7 +47,7 @@ export function actionXayNha(state, propId) {
     const baseDays = Math.max(2, Math.min(40, Math.ceil((prop.cost || 0) / 1200)));
     const days = baseDays + (prop.maxLevel >= 3 ? 2 : 0);
     p.buildQueue.push({
-      id: `bq_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+      id: `bq_${Date.now()}_${Math.floor(rng(state) * 10000)}`,
       typeId: propId,
       regionId: p.currentRegion,
       daysLeft: days,

@@ -1,3 +1,4 @@
+import { rng, rngInt } from "./core/rng.js";
 export const Weather = {
   NANG: "Nắng Hạn",
   MUA:  "Mưa Thuận",
@@ -6,8 +7,8 @@ export const Weather = {
   HAN:  "Hạn Hán",
 };
 
-export function rollWeather() {
-  const r = Math.random();
+export function rollWeather(state = null, ) {
+  const r = rng(state);
   if (r < 0.40) return Weather.MUA;
   if (r < 0.60) return Weather.NANG;
   if (r < 0.75) return Weather.BAO;
@@ -16,7 +17,7 @@ export function rollWeather() {
 }
 
 export function rollPersonalHarvestThoc(weather) {
-  const base = 10 + Math.floor(Math.random() * 15);
+  const base = 10 + Math.floor(rng() * 15);
   switch (weather) {
     case Weather.MUA:  return Math.floor(base * 1.3);
     case Weather.NANG: return Math.floor(base * 0.9);
