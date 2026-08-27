@@ -1,6 +1,7 @@
+import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile } from "./clan.js";
 import { randInt } from "../engine.js";
-import { Faction, RegionId } from "../models.js";
-import { Weather } from "../weather.js";
+import { Faction, PlayerRank, RegionId, totalPops } from "../models.js";
+import { Weather, rollPersonalHarvestThoc } from "../weather.js";
 import { logLine } from "../log.js";
 
 export function collapseFromExhaustion(state, tuChonLog) {

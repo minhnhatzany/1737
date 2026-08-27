@@ -1,5 +1,6 @@
+import { getBattleState, getHuyen } from "../map_data.js";
 import { ensureRebel, getHuyenControl, isControlledByRebelsHere, nextPrisonerId } from "../engine.js";
-import { Faction } from "../models.js";
+import { Faction, totalPops } from "../models.js";
 import { logLine } from "../log.js";
 
 export function actionRebelTrain(state) {

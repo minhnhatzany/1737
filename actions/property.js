@@ -1,5 +1,5 @@
 import { MaaDb, PropertyDb, RegionsDb, hasPerk } from "../engine.js";
-import { Faction } from "../models.js";
+import { Faction, PlayerRank, RankLabel } from "../models.js";
 import { logLine } from "../log.js";
 
 export function actionXayNha(state, propId) {

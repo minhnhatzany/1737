@@ -1,3 +1,4 @@
+import { PlayerRank } from "./models.js";
 import { pushCelebration, randInt, ymKey } from "./engine.js";
 import { logLine } from "./log.js";
 

@@ -1,12 +1,12 @@
 import { addCase, clamp, daySerial, getPosting, randInt, scheduleDelayedEffect } from "../engine.js";
-import { Faction, ClanAttitude } from "../models.js";
+import { ClanAttitude, Faction, PlayerRank } from "../models.js";
 import { logLine } from "../log.js";
 
 export function clanSurname(clanName) {
   const m = String(clanName || "").match(/Họ\s+([A-Za-zÀ-ỹ]+)/i);
   return m?.[1] || "Nguyễn";
 }
-function adjustClanMembersOpinion(state, clanId, delta, fearDelta = 0) {
+export function adjustClanMembersOpinion(state, clanId, delta, fearDelta = 0) {
   const clan = state.clans?.find(c => c.id === clanId);
   if (!clan) return;
   for (const mid of (clan.memberIds || [])) {
@@ -16,7 +16,7 @@ function adjustClanMembersOpinion(state, clanId, delta, fearDelta = 0) {
     if (fearDelta) npc._fear = clamp((npc._fear || 0) + fearDelta, 0, 200);
   }
 }
-function clanAvgOpinionToPlayer(state, clanId) {
+export function clanAvgOpinionToPlayer(state, clanId) {
   const clan = state.clans?.find(c => c.id === clanId);
   if (!clan || !clan.memberIds || clan.memberIds.length === 0) return 0;
   let sum = 0, n = 0;
@@ -28,25 +28,25 @@ function clanAvgOpinionToPlayer(state, clanId) {
   }
   return n > 0 ? Math.round(sum / n) : 0;
 }
-function isClanFriendly(clan) {
+export function isClanFriendly(clan) {
   return clan?.attitude === ClanAttitude.KINH || clan?.attitude === ClanAttitude.LIEN_MINH || clan?.attitude === ClanAttitude.FRIENDLY || clan?.attitude === "friendly";
 }
-function isClanHostile(clan) {
+export function isClanHostile(clan) {
   return clan?.attitude === ClanAttitude.THU || clan?.attitude === ClanAttitude.HOSTILE || clan?.attitude === "hostile";
 }
-function ensureClanFavorState(state) {
+export function ensureClanFavorState(state) {
   if (!state.clanFavor) state.clanFavor = {};
   for (const c of (state.clans || [])) {
     if (!(c.id in state.clanFavor)) state.clanFavor[c.id] = 0;
   }
 }
-function changeClanFavor(state, clanId, delta) {
+export function changeClanFavor(state, clanId, delta) {
   if (!clanId || !Number.isFinite(delta)) return;
   ensureClanFavorState(state);
   const prev = state.clanFavor[clanId] || 0;
   state.clanFavor[clanId] = clamp(prev + delta, -100, 100);
 }
-function getClanPressurePreset(state) {
+export function getClanPressurePreset(state) {
   const mode = state?.clanPressureMode || "standard";
   if (mode === "easy") {
     return {
@@ -92,11 +92,11 @@ function getClanPressurePreset(state) {
     specialtyBoost: 1.12,
   };
 }
-function localClanIds(state) {
+export function localClanIds(state) {
   // Use current village context as "địa phương" for now.
   return (state.village?.clanIds || []).slice(0, 6);
 }
-function tickLocalClansMonthly(state, po) {
+export function tickLocalClansMonthly(state, po) {
   const p = state.player;
   if (!po || !p) return;
   const ids = localClanIds(state);
@@ -130,7 +130,7 @@ function tickLocalClansMonthly(state, po) {
     }
   }
 }
-function maybeAddClanRivalryCase(state, po) {
+export function maybeAddClanRivalryCase(state, po) {
   const ids = localClanIds(state);
   if (ids.length < 2) return;
   // Rivalry probability: higher when unrest or corruption is high.
@@ -191,7 +191,7 @@ function maybeAddClanRivalryCase(state, po) {
     ]
   });
 }
-function tickClanPressureForCommoner(state) {
+export function tickClanPressureForCommoner(state) {
   const p = state.player;
   if (!p) return;
   const isCommoner = p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO;

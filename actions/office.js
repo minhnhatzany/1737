@@ -1,5 +1,5 @@
 import { PostingBuildingDb, ensureCaseList, ensurePostingIfNeeded, getPosting, isOfficialRank, perkFx, postingHere, randInt } from "../engine.js";
-import { Faction, MenAtArmType } from "../models.js";
+import { Faction, MenAtArmType, totalPops } from "../models.js";
 import { logLine } from "../log.js";
 
 export function actionPostingBuild(state, buildingId) {
