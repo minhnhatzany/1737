@@ -1,3 +1,5 @@
+import { rng, randInt } from "./core/rng.js";
+
 /**
  * models.js — Mô hình dữ liệu Sandbox Đại Việt thế kỷ 18 (Lê–Trịnh)
  * Đại tu: Thêm tất cả rank võ quan, dynasty table, và lifecycle mới
@@ -211,9 +213,9 @@ export class NPC {
     this.currentXa = currentXa;
     this.currentLang = currentLang;
     // 5 chỉ số — đa số 9–20, hiếm khi tới ~48 (không spam cao thủ)
-    const core = () => (Math.random() < 0.9)
-      ? 9 + Math.floor(Math.random() * 12)
-      : Math.min(48, 20 + Math.floor(Math.random() * 28));
+    const core = () => (rng() < 0.9)
+      ? 9 + Math.floor(rng() * 12)
+      : Math.min(48, 20 + Math.floor(rng() * 28));
     this.ngoaiGiao = core();
     this.voThuat   = core();
     this.quanLy    = core();
@@ -362,8 +364,4 @@ export class Player {
     this.trongSoDenLy = false;
     this.camCoRuongThang = 0;
   }
-}
-
-function randInt(a, b) {
-  return a + Math.floor(Math.random() * (b - a + 1));
 }

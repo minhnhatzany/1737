@@ -1,5 +1,5 @@
-import { initSeed, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
-export { initSeed, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
+import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
+export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
 import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRaidSupply, actionRebelRecruitLocal, actionRebelTrain, addPrisoner } from "./actions/rebel.js";
@@ -412,6 +412,7 @@ export const PropertyDb = {
 export function createInitialState(playerName = "Vô Danh", seed = null) {
   const rngSeed = initSeed(seed !== null ? seed : Date.now());
   const rngState = rngSeed;
+  seedRng(rngSeed);
   const clans = [
     new Clan({ name: "Họ Nguyễn", quyenLuc: 80, ruongDat: 24, trungThanh: 55 }),
     new Clan({ name: "Họ Trần",   quyenLuc: 65, ruongDat: 18, trungThanh: 48 }),
@@ -469,6 +470,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   // nhưng vẫn giữ các field cũ để UI hiện tại không vỡ ngay.
   let state = {
     ban: 1737, monthIndex: 1, gameDay: 1,
+    rngSeed, rngState,
     thoiTiet: rollWeather(),
     _weatherForecast: null,
     difficulty: "normal",

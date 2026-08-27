@@ -18,6 +18,11 @@ export function initSeed(seed) {
 
 let _fallbackSeed = 1737;
 
+/** Reseed the stateless fallback generator (world-gen before a state exists). */
+export function seedRng(seed) {
+  _fallbackSeed = initSeed(seed);
+}
+
 /**
  * Steps state.rngState forward using Mulberry32 and returns float in [0, 1).
  */
