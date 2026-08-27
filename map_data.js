@@ -4,6 +4,8 @@
  * Nguồn: Lịch sử hành chính Việt Nam thế kỷ XVIII
  */
 
+import { rng } from "./core/rng.js";
+
 export const RegionId = {
   THANG_LONG: "thang_long",
   SON_NAM:    "son_nam",
@@ -752,8 +754,8 @@ export function getBattleState(state, battleId) {
     battleStartDef: Math.max(1, defForce),
     atkMorale: Math.round(60 + (thangVong - 50) * 0.5),
     defMorale: Math.round(60 - (thangVong - 50) * 0.5),
-    atkLuong: Math.round(40 + Math.random() * 40),
-    defLuong: Math.round(50 + Math.random() * 40),
+    atkLuong: Math.round(40 + rng(state) * 40),
+    defLuong: Math.round(50 + rng(state) * 40),
     atkKnights: Math.max(1, Math.floor(atkForce / 1800)),
     defKnights: Math.max(1, Math.floor(defForce / 1800)),
     atkMenAtArm: hb.atkArmies?.map(a => a.type) || ["dan_binh"],
@@ -811,7 +813,7 @@ export function getLowerRegions(state, huyenId) {
     if (state._geoCache[huyenId]) return state._geoCache[huyenId];
     
     // Seed generation based on huyenId
-    let numTong = 5 + Math.floor(Math.random() * 6); // 5-10 Tổng
+    let numTong = 5 + Math.floor(rng(state) * 6); // 5-10 Tổng
     let data = { tong: {} };
     let globalPop = 0;
     
@@ -820,18 +822,18 @@ export function getLowerRegions(state, huyenId) {
         let tName = "Tổng " + genGeoName(tId);
         let tong = { id: tId, name: tName, xa: {}, pop: 0, suatDinh: 0, control: "trieu_dinh" };
         
-        let numXa = 3 + Math.floor(Math.random() * 4); // 3-6 Xã
+        let numXa = 3 + Math.floor(rng(state) * 4); // 3-6 Xã
         for (let x = 0; x < numXa; x++) {
             let xId = tId + "_x" + x;
             let xName = "Xã " + genGeoName(xId);
             let xa = { id: xId, name: xName, lang: {}, pop: 0, suatDinh: 0, control: "trieu_dinh" };
             
-            let numLang = 2 + Math.floor(Math.random() * 4); // 2-5 Làng
+            let numLang = 2 + Math.floor(rng(state) * 4); // 2-5 Làng
             for (let l = 0; l < numLang; l++) {
                 let lId = xId + "_l" + l;
-                let isThon = Math.random() > 0.5;
+                let isThon = rng(state) > 0.5;
                 let lName = (isThon ? "Thôn " : "Làng ") + genGeoName(lId);
-                let pop = 300 + Math.floor(Math.random() * 501); // 300-800
+                let pop = 300 + Math.floor(rng(state) * 501); // 300-800
                 let suat = Math.floor(pop / 5);
                 xa.lang[lId] = { id: lId, name: lName, pop, suatDinh: suat };
                 xa.pop += pop;

@@ -2414,7 +2414,7 @@ export function siegeHuyen(state, regionId, phuId, huyenId) {
     knights: enemy === Faction.TRIEU_DINH ? 2 : 1,
   };
 
-  const sim = simulateBattle(attacker, defender);
+  const sim = simulateBattle(attacker, defender, state);
   const win = sim.winner === attacker.name;
 
   const lost = Math.max(0, p.quanSo - (sim.remainingAttacker || 0));
@@ -3196,7 +3196,7 @@ export function gameTick(state) {
             const def = Math.max(80, Math.floor((g + p.quanSo) * 0.35));
             const attacker = { name:`Quân triều đình (${p.ten})`, armies:[{type:"nhat_binh", count: Math.max(50, p.quanSo + Math.floor(g*0.6)), morale: 75}], martial: (p.voThuat||10), qualityMult:1.05, isPlayer:true, knights: Math.floor((p.danhVong||0)/250) };
             const defender = { name:"Nghĩa quân", armies:[{type:"dan_binh", count: def, morale: 70}], martial: 18, qualityMult:0.85, knights: 1 };
-            const sim = simulateBattle(attacker, defender);
+            const sim = simulateBattle(attacker, defender, s);
             const win = sim.winner === attacker.name;
             const remain = sim.remainingAttacker || attacker.armies[0].count;
             const lost = Math.max(0, attacker.armies[0].count - remain);
@@ -3915,7 +3915,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
       isPlayer: !isRebel
   };
 
-  const result = simulateBattle(attacker, defender);
+  const result = simulateBattle(attacker, defender, state);
   const playerSideName = isRebel ? attacker.name : defender.name;
   const win = result.winner === playerSideName;
   const remaining = isRebel ? (result.remainingAttacker ?? p.quanSo) : (result.remainingDefender ?? p.quanSo);
@@ -4093,7 +4093,7 @@ export function actionAttackVillage(state, targetLangId, focusHuyenId = null) {
         qualityMult: xaCtrl === Faction.TRIEU_DINH ? 0.82 : 0.7
     };
 
-    const result = simulateBattle(attacker, defender);
+    const result = simulateBattle(attacker, defender, state);
     const win = result.winner === attacker.name;
 
     let feedback = [{ text: "-40 Thể lực", tone: "bad" }];

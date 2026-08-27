@@ -1,5 +1,6 @@
 import { MenAtArmType } from "./models.js";
 import { logLine } from "./log.js";
+import { rng } from "./core/rng.js";
 
 
 // === ARMY MANAGEMENT ===
@@ -66,7 +67,7 @@ function calculateCounterMultiplier(atkArmies, defArmies) {
     return Math.min(2.5, bonus);
 }
 
-export function simulateBattle(attacker, defender) {
+export function simulateBattle(attacker, defender, state) {
     // attacker/defender = { name: "Nghĩa Quân", armies: [{type: "DAN_BINH", count: 100, morale: 80}], martial: 15, knights: 2, qualityMult: 1.0, isSiegeAtk: true/false }
     
     let aStats = getArmyStats(attacker.armies);
@@ -108,8 +109,8 @@ export function simulateBattle(attacker, defender) {
     // Pha đụng độ chiến sự
     while (aMorale > 15 && dMorale > 15 && aMen > 0 && dMen > 0 && day <= 10) {
         // Tướng soái roll xúc xắc chiến thuật
-        let aTactics = Math.floor(Math.random() * 10) + attacker.martial;
-        let dTactics = Math.floor(Math.random() * 10) + defender.martial;
+        let aTactics = Math.floor(rng(state) * 10) + attacker.martial;
+        let dTactics = Math.floor(rng(state) * 10) + defender.martial;
         
         let aBaseDmg = (aStats.totalAtk / 5) * (aTactics / 10) * aQual * aCounterMult;
         let dBaseDmg = (dStats.totalAtk / 5) * (dTactics / 10) * dQual * dCounterMult;
@@ -126,11 +127,11 @@ export function simulateBattle(attacker, defender) {
         dMen = Math.max(0, dMen - dCasualties);
         
         // Sự kiện Hiệp Sĩ Solo (Truyền lửa Sĩ khí)
-        if (attacker.knights > 0 && Math.random() < 0.25) {
+        if (attacker.knights > 0 && rng(state) < 0.25) {
             dMorale -= 12;
             battleLogs.push(`⚔️ MÃNH TƯỚNG ${attacker.name} lao vào xé nát đội hình, chém bay cờ đối phương!`);
         }
-        if (defender.knights > 0 && Math.random() < 0.25) {
+        if (defender.knights > 0 && rng(state) < 0.25) {
             aMorale -= 12;
             battleLogs.push(`⚔️ TRỌNG TƯỚNG ${defender.name} tử chiến bảo vệ hàng phòng ngự! Sĩ khí địch rúng động!`);
         }
@@ -180,12 +181,12 @@ export function simulateBattle(attacker, defender) {
       const winning = (winner === attacker.name) ? attacker : defender;
       const diff = (winning.martial || 0) - (losing.martial || 0);
       const base = 0.10 + Math.max(-0.05, Math.min(0.10, diff * 0.002));
-      if (Math.random() < base) {
+      if (rng(state) < base) {
         capture = {
           victim: losing.isPlayer ? "player" : "commander",
           victimName: losing.name,
           captorName: winning.name,
-          kind: (Math.random() < 0.2) ? "killed" : "captured"
+          kind: (rng(state) < 0.2) ? "killed" : "captured"
         };
       }
     }
