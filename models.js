@@ -355,8 +355,8 @@ export class Player {
     // Sinh mệnh & Thể lực (tách riêng)
     this.hpMax = 100;
     this.hp = 100;
-    this.theLucMax = 100;
-    this.theLuc = 100;
+    this.theLucMax = 144; // 9 buổi × 16
+    this.theLuc = 144;
     this.dangOm = false;
     this.noVayConLai = 0;
     this.managedVillageIds = [];

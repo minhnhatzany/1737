@@ -848,7 +848,7 @@ function tickTravel(state) {
         choices: [
           { label: "Nghỉ thêm 1 đêm (trễ +1 ngày)", impact:[{label:"+TL",color:"#51cf66"}], apply(s){
             s.travel.daysLeft += 1;
-            s.player.theLuc = Math.min((s.player.theLucMax||100), s.player.theLuc + 18);
+            s.player.theLuc = Math.min((s.player.theLucMax||144), s.player.theLuc + 18);
             if (typeof s.player.hp === "number") s.player.hp = Math.min((s.player.hpMax||100), s.player.hp + 2);
             logLine(s, "Ngủ thêm 1 đêm. Thân thể hồi lại, nhưng lịch bị trễ.");
           }},
@@ -2807,7 +2807,7 @@ export function gameTick(state) {
 
     if (state.player.dangOm) {
       state.player.dangOm = false;
-      state.player.theLuc = clamp(state.player.theLuc + 38, 0, 100);
+      state.player.theLuc = clamp(state.player.theLuc + 38, 0, state.player.theLucMax || 144);
       logLine(state, "Tháng ốm qua đi; cơ thể hồi phục.");
     }
 
@@ -3284,7 +3284,7 @@ export function gameTick(state) {
           }
         });
       }
-      const maxTL = p.theLucMax || 100;
+      const maxTL = p.theLucMax || 144;
       p.theLuc = clamp(p.theLuc + regen, 0, maxTL);
       // HP hồi rất chậm
       if (typeof p.hp === "number" && p.hp < (p.hpMax || 100)) {

@@ -837,7 +837,7 @@ function render() {
   setText("playerMoney",   p.tien);
   setText("playerThoc",    p.thocCaNhan);
   setText("playerHp",      (typeof p.hp === "number" ? p.hp : 100));
-  setText("playerStamina", p.theLuc);
+  setText("playerStamina", Math.floor((p.theLuc || 0) / 16)); // 1 buổi = 16 thể lực
   let maaTxt = (p.maa && p.maa.length > 0) ? ` (+${p.maa.length} đạo)` : "";
   setText("playerBinhQuyen", `${p.quanSo}${maaTxt}`);
   setText("playerUyTin",   p.uyTinCong);
@@ -2874,7 +2874,7 @@ window.doUnlockPerk = (lid, pid) => {
 
 window.actionOopVo  = () => {
   const p = state.player;
-  if (p.theLuc < 20) { showToast("Thể lực không đủ.", true); return; }
+  if (p.theLuc < 20) { showToast("Hết sức hôm nay. Nhưng miệng thì chưa mỏi — ra chợ xem ai đang cần gì.", true); return; }
   if (!p.giaDinh.vo) { showToast("Chưa có vợ. Hãy chờ sự kiện hôn nhân!", true); return; }
   p.theLuc -= 20;
   // Chance-based conception: mỗi lần ngẫu nhiên trong khoảng 5–10%
@@ -4669,7 +4669,7 @@ function initButtons() {
   });
   $("btnDanPhu")?.addEventListener("click", () => {
     const p = state.player;
-    if (p.theLuc < 30) { showToast("Thể lực không đủ.", true); return; }
+    if (p.theLuc < 30) { showToast("Hết sức hôm nay. Nhưng miệng thì chưa mỏi — ra chợ xem ai đang cần gì.", true); return; }
     p.theLuc -= 30;
     state.village.unrest = Math.max(0, state.village.unrest - 5);
     logLine(state, "Điều dân đắp đê bờ. Công trình thủy lợi tăng sản lượng.");
