@@ -195,7 +195,7 @@ const PERSONALITY_TRAITS = [
 const BIRTH_TRAITS = [
   { id:"dep_trai",     name:"Đẹp Trai/Xinh Gái 💎", effect:"NPC cảm tình +15. Hôn nhân dễ hơn.",      apply(p){ p._birthDepTrai=true; p.ngoaiGiao=Math.min(100,p.ngoaiGiao+5); } },
   { id:"thien_tai",    name:"Thiên Tài 📚",           effect:"Học Vấn +15. Học nhanh hơn 50%.",         apply(p){ p._birthThienTai=true; p.hocVan=Math.min(100,p.hocVan+15); } },
-  { id:"cuong_trang",  name:"Cường Tráng 💪",         effect:"Võ Thuật +10. Thể lực tối đa 120.",       apply(p){ p._birthCuongTrang=true; p.voThuat=Math.min(100,p.voThuat+10); p.theLuc=120; } },
+  { id:"cuong_trang",  name:"Cường Tráng 💪",         effect:"Võ Thuật +10. Thể lực tối đa 11 buổi.",   apply(p){ p._birthCuongTrang=true; p.voThuat=Math.min(100,p.voThuat+10); p.theLucMax=176; p.theLuc=176; } },
   { id:"con_nha_giau", name:"Con Nhà Giàu 🏠",        effect:"+150 quan và +30 thóc ban đầu.",           apply(p){ p._birthConNhaGiau=true; p.tien+=150; p.thocCaNhan+=30; } },
   { id:"ban_han",      name:"Bần Hàn 🪨",             effect:"-5 quan nhưng +30 uy tín dân.",            apply(p){ p._birthBanHan=true; p.tien=Math.max(0,p.tien-5); p.uyTinCong+=30; } },
   { id:"ky_tuong",     name:"Kỳ Tướng 🗡️",           effect:"Quản Lý +10. Tuyển quân rẻ hơn 15%.",    apply(p){ p._birthKyTuong=true; p.quanLy=Math.min(100,p.quanLy+10); } },
