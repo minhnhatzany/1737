@@ -1,1 +1,708 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- MOBILE: khóa viewport cứng, không cho zoom/kéo dãn -->
+    <meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>1737 — Đàng Ngoài Lê Trung Hưng</title>
+    <meta name="description" content="Grand Strategy Sandbox năm 1737 — thời Lê Trung Hưng. Chùa chiếu, khởi nghĩa nông dân, quan trường, chiến trận. Tự viết câu chuyện của bạn." />
+    <!-- OG / Link Preview -->
+    <meta property="og:title" content="1737 — Đàng Ngoài" />
+    <meta property="og:description" content="Grand Strategy Sandbox năm 1737. Tự viết câu chuyện: quan trường, chiến trận, hay khởi nghĩa?" />
+    <meta property="og:image" content="img/og_cover.svg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="1737 — Đàng Ngoài" />
+    <meta name="twitter:description" content="Grand Strategy Sandbox năm 1737. Tự viết câu chuyện của bạn." />
+    <!-- Disable iOS bounce/rubber-band -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="img/og_cover.svg" type="image/svg+xml" />
+  </head>
+  <body class="theme-cungdinh">
 
+    <!-- ═══════════════════════════════════════════════════════
+         MARQUEE NEWS TICKER — chữ chạy khi có tin quan trọng
+    ═══════════════════════════════════════════════════════ -->
+    <div id="newsTicker" class="news-ticker hidden">
+      <span class="ticker-label">📣&nbsp;TIN:</span>
+      <div id="tickerInner" class="ticker-scroll-container">
+        <div id="tickerText" class="ticker-scroll-text"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MÀN HÌNH CHÀO / START SCREEN
+    ═══════════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════════════════
+         MÀN HÌNH TẠO NHÂN VẬT
+    ═══════════════════════════════════════════════════════ -->
+    <div id="roleScreen" class="start-screen">
+      <div class="start-box animate-fade-in" style="max-width:520px;">
+        <!-- Credit banner -->
+        <div style="font-size:0.65rem;letter-spacing:0.15em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.3rem;">Một sản phẩm của <span style="color:var(--gold-dark)">Ha Trung Vuong</span></div>
+        <div style="font-size:0.72rem;letter-spacing:0.2em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.4rem;">Đại Việt · Thế Kỷ XVIII · Đàng Ngoài</div>
+        <h1 class="title">1737</h1>
+        <p class="subtitle-game">Đàng Ngoài — Lê Trung Hưng</p>
+        <div class="ornate-divider"></div>
+
+        <!-- Bước 1: Đặt tên & giới tính -->
+        <div class="cc-section">
+          <div class="cc-section-title">① Khai Sinh</div>
+          <div class="form-group" style="margin-bottom:0.6rem;">
+            <label class="name-label">Danh xưng:</label>
+            <input type="text" id="inputPlayerName" maxlength="32" placeholder="Nguyễn Văn X" value="Dân Đen" />
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" id="btnGenderMale" class="btn-gender active" onclick="window.selectGender('nam')">
+              👨 Nam Nhân
+              <div style="font-size:0.68rem;color:var(--text-dim);margin-top:2px;">Cưới được nữ NPC</div>
+            </button>
+            <button type="button" id="btnGenderFemale" class="btn-gender" onclick="window.selectGender('nu')">
+              👩 Nữ Nhân
+              <div style="font-size:0.68rem;color:var(--text-dim);margin-top:2px;">Cưới được nam NPC</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bước 2: Tính cách (chọn 2) -->
+        <div class="cc-section">
+          <div class="cc-section-title">② Tính Cách <span style="font-size:0.72rem;color:var(--text-dim);">(Chọn tối đa 2)</span></div>
+          <div id="traitGrid" class="cc-trait-grid"></div>
+        </div>
+
+        <!-- Bước 3: Đặc điểm bẩm sinh (chọn 1) -->
+        <div class="cc-section">
+          <div class="cc-section-title">③ Đặc Điểm Bẩm Sinh <span style="font-size:0.72rem;color:var(--text-dim);">(Chọn 1)</span></div>
+          <div id="birthTraitGrid" class="cc-trait-grid"></div>
+        </div>
+
+        <button type="button" class="btn primary btn-start" id="btnStartGame">⚔ Dấn Thân Vào Đời</button>
+        <button type="button" class="btn btn-start mt-3" onclick="window.safeActionLoadGame()" style="background:transparent;border-color:var(--border-dim);color:var(--text-muted);font-size:0.9rem;">📜 Tải Ký Ức Cũ (Load)</button>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         GAME HUD ROOT
+    ═══════════════════════════════════════════════════════ -->
+    <div id="gameRoot" class="hidden">
+
+      <!-- Banners -->
+          <div id="gameOverBanner" class="banner hidden" role="alert">
+            <p id="gameOverText"></p>
+            <p id="gameOverReport" style="margin-top:6px;font-size:0.82rem;color:var(--text-dim);"></p>
+          </div>
+      <div id="sickBanner" class="sick-banner hidden" role="status"></div>
+
+      <div class="hud-shell">
+
+        <!-- ═══ HEADER ═══ -->
+        <header class="hud-header">
+          <div class="hud-border-top"></div>
+          <div class="hud-center">
+            <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+              <div class="hud-rank-badge" id="playerRankBadge">Thứ Dân</div>
+              <div id="playerWantedBadge" class="wanted-badge hidden" style="background:#f87171; color:white; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; border:1px solid white; box-shadow:0 0 5px red;">🚨 TRUY NÃ</div>
+                <div id="delayedWarningBadge" class="wanted-badge hidden" style="background:#b96a26; color:white; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; border:1px solid rgba(255,255,255,0.7);">⏱ HẬU QUẢ ĐANG TREO</div>
+            </div>
+            <h2 id="playerName" class="player-name">Tên Nhân Vật</h2>
+            <div class="flex-stats" style="margin-top:0.3rem;">
+              <div class="stat-badge tooltip" title="Tiền quan trong tay"><span class="hud-icon-money" aria-hidden="true"></span><span id="playerMoney">0</span></div>
+              <div class="stat-badge tooltip" title="Kho thóc cá nhân">🌾 <span id="playerThoc">0</span></div>
+              <div class="stat-badge tooltip" title="Sinh mệnh — về 0 là tử">🩸 <span id="playerHp">100</span></div>
+              <div class="stat-badge tooltip" title="Thể lực — hồi theo ngày, kiệt sức sẽ ốm">⚡ <span id="playerStamina">100</span>%</div>
+              <div class="stat-badge tooltip" title="Binh lực đang có">⚔️ <span id="playerBinhQuyen">0</span></div>
+              <div class="stat-badge tooltip" title="Uy tín cộng đồng">👑 <span id="playerUyTin">0</span></div>
+            </div>
+          </div>
+          <div class="hud-border-bottom"></div>
+        </header>
+
+        <!-- ═══ THANH THỜI GIAN ═══ -->
+        <div class="time-hud">
+          <div class="time-info">
+            <span id="currentDate" style="color:var(--gold-light);">Ngày 1 · Tháng 1 · Năm 1737</span>
+            <span class="weather-line"> — <span id="weatherLine">Khí hậu: Ôn hòa</span></span>
+          </div>
+          <div class="time-controls">
+            <span id="timeStatus" class="time-label">x1</span>
+            <button type="button" id="btnPause" class="btn-tiny">⏸</button>
+            <button type="button" class="btn-tiny speed-btn" id="btnSpeed1">x1</button>
+            <button type="button" class="btn-tiny speed-btn" id="btnSpeed2">x2</button>
+            <button type="button" class="btn-tiny speed-btn" id="btnSpeed3">x3</button>
+            <button type="button" id="btnQuickLog" class="btn-tiny btn-icon mobile-only" title="Mở tab Sự Kiện">📜</button>
+            <button type="button" id="btnMuteAudio" class="btn-tiny btn-icon" title="Bật/tắt âm thanh">🔊</button>
+            <button type="button" id="btnSettings" class="btn-tiny btn-icon" title="Cài đặt">⚙</button>
+          </div>
+          <div class="month-progress-track">
+            <div id="monthProgressFill" class="month-progress-fill"></div>
+          </div>
+          <div id="activityScheduleLine" class="muted" style="font-size:0.78rem;text-align:center;padding-top:6px;line-height:1.35;"></div>
+          <div id="riskForecastLine" class="muted" style="font-size:0.76rem;text-align:center;padding-top:4px;line-height:1.3;"></div>
+          <div id="victoryProgressLine" class="muted" style="font-size:0.74rem;text-align:center;padding-top:4px;line-height:1.3;"></div>
+          <div id="warIntelLine" class="muted" style="font-size:0.73rem;text-align:center;padding-top:3px;line-height:1.25;"></div>
+          <div id="warCouncilLine" class="muted" style="font-size:0.72rem;text-align:center;padding-top:3px;line-height:1.25;"></div>
+        </div>
+
+        <!-- ═══ MAIN CONTENT ═══ -->
+        <main class="sandbox-layout">
+
+          <!-- NAV TABS: cuộn ngang trong .nav-tabs-scroll; không đặt role=tablist trên nav (ARIA: tablist nằm trong vùng cuộn) -->
+          <nav class="nav-tabs" id="mainNavTabs" aria-label="Điều hướng chính">
+            <button type="button" class="nav-tabs-collapse-btn" id="btnNavTabsCollapse"
+              aria-expanded="true" aria-controls="navTabsScroll"
+              title="Thu gọn thanh tab">‹</button>
+            <div class="nav-tabs-inner">
+              <button type="button" class="nav-tabs-nudge nav-tabs-nudge--prev" id="btnNavTabsPrev"
+                hidden aria-hidden="true" title="Lùi">‹</button>
+              <div class="nav-tabs-scroll" id="navTabsScroll" role="tablist">
+                <button class="tab-btn active" data-target="tabActions"   role="tab">⚙ Hoạt Động</button>
+                <button class="tab-btn"        data-target="tabProfile"   role="tab">👤 Nhân Vật</button>
+                <button class="tab-btn"        data-target="tabLifestyle" role="tab">🌟 Lối Sống</button>
+                <button class="tab-btn"        data-target="tabSociety"   role="tab">⚖ Xã Hội</button>
+                <button class="tab-btn"        data-target="tabMarket"    role="tab">🏪 Chợ</button>
+                <button class="tab-btn"        data-target="tabMap"       role="tab">🗺 Bản Đồ</button>
+                <button class="tab-btn"        data-target="tabLog"       role="tab">📜 Sự Kiện</button>
+              </div>
+              <button type="button" class="nav-tabs-nudge nav-tabs-nudge--next" id="btnNavTabsNext"
+                hidden aria-hidden="true" title="Tiến / xem thêm tab">›</button>
+            </div>
+          </nav>
+
+          <!-- TAB CONTENT AREA -->
+          <div class="tab-content-area">
+
+            <!-- ╔══════════════════╗
+                 ║ TAB: HÀNH ĐỘNG  ║
+                 ╚══════════════════╝ -->
+            <div id="tabActions" class="tab-panel active" role="tabpanel">
+              <div class="panel-header">
+                <h3>Tại: <span id="currentRegionNameStr" class="gold-text">---</span></h3>
+                <p class="muted">Chọn hành động. Hành động tiêu tốn Thể Lực và thời gian.</p>
+                <div class="action-mode-switch mt-2">
+                  <button type="button" id="btnModeBasic" class="btn-tiny active">Lối Chơi Cơ Bản</button>
+                  <button type="button" id="btnModeAdvanced" class="btn-tiny">Lối Chơi Nâng Cao</button>
+                </div>
+              </div>
+              <div class="box-plate mt-2 hidden" id="warCommandDeck">
+                <h4 class="gold-text border-bot pb-2 mb-2">🛡 Binh Pháp Đài</h4>
+                <div class="war-minimap-wrap">
+                  <canvas id="warMiniMapCanvas" width="420" height="116" aria-label="Mini bản đồ chiến tuyến"></canvas>
+                  <div class="war-minimap-legend">
+                    <span><i class="dot dot-trieu"></i> Triều đình</span>
+                    <span><i class="dot dot-nghia"></i> Nghĩa quân</span>
+                    <span><i class="dot dot-hot"></i> Điểm nóng</span>
+                    <span><i class="dot dot-me"></i> Bạn</span>
+                  </div>
+                </div>
+                <div id="warDashboardCards" class="war-dashboard-grid"></div>
+                <div id="battleLedgerPanel" class="battle-ledger-panel" aria-live="polite"></div>
+              </div>
+              <div class="box-plate mt-2" id="actionPriorityDeck">
+                <h4 class="gold-text border-bot pb-2 mb-2">⚡ Hành Động Ưu Tiên</h4>
+                <div id="actionPriorityBar" class="action-priority-grid"></div>
+              </div>
+
+              <!-- Quest log -->
+              <div class="box-plate">
+                <div class="quest-header">
+                  <h4 class="gold-text">🧭 Sứ Mệnh</h4>
+                  <div class="quest-sub muted">Mục tiêu ngắn hạn — hoàn thành để nhận thưởng.</div>
+                </div>
+                <div id="questList" class="quest-list"></div>
+              </div>
+
+              <div id="onboardingGuide" class="box-plate mt-2"></div>
+
+              <div id="normalActionBlocks">
+                <div class="box-plate mt-3">
+                  <h4 class="gold-text border-bot pb-2 mb-3">Sinh Kế Đồng Điền</h4>
+                  <div class="action-grid">
+                    <button type="button" id="btnCay"      class="action-btn" data-action-tier="basic">🌾 Cày Ruộng (+Thóc)</button>
+                    <button type="button" id="btnKhaiThac" class="action-btn highlight-gold" data-action-tier="basic">💎 Khai Thác Đặc Sản Vùng</button>
+                    <button type="button" id="btnChatGo"   class="action-btn" data-action-tier="basic">🪵 Chặt Gỗ Rừng (+Gỗ)</button>
+                    <button type="button" id="btnDetVai"   class="action-btn" data-action-tier="basic">🧵 Dệt Vải Làng Nghề (+Lụa)</button>
+                    <button type="button" id="btnCauCa"    class="action-btn" data-action-tier="basic">🎣 Câu Cá Sông (+Cá)</button>
+                    <button type="button" id="btnDanhBat"  class="action-btn highlight-gold" data-action-tier="advanced">🚣 Đánh Bắt Ven Biển (+Cá)</button>
+                    <button type="button" id="btnChanNuoi" class="action-btn" data-action-tier="basic">🐖 Chăn Nuôi Lợn (+Thịt)</button>
+                    <button type="button" id="btnNauRuou"  class="action-btn" data-action-tier="advanced">🍶 Nấu Rượu Thủ Công (+Rượu)</button>
+                    <button type="button" id="btnNghi"     class="action-btn hidden">🍚 Ăn Cơm Nghỉ Ngơi (+TL)</button>
+                    <button type="button" id="btnBuonMuoi" class="action-btn highlight-gold" data-action-tier="advanced">🧂 Buôn Lậu Muối (+Tiền)</button>
+                  </div>
+                </div>
+
+                <div class="box-plate mt-3">
+                  <h4 class="gold-text border-bot pb-2 mb-3">Thẩm Quyền Chức Dịch</h4>
+                  <div class="action-grid">
+                    <button type="button" id="btnThue"   class="action-btn hidden" data-action-tier="advanced">📊 Rà Soát Thuế Sổ</button>
+                    <button type="button" id="btnTiec"   class="action-btn hidden" data-action-tier="advanced">🎉 Mở Tiệc Xoa Dịu</button>
+                    <button type="button" id="btnTrung"  class="action-btn highlight-red hidden" data-action-tier="advanced">⚖ Trừng Phạt Thị Uy</button>
+                    <button type="button" id="btnDanPhu" class="action-btn hidden" data-action-tier="advanced">🏗 Điều Dân Đắp Đê</button>
+                  </div>
+                  <p id="noPoliticsText" class="muted text-center mt-3" style="font-size:0.8rem;">Chưa đủ chức tước để can thiệp chính sự địa phương.</p>
+                </div>
+              </div>
+
+              <div id="rebelActionBlocks" class="hidden">
+                <div class="box-plate mt-3">
+                  <h4 class="gold-text border-bot pb-2 mb-3">🔥 Hoạt Động Nghĩa Quân</h4>
+                  <div class="action-grid">
+                    <button type="button" id="btnRebelTrain"   class="action-btn highlight-red">🥁 Luyện Binh</button>
+                    <button type="button" id="btnRebelRaid"    class="action-btn danger">🥷 Cướp Lương Địch</button>
+                    <button type="button" id="btnRebelAid"     class="action-btn highlight-gold">🤝 Giúp Dân Vùng Chiếm</button>
+                    <button type="button" id="btnRebelBurn"    class="action-btn danger">🔥 Đốt Phủ Nha</button>
+                    <button type="button" id="btnRebelRecruit" class="action-btn highlight-red">🧑‍🌾 Mộ Binh Địa Phương</button>
+                    <button type="button" class="action-btn" onclick="window.openPrisoners()">⛓ Tù Binh</button>
+                  </div>
+                  <p class="muted text-center mt-3" style="font-size:0.8rem;">Đã tạo phản thì sống bằng hậu cần, lòng dân và chiến công. Một số hành động yêu cầu đang kiểm soát địa bàn.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ╔══════════════════════════╗
+                 ║  TAB: NHÂN VẬT (CK3)    ║
+                 ╚══════════════════════════╝ -->
+            <div id="tabProfile" class="tab-panel hidden" role="tabpanel">
+              <div class="panel-header">
+                <h3>Hồ Sơ Danh Nhân — <span id="playerFaction" class="gold-text">Dân Thường</span></h3>
+                <p class="muted">Thân thế, 5 Lõi Kỹ Năng, Gia Pháp và Bất Động Sản.</p>
+              </div>
+
+              <!-- 5 Core Stats -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-3">Ngũ Đức Tử Sinh</h4>
+                <div class="flex-stats" style="justify-content:space-around;gap:8px;flex-wrap:wrap;">
+                  <div class="stat-ring">
+                    <div class="stat-ring-icon">🕊️</div>
+                    <div class="stat-ring-value" id="statDip">5</div>
+                    <div class="stat-ring-label">Ngoại Giao</div>
+                    <div class="progress-bar-outer" style="width:60px;"><div class="progress-bar-fill bar-gold" id="barDip" style="width:5%"></div></div>
+                  </div>
+                  <div class="stat-ring">
+                    <div class="stat-ring-icon">⚔️</div>
+                    <div class="stat-ring-value" id="statMar">10</div>
+                    <div class="stat-ring-label">Võ Thuật</div>
+                    <div class="progress-bar-outer" style="width:60px;"><div class="progress-bar-fill bar-red" id="barMar" style="width:10%"></div></div>
+                  </div>
+                  <div class="stat-ring">
+                    <div class="stat-ring-icon">📜</div>
+                    <div class="stat-ring-value" id="statSte">5</div>
+                    <div class="stat-ring-label">Quản Lý</div>
+                    <div class="progress-bar-outer" style="width:60px;"><div class="progress-bar-fill bar-gold" id="barSte" style="width:5%"></div></div>
+                  </div>
+                  <div class="stat-ring">
+                    <div class="stat-ring-icon">🗡️</div>
+                    <div class="stat-ring-value" id="statInt">5</div>
+                    <div class="stat-ring-label">Mưu Mẹo</div>
+                    <div class="progress-bar-outer" style="width:60px;"><div class="progress-bar-fill bar-red" id="barInt" style="width:5%"></div></div>
+                  </div>
+                  <div class="stat-ring">
+                    <div class="stat-ring-icon">📚</div>
+                    <div class="stat-ring-value" id="statLea">5</div>
+                    <div class="stat-ring-label">Học Vấn</div>
+                    <div class="progress-bar-outer" style="width:60px;"><div class="progress-bar-fill bar-green" id="barLea" style="width:5%"></div></div>
+                  </div>
+                </div>
+                <div class="mt-3" style="border-top:1px solid var(--border-dim);padding-top:0.6rem;display:flex;flex-wrap:wrap;gap:8px;font-size:0.82rem;">
+                  <span>Học Vị: <strong id="playerHocVi" class="gold-text">Vô Danh</strong></span>
+                  <span>Uy Tín: <strong id="playerUyTinProfile" class="gold-text">0</strong></span>
+                  <span>Tuổi: <strong id="playerAge" class="gold-text">18</strong></span>
+                  <span>Danh Vọng: <strong id="playerDanhVong" class="gold-text">0</strong></span>
+                </div>
+                <!-- Traits & Đặc điểm -->
+                <div class="mt-2" style="border-top:1px solid var(--border-dim);padding-top:0.5rem;">
+                  <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">Đặc Điểm Nhân Vật</div>
+                  <div id="playerTraitTags" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+                </div>
+
+              </div>
+
+              <!-- Triều Đại -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-2">👑 Hoàng Triều & Phủ Chúa</h4>
+                <div id="dynastyInfo" style="font-size:0.88rem;line-height:1.8;"></div>
+              </div>
+
+              <!-- Gia Pháp -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-3">🏡 Gia Pháp Hộ Khẩu</h4>
+                <div style="font-size:0.9rem;margin-bottom:0.7rem;">
+                  Trạng thái: <strong id="playerFamily" class="gold-text">Độc thân</strong>
+                </div>
+                <button type="button" class="action-btn highlight-red w-100" onclick="window.actionOopVo()">🔥 Thắp Nến Ân Ái — Sinh Người Nối Dõi (20 TL)</button>
+                <p class="muted mt-2" style="font-size:0.8rem;">Con cả thừa kế toàn bộ di sản khi bạn quy tiên.</p>
+              </div>
+
+              <!-- Luyện Võ -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-3">⚔️ Võ Đường Luyện Binh</h4>
+                <p class="muted mb-2" style="font-size:0.82rem;">Cần Võ Thuật ≥ 20 mới được tranh Bác Cử. Võ Thuật cao hơn = chiến tỉ lệ thắng cao hơn.</p>
+                <button type="button" class="action-btn highlight-red w-100" onclick="window.doLuyenVo()">⚔️ Luyện Công Tại Võ Đường (3 Quan / 30 TL)</button>
+              </div>
+
+              <!-- Bất Động Sản — Category Tabs -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-3">🏠 Bất Động Sản — Kiến Trúc Đại Việt</h4>
+                <p class="muted mb-2" style="font-size:0.82rem;">Xây dựng đại cơ nghiệp. Nâng cấp để tăng lợi tức thụ động hàng tháng!</p>
+                <!-- Category filter tabs -->
+                <div id="propCatTabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0.6rem;"></div>
+                <div id="propList" class="action-grid mt-2" style="gap:6px;"></div>
+              </div>
+            </div>
+
+            <!-- ╔══════════════════════════╗
+                 ║  TAB: LỐI SỐNG / PERKS  ║
+                 ╚══════════════════════════╝ -->
+            <div id="tabLifestyle" class="tab-panel hidden" role="tabpanel">
+              <div class="panel-header">
+                <h3>Lối Sống & Điểm Kỹ Năng</h3>
+                <p class="muted">Chọn trọng tâm cuộc đời và mở khóa Perk để định hình số phận.</p>
+              </div>
+
+              <div class="box-plate mt-2" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                <div>
+                  Trọng tâm hiện tại: <strong id="lifestyleFocusLabel" class="gold-text">Chưa chọn</strong>
+                </div>
+                <div style="font-size:0.85rem;">
+                  Điểm lối sống: <strong id="lifestylePoints" class="gold-text">0</strong>
+                </div>
+              </div>
+
+              <!-- Lifestyle selector -->
+              <div id="lifestyleSelector" class="lifestyle-grid mt-3"></div>
+
+              <!-- Perk tree -->
+              <div id="perkTreeContainer" class="mt-3"></div>
+            </div>
+
+            <!-- ╔══════════════════════════╗
+                 ║  TAB: XÃ HỘI + KHOA CỬ ║
+                 ╚══════════════════════════╝ -->
+            <div id="tabSociety" class="tab-panel hidden" role="tabpanel">
+              <div class="panel-header">
+                <h3>Hệ Thống Phủ Huyện &amp; Khoa Bảng</h3>
+                <p class="muted">Làng: <strong id="villageName" class="gold-text">—</strong> | Bất ổn: <span id="villageUnrest" class="danger-red">0</span>/100</p>
+                <div class="unrest-bar-track mt-2"><div id="unrestBar" class="unrest-bar-fill" style="width:0%"></div></div>
+              </div>
+
+              <div class="box-plate mt-3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;font-size:0.82rem;">
+                <div>Đinh: <strong id="villageDinh" class="gold-text">0</strong></div>
+                <div>Thóc Đình: <strong id="villageGrain" class="gold-text">0</strong></div>
+                <div>Quỹ Làng: <strong id="villageFund" class="gold-text">0</strong></div>
+              </div>
+
+              <!-- Khoa Cử — Văn -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-3">📖 Khoa Bảng — Văn Quan</h4>
+                <div class="action-grid">
+                  <button class="action-btn" onclick="window.doDiHoc()">📖 Dùi Mài Kinh Sử (5Q/30TL)</button>
+                  <button class="action-btn highlight-gold" onclick="window.doThiHuong()">🎓 Thi Hương — Hương Cống (100Q)</button>
+                  <button class="action-btn highlight-gold" onclick="window.doThiHoi()">🎓 Thi Hội — Trúng Cách (300Q)</button>
+                  <button class="action-btn highlight-gold" onclick="window.doThiDinh()">👑 Thi Đình — Tiến Sĩ (Thăng Long)</button>
+                </div>
+              </div>
+
+              <!-- Khoa Cử — Võ -->
+              <div class="box-plate mt-3">
+                <h4 class="gold-text border-bot pb-2 mb-3">⚔️ Khoa Bảng — Võ Quan</h4>
+                <div class="action-grid">
+                  <button class="action-btn highlight-red" onclick="window.doBacCu()">🥊 Lên Lôi Đài Bác Cử (100Q)</button>
+                  <button class="action-btn highlight-red" onclick="window.doThangTienVo()">⬆ Thăng Tiến Võ Quan (Tiền+Quân+Võ)</button>
+                  <button class="action-btn highlight-blue" onclick="window.doXinBonNhiem()">📋 Xin Được Bổ Nhậm Sang Ngành</button>
+                </div>
+              </div>
+
+              <!-- Phủ Chúa Trịnh -->
+              <div class="box-plate mt-3" style="border-color:var(--gold-dark);">
+                <h4 style="color:var(--gold-light);" class="border-bot pb-2 mb-2">🏯 Đình Nghị — Phủ Chúa Trịnh</h4>
+                <p class="muted mb-3" style="font-size:0.82rem;">Quan viên tại nhiệm đệ đơn qua Lục Phiên để thăng ngạch. Cần Quản Lý + Tiền lo lót.</p>
+                <button class="action-btn w-100" style="background:rgba(120,80,20,0.3);border-color:var(--gold-mid);color:var(--gold-light);font-weight:bold;" onclick="window.doLuanChuyen()">📋 Đệ Đơn Thuyên Chuyển / Thăng Ngạch</button>
+              </div>
+
+              <!-- Posting / Local governance -->
+              <div class="panel-header mt-4"><h3>🏛 Quan Vụ Địa Phương</h3></div>
+              <div id="postingPanel" class="box-plate mt-2"></div>
+
+              <!-- Quan Lại -->
+              <div class="panel-header mt-4"><h3>Chức Dịch Tại Vùng</h3></div>
+              <div id="officialsList" class="officials-grid box-plate mt-2"></div>
+
+              <!-- Clan List -->
+              <div class="panel-header mt-4"><h3>Các Dòng Họ</h3></div>
+              <div id="clanList" class="clans-grid mt-2"></div>
+            </div>
+
+            <!-- ╔══════════════════════════╗
+                 ║  TAB: CHỢ              ║
+                 ╚══════════════════════════╝ -->
+            <div id="tabMarket" class="tab-panel hidden" role="tabpanel">
+              <div class="panel-header">
+                <h3>Sàn Giao Dịch: <span id="marketRegionStr" class="gold-text">---</span></h3>
+                <p class="muted mb-2">Thóc rẻ ở Sơn Nam, Muối rẻ ở Hải Dương, Gỗ rẻ ở Sơn Tây — buôn lúc trái mùa mới giàu.</p>
+                <div style="font-size:0.85rem;background:rgba(0,0,0,0.4);padding:0.5rem 0.7rem;border:1px solid var(--border-dim);border-radius:3px;display:flex;gap:1rem;flex-wrap:wrap;">
+                  <span>Tài sản: <strong class="gold-text"><span id="mktTien">0</span> Quan</strong></span>
+                  <span>Thóc: <strong style="color:#7ab3d4;"><span id="mktThoc">0</span> Thùng</strong></span>
+                </div>
+                <div id="merchantProgressLine" class="muted mt-2" style="font-size:0.8rem;"></div>
+                <div id="marketSceneLine" class="muted" style="font-size:0.78rem;"></div>
+                <div id="marketContractBox" class="mt-2"></div>
+                <div id="marketQuickFilters" class="market-filter-row mt-2"></div>
+              </div>
+
+              <!-- Market rows — NEW: qty input + mua/bán buttons -->
+              <div class="mt-3" id="marketRowsContainer"></div>
+              <div id="marketTradeFeed" class="box-plate mt-2"></div>
+            </div>
+
+            <!-- ╔══════════════════════════╗
+                 ║  TAB: BẢN ĐỒ          ║
+                 ╚══════════════════════════╝ -->
+            <div id="tabMap" class="tab-panel hidden" role="tabpanel">
+              <div class="panel-header">
+                <h3>Bản Đồ Đàng Ngoài</h3>
+                <p class="muted">Nhấn Trấn → Phủ → Huyện. Viền đỏ = đang có chiến sự. Nhấn để Di Chuyển.</p>
+                <div id="mapBreadcrumb" style="font-size:0.82rem;color:var(--text-muted);margin-top:0.3rem;"></div>
+              </div>
+              <div id="mapGrid" class="map-grid mt-3"></div>
+              <!-- Battle detail panel -->
+              <div id="battlePanel" class="battle-panel hidden mt-3"></div>
+            </div>
+
+            <!-- ╔══════════════════════════╗
+                 ║  TAB: SỰ KIỆN / LOG    ║
+                 ╚══════════════════════════╝ -->
+            <div id="tabLog" class="tab-panel hidden" role="tabpanel">
+              <div class="panel-header">
+                <h3>Biên Niên Sử</h3>
+                <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.3rem;">Nhật ký sự kiện cập nhật liên tục — tối đa 120 mục.</div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn-tiny active" id="logFilter_all">Tất cả</button>
+                <button class="btn-tiny" id="logFilter_kinhte">Kinh tế</button>
+                <button class="btn-tiny" id="logFilter_dongho">Dòng họ</button>
+                <button class="btn-tiny" id="logFilter_honnhan">Hôn nhân</button>
+                <button class="btn-tiny" id="logFilter_sukien">Sự kiện</button>
+                <button class="btn-tiny" id="logFilter_chienbao">Chiến báo</button>
+              </div>
+              <div id="logEntries" class="log-list mt-2"></div>
+            </div>
+
+          </div><!-- /tab-content-area -->
+        </main>
+      </div><!-- /hud-shell -->
+    </div><!-- /gameRoot -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         MODALS
+    ═══════════════════════════════════════════════════════ -->
+
+    <!-- Event Modal -->
+    <div id="eventModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner">
+        <h3 id="eventTitle" class="asian-title"></h3>
+        <p id="eventNarrative" style="font-size:0.9rem;color:var(--text-muted);margin:0.8rem 0;line-height:1.65;font-style:italic;"></p>
+        <div id="eventChoices"></div>
+      </div>
+    </div>
+
+    <!-- NPC Modal -->
+    <div id="npcModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner">
+        <button type="button" id="npcModalClose" style="position:absolute;top:0.8rem;right:0.8rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+        <h3 id="npcModalTitle" class="asian-title"></h3>
+        <div id="npcOpinionMeter" style="font-size:0.85rem;color:var(--text-muted);margin:0.4rem 0;"></div>
+        <div id="npcModalBody" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.6rem;"></div>
+        <h4 style="border-bottom:1px solid var(--border-dim);padding-bottom:0.4rem;margin-bottom:0.5rem;font-family:var(--font-title);color:var(--gold-light);font-size:0.95rem;">Tương Tác</h4>
+        <div id="npcInteractions" class="npc-interactions"></div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner settings-sheet">
+        <h3 class="asian-title">Bảng Cài Đặt</h3>
+
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Âm Thanh</h4>
+        <label class="settings-row"><input type="checkbox" id="chkBgm" checked /> Nhạc Nền (MP3)</label>
+        <label class="settings-row">
+          Âm lượng: <input type="range" id="volumeSlider" min="0" max="100" value="70" style="width:120px;vertical-align:middle;" />
+        </label>
+
+        <h4 class="mt-4 mb-2" style="font-size:0.85rem;color:var(--danger-light);text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--danger-red);padding-bottom:4px;">🔴 Bảng Điều Khiển Dev</h4>
+        <div class="action-grid mt-2 mb-3">
+          <button class="action-btn danger" onclick="window.debugHackQuan()">💉 God Mode: +10K Quân, Max Stats</button>
+          <button class="action-btn highlight-blue" onclick="window.debugHackTime()">⏩ Tua Tới 1740 Đại Loạn</button>
+        </div>
+
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Tùy Chọn Khác</h4>
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Preset Tốc Độ</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-tiny" id="btnSpeedPresetSlow">Chậm</button>
+          <button class="btn-tiny active" id="btnSpeedPresetNormal">Chuẩn</button>
+          <button class="btn-tiny" id="btnSpeedPresetFast">Nhanh</button>
+        </div>
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Độ Khó Campaign</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-tiny" id="btnDifficultyEasy">Dễ</button>
+          <button class="btn-tiny active" id="btnDifficultyNormal">Chuẩn</button>
+          <button class="btn-tiny" id="btnDifficultyHardcore">Hardcore</button>
+        </div>
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Hiệu Năng</h4>
+        <label class="settings-row"><input type="checkbox" id="chkPerfMode" /> Performance Mode (giảm hiệu ứng, ưu tiên mượt)</label>
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Chế Độ Giao Diện</h4>
+        <div class="settings-segment-row">
+          <button class="btn-tiny" id="btnUxModeNewbie">Newbie (gọn, dễ hiểu)</button>
+          <button class="btn-tiny" id="btnUxModeStrategic">Strategic (đầy đủ bảng)</button>
+        </div>
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Sắc Độ Cổ Họa</h4>
+        <div class="settings-segment-row">
+          <button class="btn-tiny" id="btnThemeInkSoft">Mềm (mặc định)</button>
+          <button class="btn-tiny" id="btnThemeInkBold">Đậm (sepia/mực)</button>
+        </div>
+        <div class="action-grid mt-2 mb-3">
+          <button class="action-btn highlight-gold" onclick="openTutorial()">📜 Hướng Dẫn</button>
+          <button class="action-btn highlight-red" onclick="window.resetInteractiveTutorial()">🧭 Reset Tutorial Tương Tác</button>
+        </div>
+
+        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">💾 Save / Load</h4>
+        <div class="settings-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label for="saveSlotSelect" style="font-size:0.82rem;color:var(--text-muted);">Slot:</label>
+          <select id="saveSlotSelect" style="background:rgba(0,0,0,0.45);color:var(--text-main);border:1px solid var(--border-dim);padding:4px 6px;border-radius:4px;min-width:170px;"></select>
+          <button class="btn-tiny" onclick="window.refreshSaveSlotUi()">🔄 Làm mới</button>
+        </div>
+        <div class="settings-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="saveSlotNameInput" type="text" maxlength="28" placeholder="Tên màn chơi (tuỳ chọn)" style="flex:1;min-width:180px;background:rgba(0,0,0,0.45);color:var(--text-main);border:1px solid var(--border-dim);padding:4px 6px;border-radius:4px;" />
+          <button class="btn-tiny" onclick="window.renameSaveSlot()">Đổi tên slot</button>
+        </div>
+        <div id="saveSlotMeta" class="muted" style="font-size:0.75rem;margin:4px 0 8px;"></div>
+        <div class="action-grid">
+          <button class="action-btn highlight-blue" onclick="window.actionSaveGame()">Lưu Game (Local)</button>
+          <button class="action-btn highlight-gold" onclick="window.actionLoadGame()">Tải Game Đã Lưu</button>
+          <button class="action-btn highlight-blue" onclick="window.loadLatestAutoSave()">Nạp AutoSave Gần Nhất</button>
+          <button class="action-btn danger" onclick="window.deleteSaveSlot()">Xóa Slot Đang Chọn</button>
+        </div>
+
+        <button type="button" id="settingsClose" class="btn mt-4 w-100 primary">Đóng</button>
+      </div>
+    </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner" style="max-width:500px;">
+        <h3 class="asian-title">📜 Cẩm Nang Sinh Tồn</h3>
+        <div id="tutorialContent" style="font-size:0.88rem;line-height:1.7;color:var(--text-muted);margin:0.8rem 0;"></div>
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-top:1rem;">
+          <button id="tutorialPrev" class="btn" style="opacity:0.5;">◀ Trước</button>
+          <span id="tutorialPage" style="font-size:0.8rem;color:var(--text-dim);align-self:center;"></span>
+          <button id="tutorialNext" class="btn primary">Tiếp ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievement / Celebration Modal -->
+    <div id="celebrateModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner celebrate-inner">
+        <div id="celebrateTitle" class="celebrate-title"></div>
+        <div id="celebrateBody" class="celebrate-body"></div>
+        <button type="button" id="celebrateClose" class="btn mt-3 primary">Tiếp</button>
+      </div>
+    </div>
+
+    <!-- Prisoners Modal -->
+    <div id="prisonerModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner" style="max-width:640px;">
+        <button type="button" id="prisonerClose" style="position:absolute;top:0.8rem;right:0.8rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+        <h3 class="asian-title">⛓ Danh Sách Tù Binh</h3>
+        <div id="prisonerList" style="margin-top:0.8rem;"></div>
+      </div>
+    </div>
+
+    <!-- Activity Modal (Exams / Tournament) -->
+    <div id="activityModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner" style="max-width:760px;">
+        <button type="button" id="activityClose" style="position:absolute;top:0.8rem;right:0.8rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+        <h3 id="activityTitle" class="asian-title"></h3>
+        <div id="activityBody" style="margin-top:0.8rem;"></div>
+        <div id="activityActions" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:0.9rem;"></div>
+      </div>
+    </div>
+
+    <!-- Cases Modal (Governance) -->
+    <div id="caseModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-inner" style="max-width:760px;">
+        <button type="button" id="caseClose" style="position:absolute;top:0.8rem;right:0.8rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+        <h3 class="asian-title">⚖ Sổ Án Địa Phương</h3>
+        <div id="caseList" style="margin-top:0.8rem;"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        function showBootError(title, detail) {
+          var box = document.createElement("div");
+          box.style.maxWidth = "780px";
+          box.style.margin = "24px auto";
+          box.style.padding = "14px 16px";
+          box.style.border = "1px solid #7a2f2f";
+          box.style.background = "#221414";
+          box.style.color = "#f8d7da";
+          box.style.fontFamily = "Arial,sans-serif";
+          box.style.lineHeight = "1.5";
+          box.innerHTML =
+            "<h2 style='margin:0 0 8px;'>" + title + "</h2>" +
+            "<p style='margin:0 0 6px;'>Game khong the khoi dong vi loi trinh duyet hoac loi JavaScript.</p>" +
+            "<p style='margin:0 0 6px;'>Hay mo bang Edge/Chrome ban moi nhat va chay lai RUN_GAME.bat.</p>" +
+            (detail ? "<pre style='white-space:pre-wrap;margin:8px 0 0;padding:8px;background:#140b0b;border:1px solid #573434;'>" + String(detail) + "</pre>" : "");
+          document.body.prepend(box);
+        }
+
+        function supportsModernSyntax() {
+          try {
+            // Optional chaining + nullish coalescing are used in the codebase.
+            new Function("const x={a:{b:1}}; return x?.a?.b ?? 0;");
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        window.addEventListener("error", function (ev) {
+          var msg = (ev && ev.message) ? ev.message : "Unknown startup error";
+          showBootError("Loi khoi dong game", msg);
+        });
+        window.safeActionLoadGame = function () {
+          if (typeof window.actionLoadGame === "function") {
+            window.actionLoadGame();
+            return;
+          }
+          showBootError("Loi khoi dong game", "window.actionLoadGame is undefined (main.js chua nap xong). Vui long doi 1-2 giay roi thu lai.");
+        };
+        window.addEventListener("unhandledrejection", function (ev) {
+          var reason = ev && ev.reason ? (ev.reason.message || String(ev.reason)) : "Unknown promise rejection";
+          showBootError("Loi promise khi khoi dong", reason);
+        });
+
+        var probe = document.createElement("script");
+        if (!("noModule" in probe)) {
+          showBootError("Trinh duyet khong ho tro JavaScript module");
+          return;
+        }
+        if (!supportsModernSyntax()) {
+          showBootError("Trinh duyet qua cu", "Thieu ho tro cu phap moi (optional chaining / nullish coalescing).");
+          return;
+        }
+
+        import("./main.js").catch(function (err) {
+          var detail = (err && (err.stack || err.message)) ? (err.stack || err.message) : String(err);
+          showBootError("Loi khi nap main.js", detail);
+        });
+      })();
+    </script>
+  </body>
+</html>
