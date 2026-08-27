@@ -83,7 +83,6 @@
         </div>
 
         <button type="button" class="btn primary btn-start" id="btnStartGame">⚔ Dấn Thân Vào Đời</button>
-        <button type="button" class="btn btn-start mt-3" onclick="window.safeActionLoadGame()" style="background:transparent;border-color:var(--border-dim);color:var(--text-muted);font-size:0.9rem;">📜 Tải Ký Ức Cũ (Load)</button>
       </div>
     </div>
 
@@ -548,24 +547,6 @@
           <button class="action-btn highlight-red" onclick="window.resetInteractiveTutorial()">🧭 Reset Tutorial Tương Tác</button>
         </div>
 
-        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">💾 Save / Load</h4>
-        <div class="settings-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <label for="saveSlotSelect" style="font-size:0.82rem;color:var(--text-muted);">Slot:</label>
-          <select id="saveSlotSelect" style="background:rgba(0,0,0,0.45);color:var(--text-main);border:1px solid var(--border-dim);padding:4px 6px;border-radius:4px;min-width:170px;"></select>
-          <button class="btn-tiny" onclick="window.refreshSaveSlotUi()">🔄 Làm mới</button>
-        </div>
-        <div class="settings-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input id="saveSlotNameInput" type="text" maxlength="28" placeholder="Tên màn chơi (tuỳ chọn)" style="flex:1;min-width:180px;background:rgba(0,0,0,0.45);color:var(--text-main);border:1px solid var(--border-dim);padding:4px 6px;border-radius:4px;" />
-          <button class="btn-tiny" onclick="window.renameSaveSlot()">Đổi tên slot</button>
-        </div>
-        <div id="saveSlotMeta" class="muted" style="font-size:0.75rem;margin:4px 0 8px;"></div>
-        <div class="action-grid">
-          <button class="action-btn highlight-blue" onclick="window.actionSaveGame()">Lưu Game (Local)</button>
-          <button class="action-btn highlight-gold" onclick="window.actionLoadGame()">Tải Game Đã Lưu</button>
-          <button class="action-btn highlight-blue" onclick="window.loadLatestAutoSave()">Nạp AutoSave Gần Nhất</button>
-          <button class="action-btn danger" onclick="window.deleteSaveSlot()">Xóa Slot Đang Chọn</button>
-        </div>
-
         <button type="button" id="settingsClose" class="btn mt-4 w-100 primary">Đóng</button>
       </div>
     </div>
@@ -654,13 +635,6 @@
           var msg = (ev && ev.message) ? ev.message : "Unknown startup error";
           showBootError("Loi khoi dong game", msg);
         });
-        window.safeActionLoadGame = function () {
-          if (typeof window.actionLoadGame === "function") {
-            window.actionLoadGame();
-            return;
-          }
-          showBootError("Loi khoi dong game", "window.actionLoadGame is undefined (main.js chua nap xong). Vui long doi 1-2 giay roi thu lai.");
-        };
         window.addEventListener("unhandledrejection", function (ev) {
           var reason = ev && ev.reason ? (ev.reason.message || String(ev.reason)) : "Unknown promise rejection";
           showBootError("Loi promise khi khoi dong", reason);

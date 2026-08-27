@@ -56,113 +56,6 @@ window.doRecruitMaa = (id) => {
   else if (typeof window.render === 'function') window.render();
 };
 
-// Save/Load: multi-slot local saves (keep compatibility with older key)
-const SAVE_KEY = "bachtinh_save_v3";
-const SAVE_KEY_OLD = "game_save_1737";
-const SAVE_SLOT_KEY_PREFIX = "bachtinh_save_slot_";
-const SAVE_SLOT_META_KEY = "bachtinh_save_slots_meta_v1";
-const SAVE_ACTIVE_SLOT_KEY = "bachtinh_active_slot_v1";
-const SAVE_AUTOSAVE_META_KEY_PREFIX = "bachtinh_autosave_meta_slot_";
-const SAVE_AUTOSAVE_KEY_PREFIX = "bachtinh_autosave_slot_";
-const SAVE_SLOT_COUNT = 8;
-
-function getSaveSlotKey(slot) {
-  const n = Math.max(1, Math.min(SAVE_SLOT_COUNT, Number(slot) || 1));
-  return `${SAVE_SLOT_KEY_PREFIX}${n}`;
-}
-function getActiveSaveSlot() {
-  const raw = Number(localStorage.getItem(SAVE_ACTIVE_SLOT_KEY) || 1);
-  return Math.max(1, Math.min(SAVE_SLOT_COUNT, raw || 1));
-}
-function setActiveSaveSlot(slot) {
-  const n = Math.max(1, Math.min(SAVE_SLOT_COUNT, Number(slot) || 1));
-  localStorage.setItem(SAVE_ACTIVE_SLOT_KEY, String(n));
-}
-function getSaveSlotsMeta() {
-  try {
-    const m = JSON.parse(localStorage.getItem(SAVE_SLOT_META_KEY) || "{}");
-    return (m && typeof m === "object") ? m : {};
-  } catch {
-    return {};
-  }
-}
-function setSaveSlotsMeta(meta) {
-  localStorage.setItem(SAVE_SLOT_META_KEY, JSON.stringify(meta || {}));
-}
-function formatSaveMeta(slot, meta, hasData) {
-  if (!hasData) return `Slot ${slot}: Trống`;
-  const nm = meta?.name ? `(${meta.name})` : "";
-  const dt = meta?.savedAt ? new Date(meta.savedAt).toLocaleString("vi-VN") : "không rõ thời gian";
-  const ym = (meta?.ban && meta?.monthIndex) ? ` · Năm ${meta.ban}/Tháng ${meta.monthIndex}` : "";
-  return `Slot ${slot} ${nm} · Lưu lúc ${dt}${ym}`;
-}
-function getAutoSaveMetaKey(slot) {
-  return `${SAVE_AUTOSAVE_META_KEY_PREFIX}${slot}`;
-}
-function getAutoSaveKey(slot, idx) {
-  return `${SAVE_AUTOSAVE_KEY_PREFIX}${slot}_${idx}`;
-}
-function getAutoSaveMeta(slot) {
-  try {
-    const m = JSON.parse(localStorage.getItem(getAutoSaveMetaKey(slot)) || "{}");
-    if (!m || typeof m !== "object") return { nextIdx: 0, items: [] };
-    if (!Array.isArray(m.items)) m.items = [];
-    if (typeof m.nextIdx !== "number") m.nextIdx = 0;
-    return m;
-  } catch {
-    return { nextIdx: 0, items: [] };
-  }
-}
-function setAutoSaveMeta(slot, meta) {
-  localStorage.setItem(getAutoSaveMetaKey(slot), JSON.stringify(meta || { nextIdx: 0, items: [] }));
-}
-function writeAutoSaveSnapshot(reason = "month") {
-  if (!state) return;
-  const slot = getActiveSaveSlot();
-  try {
-    const meta = getAutoSaveMeta(slot);
-    const idx = Math.max(0, Math.min(2, meta.nextIdx || 0));
-    localStorage.setItem(getAutoSaveKey(slot, idx), JSON.stringify(state));
-    const now = Date.now();
-    meta.items = (meta.items || []).filter(x => x && x.idx !== idx);
-    meta.items.push({
-      idx,
-      savedAt: now,
-      reason,
-      ban: state?.ban || 1737,
-      monthIndex: state?.monthIndex || 1,
-      gameDay: state?.gameDay || 1,
-    });
-    meta.items.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-    meta.items = meta.items.slice(0, 3);
-    meta.nextIdx = (idx + 1) % 3;
-    setAutoSaveMeta(slot, meta);
-  } catch {}
-}
-window.loadLatestAutoSave = () => {
-  const slot = Number($("saveSlotSelect")?.value || getActiveSaveSlot());
-  const meta = getAutoSaveMeta(slot);
-  const latest = (meta.items || []).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
-  if (!latest) { showToast("Slot này chưa có autosave.", true); return; }
-  try {
-    const raw = localStorage.getItem(getAutoSaveKey(slot, latest.idx));
-    if (!raw) { showToast("Autosave bị thiếu dữ liệu.", true); return; }
-    setActiveSaveSlot(slot);
-    state = JSON.parse(raw);
-    if (typeof window.__migrateLoadedState === "function") {
-      window.__migrateLoadedState();
-    }
-    $("roleScreen").classList.add("hidden");
-    $("gameRoot").classList.remove("hidden");
-    initButtons();
-    if ($("chkBgm")?.checked) audioManager.unlock().then(() => audioManager.startBg()).catch(() => {});
-    startGameLoop();
-    render();
-    showToast(`Đã nạp autosave gần nhất của Slot ${slot}.`);
-  } catch {
-    showToast("Nạp autosave thất bại.", true);
-  }
-};
 function buildVictoryProgressText() {
   if (!state?.player) return "";
   const df = 1.0;
@@ -187,53 +80,6 @@ function buildVictoryProgressText() {
   const highRank = [PlayerRank.HIEN_SAT_SU, PlayerRank.THUONG_THU, PlayerRank.THUA_CHINH_SU, PlayerRank.DOC_TRAN, PlayerRank.THAM_TUNG, PlayerRank.BOI_TUNG].includes(p.rank);
   return `🏁 Tiến độ Triều Đình · Đất: ${Math.round(ratioTd * 100)}%/${Math.round(0.78 * df * 100)}% · Uy tín: ${p.uyTinCong || 0}/${Math.floor(280 * df)} · Cấp quan: ${highRank ? "đủ" : "chưa đủ cao"}`;
 }
-window.refreshSaveSlotUi = () => {
-  const select = $("saveSlotSelect");
-  const metaEl = $("saveSlotMeta");
-  if (!select) return;
-  const meta = getSaveSlotsMeta();
-  const active = getActiveSaveSlot();
-  const options = [];
-  for (let i = 1; i <= SAVE_SLOT_COUNT; i++) {
-    const hasData = !!localStorage.getItem(getSaveSlotKey(i));
-    const label = meta?.[i]?.name ? `Slot ${i} — ${meta[i].name}` : `Slot ${i}${hasData ? " — Có dữ liệu" : " — Trống"}`;
-    options.push(`<option value="${i}" ${active === i ? "selected" : ""}>${label}</option>`);
-  }
-  select.innerHTML = options.join("");
-  const hasActive = !!localStorage.getItem(getSaveSlotKey(active));
-  if (metaEl) {
-    const aMeta = getAutoSaveMeta(active);
-    const latest = (aMeta.items || []).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
-    const autoTxt = latest ? ` · AutoSave: ${new Date(latest.savedAt).toLocaleString("vi-VN")}` : " · AutoSave: chưa có";
-    metaEl.textContent = formatSaveMeta(active, meta?.[active], hasActive) + autoTxt;
-  }
-  if ($("saveSlotNameInput")) $("saveSlotNameInput").value = meta?.[active]?.name || "";
-};
-window.renameSaveSlot = () => {
-  const select = $("saveSlotSelect");
-  const input = $("saveSlotNameInput");
-  if (!select || !input) return;
-  const slot = Number(select.value || getActiveSaveSlot());
-  const name = String(input.value || "").trim().slice(0, 28);
-  const meta = getSaveSlotsMeta();
-  meta[slot] = meta[slot] || {};
-  meta[slot].name = name;
-  setSaveSlotsMeta(meta);
-  showToast(name ? `Đổi tên Slot ${slot}: ${name}` : `Đã xóa tên Slot ${slot}`);
-  window.refreshSaveSlotUi();
-};
-window.deleteSaveSlot = () => {
-  const select = $("saveSlotSelect");
-  const slot = Number(select?.value || getActiveSaveSlot());
-  const ok = window.confirm(`Xóa dữ liệu Slot ${slot}? Hành động này không thể hoàn tác.`);
-  if (!ok) return;
-  localStorage.removeItem(getSaveSlotKey(slot));
-  const meta = getSaveSlotsMeta();
-  delete meta[slot];
-  setSaveSlotsMeta(meta);
-  showToast(`Đã xóa Slot ${slot}.`);
-  window.refreshSaveSlotUi();
-};
 
 window.actionJoinBattle = (battleId, side = "def") => {
   // Must travel to the battle's huyen (no teleport participation)
@@ -3016,7 +2862,7 @@ window.quickStartEconomy = () => {
 function autoSaveMonthly(prevMonth, prevYear) {
   if (!state) return;
   if (state.monthIndex === prevMonth && state.ban === prevYear) return;
-  writeAutoSaveSnapshot("month");
+  try { localStorage.setItem("bachtinh_state_v1", JSON.stringify(state)); } catch (e) { /* GĐ3: thay bằng ghi DB server */ }
 }
 window.doUnlockPerk = (lid, pid) => {
   const result = unlockPerk(state, lid, pid);
@@ -3827,132 +3673,6 @@ window.setClanPressureMode = (mode) => {
   render();
 };
 
-window.__migrateLoadedState = () => {
-  if (!state) return;
-  if (!state.recentEventIds)  state.recentEventIds  = [];
-  if (!state.marqueeQueue)    state.marqueeQueue     = [];
-  if (!state._battleChaos)    state._battleChaos     = {};
-  if (!state._battleContrib)  state._battleContrib   = {};
-  if (!state._huyenControl)   state._huyenControl    = {};
-  if (!state._huyenGarrisons) state._huyenGarrisons = {};
-  if (!state.travel) state.travel = { active: false, daysLeft: 0, totalDays: 0, dest: null, reason: "" };
-  if (!state.tutorial) state.tutorial = { completed: false, track: null, step: 0 };
-  if (!state.prisoners) state.prisoners = [];
-  if (!state._prisonerSeq) state._prisonerSeq = 1;
-  if (typeof state._activityUiPulse !== "number") state._activityUiPulse = 0;
-  if (!("activity" in state)) state.activity = null;
-  if (!("lastActivityReport" in state)) state.lastActivityReport = null;
-  if (!("lastBacCuArchive" in state)) state.lastBacCuArchive = null;
-  if (!("lastVanExamArchive" in state)) state.lastVanExamArchive = null;
-  if (!("_pendingExamResultModal" in state)) state._pendingExamResultModal = null;
-  if (!("posting" in state)) state.posting = null;
-  if (!state.reinforcements) state.reinforcements = [];
-  if (!("postingOrder" in state)) state.postingOrder = null;
-  if (!("_campaignYm" in state)) state._campaignYm = null;
-  if (!("_weatherForecast" in state)) state._weatherForecast = null;
-  if (!state.postingsByHuyen) state.postingsByHuyen = {};
-  if (!("postingId" in state)) state.postingId = null;
-  if (state.posting && state.posting.huyenId) {
-    state.postingsByHuyen[state.posting.huyenId] = { ...state.posting, taxCollectedYear: state.posting.taxCollectedYear || 0, lastAuditYear: state.posting.lastAuditYear || 0 };
-    state.postingId = state.posting.huyenId;
-    delete state.posting;
-  }
-  if ((state.postingId && state.postingsByHuyen[state.postingId]) && !state.postingsByHuyen[state.postingId].armies) state.postingsByHuyen[state.postingId].armies = [];
-  if (state.postingId && state.postingsByHuyen[state.postingId] && !state.postingsByHuyen[state.postingId].cases) state.postingsByHuyen[state.postingId].cases = [];
-  if (state.postingId && state.postingsByHuyen[state.postingId] && !state.postingsByHuyen[state.postingId].buildings) state.postingsByHuyen[state.postingId].buildings = {};
-  if (!state._htExec)         state._htExec          = {};
-  if (!state.player.lifestylePerks)  state.player.lifestylePerks  = {};
-  if (!state.player.lifestylePoints) state.player.lifestylePoints = 0;
-  if (!state.player.lifestyleXP)     state.player.lifestyleXP     = {};
-  if (!state.uiActionMode) state.uiActionMode = "basic";
-  if (!state._clanQuestStats) state._clanQuestStats = { total: 0, trom_ga: 0, pha_vuon: 0, boi_ban: 0, mediate: 0 };
-  if (!("mediate" in state._clanQuestStats)) state._clanQuestStats.mediate = 0;
-  if (!("_clanMission" in state)) state._clanMission = null;
-  if (!state.player.holdings)        state.player.holdings        = [];
-  if (!state.player.inventory)       state.player.inventory       = { ruou:0, tra:0, lua:0, muoi:0, go:0, ca:0, thit_lon:0 };
-  if (!("ca" in state.player.inventory)) state.player.inventory.ca = 0;
-  if (!("thit_lon" in state.player.inventory)) state.player.inventory.thit_lon = 0;
-  if (typeof state.player.merchantXp !== "number") state.player.merchantXp = 0;
-  if (typeof state.player.merchantTier !== "number") state.player.merchantTier = 0;
-  if (!state.player.giaDinh)         state.player.giaDinh         = { vo: null, con: 0 };
-  if (!state.uiSeenTabs) state.uiSeenTabs = { tabActions: true };
-  if (!state.onboarding) state.onboarding = { firstResourceActionDone: false, firstTradeDone: false, firstTravelDone: false, firstFocusDone: false };
-  if (!("firstResourceActionDone" in state.onboarding)) state.onboarding.firstResourceActionDone = false;
-  if (!("clanPressureMode" in state)) state.clanPressureMode = "standard";
-  if (!("performanceMode" in state)) state.performanceMode = false;
-  if (!Array.isArray(state.inbox)) state.inbox = [];
-  if (!("uiUxMode" in state)) state.uiUxMode = state.uxFirstPlay ? "newbie" : "strategic";
-  if (!("themeInkMode" in state)) state.themeInkMode = "soft";
-  if (!state.clanFavor) state.clanFavor = {};
-  if (state.clans?.length) state.clans.forEach(c => { if (!(c.id in state.clanFavor)) state.clanFavor[c.id] = 0; });
-  if (!state._delayedEffects) state._delayedEffects = [];
-  if (!state._uxHintsSeen) state._uxHintsSeen = {};
-  if (!("uxFirstPlay" in state)) state.uxFirstPlay = !!state.firstRun;
-  if (!("gameOverType" in state)) state.gameOverType = "lose";
-  if (!state.victory) state.victory = { offered: false, chosen: null, nextOfferYm: null };
-  if (state.village && !state.village.demo) state.village.demo = null;
-  try { ensureBattleLedgerAndSimCompat(state); } catch {}
-  if (!state._warRegionalScratch || typeof state._warRegionalScratch !== "object") state._warRegionalScratch = {};
-  try { repairGeoCacheFactionFlags(state); } catch {}
-};
-
-
-// Settings
-window.actionSaveGame = () => {
-  try {
-    const slot = Number($("saveSlotSelect")?.value || getActiveSaveSlot());
-    setActiveSaveSlot(slot);
-    localStorage.setItem(getSaveSlotKey(slot), JSON.stringify(state));
-    // Keep last-save compatibility key for older loader paths.
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    const meta = getSaveSlotsMeta();
-    meta[slot] = {
-      ...(meta[slot] || {}),
-      savedAt: Date.now(),
-      ban: state?.ban || 1737,
-      monthIndex: state?.monthIndex || 1,
-      name: (meta[slot]?.name || "").trim(),
-    };
-    setSaveSlotsMeta(meta);
-    writeAutoSaveSnapshot("manual");
-    window.refreshSaveSlotUi();
-    showToast(`Đã lưu game vào Slot ${slot}!`);
-  } catch { showToast("Lưu thất bại — bộ nhớ đầy?", true); }
-};
-window.actionLoadGame = () => {
-  try {
-    const slot = Number($("saveSlotSelect")?.value || getActiveSaveSlot());
-    setActiveSaveSlot(slot);
-    let raw = localStorage.getItem(getSaveSlotKey(slot));
-    if (!raw && slot === 1) {
-      // One-time fallback for legacy single-save users.
-      raw = localStorage.getItem(SAVE_KEY) || localStorage.getItem(SAVE_KEY_OLD);
-      if (raw) {
-        localStorage.setItem(getSaveSlotKey(1), raw);
-      }
-    }
-    if (!raw) { showToast("Không tìm thấy save.", true); return; }
-    state = JSON.parse(raw);
-    window.__migrateLoadedState();
-    window.refreshSaveSlotUi();
-    showToast(`Tải game thành công từ Slot ${slot}!`);
-    $("roleScreen").classList.add("hidden");
-    $("gameRoot").classList.remove("hidden");
-    initButtons();
-    if ($("chkBgm")?.checked) {
-      audioManager.unlock().then(() => audioManager.startBg()).catch(() => {});
-    }
-    startGameLoop();
-    render();
-    if (state.uxFirstPlay && !state.tutorial?.completed) {
-      setTimeout(() => {
-        try { itStart(); } catch {}
-      }, 500);
-    }
-  } catch { showToast("File save bị lỗi!", true); }
-};
-
-
 // Rebel
 $("btnRaiseRebel")?.addEventListener("click", () => {
   if (!state) return;
@@ -4696,7 +4416,6 @@ function itFinish(markCompleted) {
   itutor.dim && (itutor.dim.style.display = "none");
   itutor.spot && (itutor.spot.style.display = "none");
   itutor.card && (itutor.card.style.display = "none");
-  if (typeof window.actionSaveGame === "function") window.actionSaveGame();
 }
 
 function itRectFor(sel) {
@@ -4906,8 +4625,6 @@ function initButtons() {
   $("btnRebelAid")?.addEventListener("click", () => doAction(actionRebelAidPeople));
   $("btnRebelBurn")?.addEventListener("click", () => doAction(actionRebelBurnYamen));
   $("btnRebelRecruit")?.addEventListener("click", () => doAction(actionRebelRecruitLocal));
-  $("btnSave")?.addEventListener("click", window.actionSaveGame);
-  $("btnLoad")?.addEventListener("click", window.actionLoadGame);
   $("btnMoBinh")?.addEventListener("click", () => doAction(actionMoBinh));
 
   // Tutorial modal navigation
@@ -5029,7 +4746,6 @@ function initButtons() {
 
   // Settings
   $("btnSettings")?.addEventListener("click", () => {
-    window.refreshSaveSlotUi();
     if ($("chkPerfMode")) $("chkPerfMode").checked = !!state?.performanceMode;
     updateUiUxModeUi();
     updateThemeInkUi();
@@ -5039,11 +4755,6 @@ function initButtons() {
   $("settingsClose")?.addEventListener("click", () => {
     $("settingsModal")?.classList.remove("open");
     $("settingsModal")?.setAttribute("aria-hidden","true");
-  });
-  $("saveSlotSelect")?.addEventListener("change", (e) => {
-    const slot = Number(e.target?.value || 1);
-    setActiveSaveSlot(slot);
-    window.refreshSaveSlotUi();
   });
   $("npcModalClose")?.addEventListener("click", () => {
     $("npcModal").classList.remove("open");
@@ -5139,7 +4850,6 @@ function initButtons() {
 
   window.addEventListener("resize", () => updateTabDiscoverabilityUi());
   updateTabDiscoverabilityUi();
-  window.refreshSaveSlotUi();
 }
 
 // Unlock audio on first touch (without blocking natural scroll)
