@@ -1,3 +1,9 @@
+import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
+import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
+import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRaidSupply, actionRebelRecruitLocal, actionRebelTrain, addPrisoner } from "./actions/rebel.js";
+import { actionAssumeOfficeHere, actionLocalBribeSuperior, actionLocalCollectTax, actionLocalEmbezzle, actionLocalFund, actionLocalLevy, actionLocalPacify, actionLocalPatrol, actionLocalRecruitMaa, actionPostingBuild, resolveCase } from "./actions/office.js";
+import { actionAcceptMarketContract, actionMarketHaggle, actionTradeItem, ensureMarketSceneState, getMarketSceneBrief, getMerchantProgress, getTradeQuote, rollMonthlyMarketScene } from "./actions/market.js";
+import { actionBuonLauMuoi, actionCauCaSong, actionCayRuong, actionChanNuoiLon, actionChatGo, actionDanhBatVenBien, actionDetVai, actionKhaiThacDacSan, actionLuyenVo, actionMoBinh, actionNauRuou, actionNghiAnCom, collapseFromExhaustion } from "./actions/livelihood.js";
 import { clanSurname, actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission } from "./actions/clan.js";
 import {
   NPC, Clan, Village, Player,
@@ -82,505 +88,10 @@ function ymKey(state) {
   return `${state.ban}-${state.monthIndex}`;
 }
 
-function ensureQuestState(state) {
-  if (!state.quests) state.quests = [];
-  if (!state.uiCelebrations) state.uiCelebrations = [];
-  if (!state._questFlags) state._questFlags = {};
-}
-
 function pushCelebration(state, title, body, sfx = "coin", extra = null) {
   ensureQuestState(state);
   const tone = extra && typeof extra === "object" && extra.tone ? extra.tone : null;
   state.uiCelebrations.push({ title, body, sfx, tone });
-}
-
-function completeQuest(state, q, rewardText) {
-  if (q.completed) return;
-  q.completed = true;
-  q.completedAt = ymKey(state);
-  logLine(state, `✅ HOÀN THÀNH SỨ MỆNH: ${q.title}. ${rewardText}`, true);
-  pushCelebration(state, "CHIẾU CHỈ BAN THƯỞNG", `${q.title}<br><br>${rewardText}`, "coin");
-}
-
-function questProgressText(q) {
-  if (!q) return "";
-  const pct = Math.max(0, Math.min(100, Math.floor((q.progress / Math.max(1, q.goal)) * 100)));
-  return `${q.progress}/${q.goal} (${pct}%)`;
-}
-
-function makeQuestStarterPack(state) {
-  const qStart = ymKey(state);
-  const core = [
-    {
-      id: "q_startup_grain",
-      title: "Dân Đen Khởi Nghiệp",
-      desc: "Tích cóp đủ 100 Quan và 50 Thóc. Có vốn mới dám mơ lớn.",
-      kind: "threshold",
-      startAt: qStart,
-      deadlineMonths: 12,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { uyTin: 10, danhVong: 5, money: 20 },
-      check(state) {
-        const p = state.player;
-        const ok = (p.tien >= 100 && p.thocCaNhan >= 50);
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(state) {
-        state.player.uyTinCong += this.reward.uyTin;
-        state.player.danhVong += this.reward.danhVong;
-        state.player.tien += this.reward.money;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín · +${this.reward.danhVong} Danh Vọng · +${this.reward.money} Quan.`;
-      }
-    },
-    {
-      id: "q_find_spouse",
-      title: "Mối Lương Duyên",
-      desc: "Thành gia thất trước tuổi 25. Nhà có nóc thì người mới yên.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 84,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { uyTin: 20, danhVong: 20 },
-      check(state) {
-        const p = state.player;
-        const ok = !!p.giaDinh?.vo;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(state) {
-        state.player.uyTinCong += this.reward.uyTin;
-        state.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_bac_cu",
-      title: "Tay Mơ Lên Võ Đài",
-      desc: "Đạt 20 Võ Thuật và đỗ Bác Cử để mở đường binh nghiệp.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 36,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { danhVong: 25, money: 50 },
-      check(state) {
-        const p = state.player;
-        const ok = (p.voThuat >= 20 && p.rank === PlayerRank.DOI_TRUONG);
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(state) {
-        state.player.danhVong += this.reward.danhVong;
-        state.player.tien += this.reward.money;
-        return `Thưởng: +${this.reward.danhVong} Danh Vọng · +${this.reward.money} Quan.`;
-      }
-    },
-    {
-      id: "q_clan_patron",
-      title: "Xin Nương Dòng Họ",
-      desc: "Chọn một dòng họ địa phương để xin bảo trợ làm ăn.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 8,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { money: 25, uyTin: 5 },
-      check(s) {
-        const ok = !!s.player?._patronClanId;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.uyTinCong += this.reward.uyTin;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.uyTin} Uy Tín.`;
-      }
-    },
-    {
-      id: "q_clan_dirty_work_1",
-      title: "Việc Bẩn Đầu Tay",
-      desc: "Nhận và hoàn thành 1 phi vụ bẩn cho một dòng họ địa phương.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 10,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { money: 40, uyTin: 8 },
-      check(s) {
-        const done = s._clanQuestStats?.total || 0;
-        const ok = done >= 1;
-        return { ok, progress: Math.min(1, done), goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.uyTinCong += this.reward.uyTin;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.uyTin} Uy Tín.`;
-      }
-    },
-    {
-      id: "q_clan_mediate_once",
-      title: "Dập Lửa Gầm Gè",
-      desc: "Can thiệp dàn hòa ít nhất 1 mâu thuẫn giữa các dòng họ.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 16,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { uyTin: 15, danhVong: 12 },
-      check(s) {
-        const done = s._clanQuestStats?.mediate || 0;
-        const ok = done >= 1;
-        return { ok, progress: Math.min(1, done), goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.uyTinCong += this.reward.uyTin;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_clan_dirty_work_3",
-      title: "Chuyên Gia Chơi Đểu",
-      desc: "Hoàn thành tổng cộng 3 phi vụ bẩn cho các dòng họ để gây tiếng tăm ngầm.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 18,
-      goal: 3,
-      progress: 0,
-      completed: false,
-      reward: { money: 120, danhVong: 20 },
-      check(s) {
-        const done = s._clanQuestStats?.total || 0;
-        const ok = done >= 3;
-        return { ok, progress: Math.min(3, done), goal: 3, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_open_market_tab",
-      title: "Làm Quen Sàn Chợ",
-      desc: "Mở tab Chợ lần đầu để xem giá hàng hóa theo vùng.",
-      kind: "tutorial",
-      startAt: qStart,
-      deadlineMonths: 6,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { money: 15 },
-      check(s) {
-        const ok = !!s.uiSeenTabs?.tabMarket;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        return `Thưởng: +${this.reward.money} Quan.`;
-      }
-    },
-    {
-      id: "q_first_trade",
-      title: "Mua Bán Mở Hàng",
-      desc: "Hoàn tất ít nhất 1 giao dịch ở Chợ (mua hoặc bán).",
-      kind: "tutorial",
-      startAt: qStart,
-      deadlineMonths: 8,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { money: 30, uyTin: 6 },
-      check(s) {
-        const ok = !!s.onboarding?.firstTradeDone;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.uyTinCong += this.reward.uyTin;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.uyTin} Uy Tín.`;
-      }
-    },
-    {
-      id: "q_open_map_tab",
-      title: "Nhìn Bản Đồ Đại Cục",
-      desc: "Mở tab Bản Đồ để quan sát địa bàn và tuyến hành quân.",
-      kind: "tutorial",
-      startAt: qStart,
-      deadlineMonths: 8,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { uyTin: 8 },
-      check(s) {
-        const ok = !!s.uiSeenTabs?.tabMap;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.uyTinCong += this.reward.uyTin;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín.`;
-      }
-    },
-    {
-      id: "q_first_travel",
-      title: "Hành Quân Đầu Đời",
-      desc: "Di chuyển thành công ít nhất 1 lần qua Bản Đồ.",
-      kind: "tutorial",
-      startAt: qStart,
-      deadlineMonths: 10,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { danhVong: 12, money: 20 },
-      check(s) {
-        const ok = !!s.onboarding?.firstTravelDone;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.danhVong += this.reward.danhVong;
-        s.player.tien += this.reward.money;
-        return `Thưởng: +${this.reward.danhVong} Danh Vọng · +${this.reward.money} Quan.`;
-      }
-    },
-    {
-      id: "q_choose_focus",
-      title: "Định Hướng Cuộc Đời",
-      desc: "Vào tab Lối Sống và chọn 1 trọng tâm chơi.",
-      kind: "tutorial",
-      startAt: qStart,
-      deadlineMonths: 12,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { uyTin: 10, danhVong: 10 },
-      check(s) {
-        const ok = !!s.onboarding?.firstFocusDone || !!s.player?.lifestyleFocus;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.uyTinCong += this.reward.uyTin;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_survive_wanted_3",
-      title: "Tên Cướp Có Số Má",
-      desc: "Đạt mức truy nã 3 mà vẫn còn sống sót để đi tiếp. Không có đường lùi.",
-      kind: "hardcore",
-      startAt: qStart,
-      deadlineMonths: 24,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { danhVong: 30, money: 80 },
-      check(s) {
-        const lvl = s.player?.wantedLevel || 0;
-        const ok = lvl >= 3;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.danhVong += this.reward.danhVong;
-        s.player.tien += this.reward.money;
-        return `Thưởng: +${this.reward.danhVong} Danh Vọng · +${this.reward.money} Quan.`;
-      }
-    },
-    {
-      id: "q_shadow_warrior",
-      title: "Bàn Tay Bóng Tối",
-      desc: "Hoàn thành 6 phi vụ bẩn cho dòng họ. Càng làm càng lún.",
-      kind: "hardcore",
-      startAt: qStart,
-      deadlineMonths: 24,
-      goal: 6,
-      progress: 0,
-      completed: false,
-      reward: { money: 180, uyTin: 20, danhVong: 35 },
-      check(s) {
-        const done = s._clanQuestStats?.total || 0;
-        return { ok: done >= 6, progress: Math.min(6, done), goal: 6, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.uyTinCong += this.reward.uyTin;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.uyTin} Uy Tín · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_break_200_army",
-      title: "Lửa Thử Vàng",
-      desc: "Dẫn được 200 quân trong lúc vẫn giữ thể lực trên 60. Vừa mạnh vừa bền.",
-      kind: "hardcore",
-      startAt: qStart,
-      deadlineMonths: 30,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { money: 120, uyTin: 28 },
-      check(s) {
-        const ok = (s.player?.quanSo || 0) >= 200 && (s.player?.theLuc || 0) >= 60;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.uyTinCong += this.reward.uyTin;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.uyTin} Uy Tín.`;
-      }
-    },
-    {
-      id: "q_clan_shadow_10",
-      title: "Bóng Tối Thành Danh",
-      desc: "Hoàn tất 10 phi vụ dòng họ để thành tay trong khét tiếng khắp vùng.",
-      kind: "hardcore",
-      startAt: qStart,
-      deadlineMonths: 36,
-      goal: 10,
-      progress: 0,
-      completed: false,
-      reward: { money: 260, danhVong: 50 },
-      check(s) {
-        const done = s._clanQuestStats?.total || 0;
-        return { ok: done >= 10, progress: Math.min(10, done), goal: 10, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_wealth_1200",
-      title: "Két Sắt Dân Gian",
-      desc: "Tích lũy 1200 Quan tiền mặt. Người không vốn khó mà sống yên.",
-      kind: "milestone",
-      startAt: qStart,
-      deadlineMonths: 40,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { uyTin: 35, danhVong: 20 },
-      check(s) {
-        const ok = (s.player?.tien || 0) >= 1200;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.uyTinCong += this.reward.uyTin;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín · +${this.reward.danhVong} Danh Vọng.`;
-      }
-    },
-    {
-      id: "q_stamina_master",
-      title: "Thép Rèn Thân Xác",
-      desc: "Giữ thể lực từ 95 trở lên trong một tháng trọn vẹn (khi sang tháng vẫn >=95).",
-      kind: "challenge",
-      startAt: qStart,
-      deadlineMonths: 24,
-      goal: 1,
-      progress: 0,
-      completed: false,
-      reward: { money: 90, uyTin: 16 },
-      check(s) {
-        const ok = (s.player?.theLuc || 0) >= 95;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.uyTinCong += this.reward.uyTin;
-        return `Thưởng: +${this.reward.money} Quan · +${this.reward.uyTin} Uy Tín.`;
-      }
-    }
-  ];
-  if (state?.uxFirstPlay === false) {
-    return core.filter(q => q.kind !== "tutorial");
-  }
-  return core;
-}
-
-export function initQuestsIfNeeded(state) {
-  ensureQuestState(state);
-  if (!state.quests || state.quests.length === 0) {
-    state.quests = makeQuestStarterPack(state);
-    logLine(state, "🧭 Sứ mệnh khởi đầu đã được giao. Hoàn thành để nhận thưởng.", true);
-  }
-}
-
-export function refreshQuestsYearly(state) {
-  ensureQuestState(state);
-  const k = `year_${state.ban}`;
-  if (state._questFlags[k]) return;
-  // mỗi năm chỉ thêm 1 sứ mệnh ngẫu nhiên nhẹ để tránh loãng UI
-  state._questFlags[k] = true;
-
-  const qStart = ymKey(state);
-  const candidates = [
-    {
-      id: `q_year_${state.ban}_prestige`,
-      title: "Danh Tiếng Nổi Lên",
-      desc: "Đạt 150 Danh Vọng. Có danh mới có quyền.",
-      kind: "threshold",
-      startAt: qStart,
-      deadlineMonths: 12,
-      goal: 1, progress: 0, completed: false,
-      reward: { uyTin: 15, money: 60 },
-      check(s) {
-        const ok = (s.player.danhVong >= 150);
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.uyTinCong += this.reward.uyTin;
-        s.player.tien += this.reward.money;
-        return `Thưởng: +${this.reward.uyTin} Uy Tín · +${this.reward.money} Quan.`;
-      }
-    },
-    {
-      id: `q_year_${state.ban}_holdings`,
-      title: "Đắp Nền Cơ Nghiệp",
-      desc: "Sở hữu 2 công trình bất động sản ở quê nhà.",
-      kind: "threshold",
-      startAt: qStart,
-      deadlineMonths: 12,
-      goal: 1, progress: 0, completed: false,
-      reward: { money: 80, danhVong: 15 },
-      check(s) {
-        const count = (s.player.holdings || []).length;
-        const ok = count >= 2;
-        return { ok, progress: ok ? 1 : 0, goal: 1, deadline: this.deadlineMonths };
-      },
-      applyReward(s) {
-        s.player.tien += this.reward.money;
-        s.player.danhVong += this.reward.danhVong;
-        return `Thưởng: +${this.reward.danhVong} Danh Vọng · +${this.reward.money} Quan.`;
-      }
-    }
-  ];
-  const q = candidates[randInt(0, candidates.length - 1)];
-  state.quests.push(q);
-  logLine(state, `🧭 Sứ mệnh mới: ${q.title}.`, true);
-}
-
-export function tickQuests(state) {
-  ensureQuestState(state);
-  if (!state.quests || state.quests.length === 0) return;
-
-  for (const q of state.quests) {
-    if (!q || q.completed) continue;
-    if (q.kind === "tutorial" && state?.uxFirstPlay === false) continue;
-    const res = q.check ? q.check(state) : null;
-    if (!res) continue;
-    q.progress = res.progress ?? q.progress ?? 0;
-    q.goal = res.goal ?? q.goal ?? 1;
-    if (res.ok) {
-      const rewardText = q.applyReward ? q.applyReward(state) : "Thưởng: (không rõ).";
-      completeQuest(state, q, rewardText);
-    }
-  }
 }
 
 export const RegionsDb = {
@@ -637,7 +148,6 @@ function randomVietNameByHo(ho, isMale) {
   const ten = isMale ? TEN[randInt(0, TEN.length - 1)] : TEN_NU[randInt(0, TEN_NU.length - 1)];
   return `${safeHo} ${dem} ${ten}`;
 }
-
 
 // =============================================
 // DANH MỤC BẤT ĐỘNG SẢN ĐẠI TU (40+ loại)
@@ -1602,25 +1112,6 @@ const PostingBuildingDb = {
   },
 };
 
-export function actionPostingBuild(state, buildingId) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  if (!postingHere(state)) return { ok: false, msg: "Phải ở đúng địa bàn nhậm chức." };
-  const b = PostingBuildingDb[buildingId];
-  if (!b) return { ok: false, msg: "Công trình không tồn tại." };
-  if (!po.buildings) po.buildings = {};
-  const cur = po.buildings[buildingId] || 0;
-  if (cur >= b.maxLevel) return { ok: false, msg: "Đã đạt cấp tối đa." };
-  const next = cur + 1;
-  const cost = b.costs?.[next] ?? 999999;
-  if (po.treasury < cost) return { ok: false, msg: `Kho địa phương cần ${cost}Q.` };
-  po.treasury -= cost;
-  po.buildings[buildingId] = next;
-  logLine(state, `🏗 Xây ${b.name} Cấp ${next} (−${cost}Q kho).`, true);
-  return { ok: true, feedback: [{ text: `${b.name} ↑ Cấp ${next}`, tone: "good" }, { text: `-${cost}Q (Kho)`, tone: "bad" }], sfx: "coin" };
-}
-
 function applyPostingBuildingMonthly(state, po) {
   if (!po?.buildings) return;
   const v = state.village;
@@ -1779,15 +1270,9 @@ function addCase(po, c) {
   po.cases.push({ id, ...c });
 }
 
-
-
-
-
 function daySerial(state) {
   return (state.ban - 1737) * 360 + state.monthIndex * 30 + (state.gameDay || 1);
 }
-
-
 
 function scheduleDelayedEffect(state, effect) {
   if (!state._delayedEffects) state._delayedEffects = [];
@@ -1823,11 +1308,6 @@ function processDelayedEffects(state) {
   }
   state._delayedEffects = keep;
 }
-
-
-
-
-
 
 function generateMonthlyCases(state, po) {
   ensureCaseList(po);
@@ -1908,80 +1388,11 @@ function generateMonthlyCases(state, po) {
   }
 }
 
-export function resolveCase(state, caseId, choiceIndex) {
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  ensureCaseList(po);
-  const idx = po.cases.findIndex(c => c.id === caseId);
-  if (idx < 0) return { ok: false, msg: "Không tìm thấy vụ án." };
-  const c = po.cases[idx];
-  const ch = c.choices?.[choiceIndex];
-  if (!ch) return { ok: false, msg: "Lựa chọn không hợp lệ." };
-  ch.apply(state);
-  po.cases.splice(idx, 1);
-  return { ok: true, feedback: [{ text: "Đã xử án", tone: "good" }], sfx: "murmur" };
-}
-
 function postingHere(state) {
   const p = state.player;
   const po = getPosting(state);
   if (!po) return false;
   return p.currentRegion === po.regionId && p.currentHuyen === po.huyenId;
-}
-
-export function actionAssumeOfficeHere(state) {
-  const p = state.player;
-  if (p.faction !== Faction.TRIEU_DINH) return { ok: false, msg: "Chỉ quan triều đình mới nhậm chức." };
-  if (!isOfficialRank(p.rank)) return { ok: false, msg: "Chưa đủ phẩm hàm để nhậm chức." };
-  if (!state.postingsByHuyen) state.postingsByHuyen = {};
-  state.postingId = p.currentHuyen;
-  ensurePostingIfNeeded(state);
-  return { ok: true, feedback: [{ text: "Nhậm chức tại đây", tone: "good" }], sfx: "coin" };
-}
-
-export function actionLocalLevy(state) {
-  ensurePostingIfNeeded(state);
-  const p = state.player;
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  if (!postingHere(state)) return { ok: false, msg: "Phải ở đúng địa bàn nhậm chức mới mộ đinh được." };
-  if (p.theLuc < 25) return { ok: false, msg: "Thể lực không đủ (cần 25)." };
-  const levy = 40 + randInt(0, 80);
-  p.theLuc -= 25;
-  p.quanSo += levy;
-  po.garrison += Math.floor(levy * 0.4);
-  state.village.unrest = Math.min(100, state.village.unrest + 8);
-  logLine(state, `📜 Trưng đinh mộ lính: thêm ${levy} quân. Dân oán tăng.`, true);
-  return { ok: true, feedback: [{ text: `+${levy} Quân`, tone: "good" }, { text: "+Bất ổn", tone: "bad" }], sfx: "battle" };
-}
-
-export function actionLocalFund(state, amount) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  const p = state.player;
-  const a = Math.max(0, Math.floor(amount || 0));
-  if (a <= 0) return { ok: false, msg: "Số tiền không hợp lệ." };
-  if (p.tien < a) return { ok: false, msg: "Không đủ tiền." };
-  p.tien -= a;
-  po.treasury += a;
-  logLine(state, `Nộp ${a} quan vào kho bạc địa phương.`);
-  return { ok: true, feedback: [{ text: `-${a} Quan`, tone: "bad" }], sfx: "coin" };
-}
-
-export function actionLocalEmbezzle(state, amount) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  const p = state.player;
-  const a = Math.max(0, Math.floor(amount || 0));
-  if (a <= 0) return { ok: false, msg: "Số tiền không hợp lệ." };
-  if (po.treasury < a) return { ok: false, msg: "Kho bạc không đủ." };
-  po.treasury -= a;
-  p.tien += a;
-  po.corruption = Math.min(100, (po.corruption || 0) + Math.ceil(a / 150));
-  logLine(state, `💰 Tham ô ${a} quan từ kho bạc địa phương.`, true);
-  return { ok: true, feedback: [{ text: `+${a} Quan`, tone: "good" }], sfx: "coin" };
 }
 
 export function actionRequestReinforcements(state) {
@@ -2000,109 +1411,6 @@ export function actionRequestReinforcements(state) {
   state.reinforcements.push({ etaDays: eta, troops, toHuyen: po.huyenId });
   logLine(state, `📨 Gửi thư về triều xin cứu viện. Dự kiến ${eta} ngày sẽ tới (${troops} quân).`, true);
   return { ok: true, feedback: [{ text: `Cứu viện: ${eta} ngày`, tone: "good" }], sfx: "murmur" };
-}
-
-export function actionLocalRecruitMaa(state, maaKey) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  if (!postingHere(state)) return { ok: false, msg: "Phải ở đúng địa bàn nhậm chức." };
-  const p = state.player;
-  if (p.theLuc < 20) return { ok: false, msg: "Thể lực không đủ (cần 20)." };
-  const maa = MenAtArmType[(maaKey || "").toUpperCase()];
-  if (!maa) return { ok: false, msg: "Binh chủng không tồn tại." };
-  const cost = Math.max(10, maa.cost * 10);
-  if (po.treasury < cost) return { ok: false, msg: `Kho bạc địa phương cần ${cost}Q.` };
-  po.treasury -= cost;
-  p.theLuc -= 20;
-  // Each local regiment is bigger than player's personal regiment
-  const addCount = maa.id === "phao_binh" ? 10 : 80;
-  const arr = po.armies || (po.armies = []);
-  const ex = arr.find(x => x.type === maa.id);
-  if (ex) ex.count += addCount;
-  else arr.push({ type: maa.id, count: addCount, morale: 80, level: 1 });
-  po.garrison = (po.garrison || 0) + Math.floor(addCount * 0.35);
-  logLine(state, `🏛 Tuyển ${addCount} ${maa.name} bằng kho bạc địa phương (−${cost}Q).`, true);
-  return { ok: true, feedback: [{ text: `+${addCount} ${maa.name}`, tone: "good" }, { text: `-${cost}Q (Kho)`, tone: "bad" }], sfx: "battle" };
-}
-
-export function actionLocalCollectTax(state) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  if (!postingHere(state)) return { ok: false, msg: "Phải ở đúng địa bàn nhậm chức." };
-  const p = state.player;
-  // Annual tax season: only once per year, fixed by court law.
-  if (state.monthIndex !== 6) return { ok: false, msg: "Thuế công chỉ thu vào kỳ giữa năm (tháng 6)." };
-  if ((po.taxCollectedYear || 0) === state.ban) return { ok: false, msg: "Năm nay đã thu thuế công rồi." };
-  if (p.theLuc < 20) return { ok: false, msg: "Thể lực không đủ (cần 20)." };
-  p.theLuc -= 20;
-  const dinh = Math.max(1, Math.floor(totalPops(state.village) / 5));
-  const lawful = dinh * (state.thueDinh || 8);
-  // corruption may skim extra -> unrest & audit risk
-  const skimMult = 1 + Math.min(0.35, (po.corruption || 0) / 180);
-  const take = Math.floor(lawful * skimMult);
-  po.treasury += take;
-  po.taxCollectedYear = state.ban;
-  state.village.unrest = Math.min(100, state.village.unrest + 10);
-  p.uyTinCong = Math.max(0, p.uyTinCong - 5);
-  logLine(state, `📊 Thu thuế công theo luật: định mức ${lawful}Q. Thu thực ${take}Q vào kho. Dân oán tăng.`, true);
-  return { ok: true, feedback: [{ text: `+${take}Q (Kho)`, tone: "good" }, { text: "+Bất ổn", tone: "bad" }], sfx: "coin" };
-}
-
-export function actionLocalPatrol(state) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  if (!postingHere(state)) return { ok: false, msg: "Phải ở đúng địa bàn nhậm chức." };
-  const p = state.player;
-  if (p.theLuc < 25) return { ok: false, msg: "Thể lực không đủ (cần 25)." };
-  p.theLuc -= 25;
-  const ok = Math.random() < (0.35 + (p.muuMeo || 0) * 0.004 + (po.garrison || 0) / 4000);
-  if (ok) {
-    const fine = 40 + randInt(0, 80);
-    po.treasury += fine;
-    state.village.unrest = Math.max(0, state.village.unrest - 8);
-    p.uyTinCong += 10;
-    logLine(state, `🚶 Tuần soát bắt được trộm vặt. Phạt vạ +${fine}Q vào kho. An dân.`, true);
-    return { ok: true, feedback: [{ text: `+${fine}Q (Kho)`, tone: "good" }, { text: "Bất ổn giảm", tone: "good" }], sfx: "murmur" };
-  } else {
-    state.village.unrest = Math.min(100, state.village.unrest + 4);
-    logLine(state, "Tuần soát không bắt được kẻ gian. Dân vẫn xôn xao.", false);
-    return { ok: true, feedback: [{ text: "Không kết quả", tone: "bad" }], sfx: "caiVa" };
-  }
-}
-
-export function actionLocalPacify(state) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  if (!postingHere(state)) return { ok: false, msg: "Phải ở đúng địa bàn nhậm chức." };
-  const p = state.player;
-  if (p.theLuc < 20) return { ok: false, msg: "Thể lực không đủ (cần 20)." };
-  p.theLuc -= 20;
-  const spend = 60;
-  if (po.treasury < spend) return { ok: false, msg: `Kho bạc cần ${spend}Q để phát chẩn/tu sửa.` };
-  po.treasury -= spend;
-  state.village.unrest = Math.max(0, state.village.unrest - 15);
-  p.uyTinCong += 15;
-  logLine(state, "📜 Phủ dụ an dân: mở kho phát chẩn, sửa cầu đường. Bất ổn giảm mạnh.", true);
-  return { ok: true, feedback: [{ text: `-${spend}Q (Kho)`, tone: "bad" }, { text: "+Uy tín", tone: "good" }], sfx: "coin" };
-}
-
-export function actionLocalBribeSuperior(state) {
-  ensurePostingIfNeeded(state);
-  const po = getPosting(state);
-  if (!po) return { ok: false, msg: "Chưa có địa bàn nhậm chức." };
-  const p = state.player;
-  let cost = 120;
-  cost = Math.floor(cost * (perkFx(state, "bribeCostMult", 1.0) || 1.0));
-  if (p.tien < cost) return { ok: false, msg: `Cần ${cost}Q để lo lót quan trên.` };
-  p.tien -= cost;
-  po.corruption = Math.max(0, (po.corruption || 0) - 8);
-  p.uyTinCong += 5;
-  logLine(state, "🧧 Lo lót quan trên. Sổ sách nhẹ tay hơn một thời gian.", true);
-  return { ok: true, feedback: [{ text: `-${cost}Q`, tone: "bad" }, { text: "Giảm nguy cơ điều tra", tone: "good" }], sfx: "coin" };
 }
 
 const EXAM_PERSONALITIES = [
@@ -2762,7 +2070,6 @@ function collectXaFactionStats(state) {
   return { total, td, nq };
 }
 
-
 // --- Chiến báo gộp theo trấn (khu vực), tránh spam log / marquee --- //
 
 /**
@@ -3133,264 +2440,7 @@ export function siegeHuyen(state, regionId, phuId, huyenId) {
   }
 }
 
-
-
-
-export function collapseFromExhaustion(state, tuChonLog) {
-  const p = state.player;
-  p.tien = Math.max(0, p.tien - 15);
-  p.dangOm = true;
-  p.theLuc = 0;
-  // Kiệt sức có thể làm suy sinh mệnh
-  if (typeof p.hp === "number") p.hp = Math.max(1, p.hp - 10);
-  logLine(state, tuChonLog || "Làm việc kiệt sức ngã gục. Nằm liệt giường, mất bộn tiền thuốc.");
-}
-
 // ================= DYNAMIC ACTIONS ================= //
-
-export function actionCayRuong(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn cày ruộng như dân thường." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 20) return { ok: false, msg: "Hết thể lực." };
-  p.theLuc -= 20;
-  let thoc = rollPersonalHarvestThoc(state.thoiTiet);
-  // Clan influence (commoner phase): patron helps, hostile clans sabotage.
-  if (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO) {
-    const preset = getClanPressurePreset(state);
-    const patron = state.clans?.find(c => c.id === p._patronClanId);
-    if (patron) thoc = Math.floor(thoc * preset.patronHarvestBoost);
-    const localHostile = (state.village?.clanIds || []).some(cid => {
-      if (cid === p._patronClanId) return false;
-      const c = state.clans?.find(x => x.id === cid);
-      return c && (isClanHostile(c) || clanAvgOpinionToPlayer(state, cid) < -20);
-    });
-    if (localHostile && Math.random() < preset.sabotageChance) {
-      thoc = Math.max(0, thoc - 2);
-      logLine(state, "Bị dòng họ đối nghịch phá việc đồng áng, mất bớt sản lượng.", true);
-    }
-  }
-  // Áp dụng bonus Quản Lý TRƯỚC khi cộng vào, để số thực tế khớp feedback
-  const bonus = state._quanLyBonus || 1.0;
-  if (bonus > 1) thoc = Math.floor(thoc * bonus);
-  p.thocCaNhan += thoc;
-  let feedback = [{ text: "-20 Thể lực", tone: "bad" }, { text: `+${thoc} Thóc`, tone: "good" }];
-  if (p.theLuc <= 0) { collapseFromExhaustion(state); return { ok: true, feedback, shake: true, sfx: "cay" }; }
-  logLine(state, `Cày cuốc nhọc nhằn, thu được ${thoc} thóc.`);
-  return { ok: true, feedback, sfx: "cay" };
-}
-
-export function actionNghiAnCom(state) {
-  return { ok: false, msg: "Đã bỏ hành động này. Thể lực tự hồi theo ngày (trừ khi ốm)." };
-}
-
-export function actionKhaiThacDacSan(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn đi làm đặc sản vùng như dân thường." };
-  if (p.theLuc < 25) return { ok: false, msg: "Không đủ thể lực (< 25)." };
-  p.theLuc -= 25;
-  const bonus = state._quanLyBonus || 1.0;
-  const preset = getClanPressurePreset(state);
-  const patronBoost = (p._patronClanId && (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO)) ? preset.specialtyBoost : 1.0;
-  if (p.currentRegion === RegionId.SON_NAM) {
-    let qty = Math.ceil(1 * bonus * patronBoost);
-    p.inventory.lua += qty;
-    logLine(state, `Dệt lanh kéo tơ, thu được ${qty} Tấm Lụa.`);
-    return { ok: true, feedback: [{ text: `+${qty} Tấm Lụa`, tone: "good" }], sfx: "cay" };
-  }
-  if (p.currentRegion === RegionId.HAI_DUONG) {
-    let qty = Math.ceil(2 * bonus * patronBoost);
-    p.inventory.muoi += qty;
-    logLine(state, `Cào rong nấu muối, thu được ${qty} Gánh Muối.`);
-    return { ok: true, feedback: [{ text: `+${qty} Gánh Muối`, tone: "good" }], sfx: "cay" };
-  }
-  if (p.currentRegion === RegionId.SON_TAY) {
-    let qty = Math.ceil(1 * bonus * patronBoost);
-    p.inventory.go += qty;
-    logLine(state, `Lên mạn ngược phạt rừng, thu được ${qty} Khối Gỗ.`);
-    return { ok: true, feedback: [{ text: `+${qty} Khối Gỗ`, tone: "good" }], sfx: "cay" };
-  }
-  if (p.currentRegion === RegionId.AN_QUANG) {
-    let gain = Math.ceil(20 * bonus * patronBoost);
-    p.tien += gain;
-    logLine(state, `Ra biển đánh cá, bán được ${gain} quan.`);
-    return { ok: true, feedback: [{ text: `+${gain} Quan`, tone: "good" }], sfx: "cay" };
-  }
-  return { ok: false, msg: "Vùng này không có đặc sản khai thác." };
-}
-
-export function actionChatGo(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không đi làm lâm nghiệp dân sinh kiểu cũ." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 22) return { ok: false, msg: "Cần 22 thể lực." };
-  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
-  p.theLuc -= 22;
-  const regionBoost = p.currentRegion === RegionId.SON_TAY ? 1.35 : 1.0;
-  const weatherCut = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.BAO) ? 0.82 : 1.0;
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * regionBoost * weatherCut * (state._quanLyBonus || 1)));
-  p.inventory.go = (p.inventory.go || 0) + qty;
-  logLine(state, `🪵 Vào rừng đốn gỗ, gom được ${qty} tấm gỗ.`);
-  return { ok: true, feedback: [{ text: `+${qty} Gỗ`, tone: "good" }, { text: "-22 TL", tone: "bad" }], sfx: "cay" };
-}
-
-export function actionDetVai(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không ở phường dệt như dân thường." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 20) return { ok: false, msg: "Cần 20 thể lực." };
-  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
-  p.theLuc -= 20;
-  const regionBoost = (p.currentRegion === RegionId.SON_NAM || p.currentRegion === RegionId.KINH_BAC) ? 1.25 : 1.0;
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 1)) * regionBoost * (state._quanLyBonus || 1)));
-  p.inventory.lua = (p.inventory.lua || 0) + qty;
-  logLine(state, `🧵 Dệt cửi cả buổi, được ${qty} tấm vải lụa.`);
-  return { ok: true, feedback: [{ text: `+${qty} Lụa`, tone: "good" }, { text: "-20 TL", tone: "bad" }], sfx: "coin" };
-}
-
-export function actionChanNuoiLon(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Nghĩa quân không tiện ở yên chăn nuôi như dân thường." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 18) return { ok: false, msg: "Cần 18 thể lực." };
-  if (p.tien < 8) return { ok: false, msg: "Cần 8 quan tiền giống/cám." };
-  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
-  p.theLuc -= 18;
-  p.tien -= 8;
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * (state._quanLyBonus || 1)));
-  p.inventory.thit_lon = (p.inventory.thit_lon || 0) + qty;
-  p.uyTinCong = Math.min(9999, (p.uyTinCong || 0) + (Math.random() < 0.35 ? 1 : 0));
-  logLine(state, `🐖 Xuất chuồng lợn, thu được ${qty} mẻ thịt. Mang ra chợ bán sẽ lời hơn.`);
-  return { ok: true, feedback: [{ text: `+${qty} Thịt lợn`, tone: "good" }, { text: "-8 Quan vốn", tone: "bad" }, { text: "-18 TL", tone: "bad" }], sfx: "coin" };
-}
-
-export function actionNauRuou(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Nghĩa quân không mở lò rượu dân sự lúc này." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 16) return { ok: false, msg: "Cần 16 thể lực." };
-  if ((p.thocCaNhan || 0) < 2) return { ok: false, msg: "Cần 2 thóc để nấu rượu." };
-  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
-  p.theLuc -= 16;
-  p.thocCaNhan = Math.max(0, (p.thocCaNhan || 0) - 2);
-  const qty = 1 + (Math.random() < 0.45 ? 1 : 0);
-  p.inventory.ruou = (p.inventory.ruou || 0) + qty;
-  logLine(state, `🍶 Nấu rượu thủ công, ủ được ${qty} hũ rượu.`);
-  return { ok: true, feedback: [{ text: `+${qty} Rượu`, tone: "good" }, { text: "-2 Thóc", tone: "bad" }, { text: "-16 TL", tone: "bad" }], sfx: "murmur" };
-}
-
-export function actionCauCaSong(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Nghĩa quân không thong thả câu cá sinh nhai lúc này." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 16) return { ok: false, msg: "Cần 16 thể lực." };
-  const riverRegions = new Set([RegionId.THANG_LONG, RegionId.SON_NAM, RegionId.HAI_DUONG, RegionId.SON_TAY, RegionId.KINH_BAC, RegionId.THANH_HOA, RegionId.NGHE_AN, RegionId.TUYEN_QUANG]);
-  if (!riverRegions.has(p.currentRegion)) return { ok: false, msg: "Vùng này không thuận câu cá sông." };
-  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
-  p.theLuc -= 16;
-  const weatherMul = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.MUA) ? 1.2 : (state.thoiTiet === Weather.HAN ? 0.8 : 1.0);
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * weatherMul * (state._quanLyBonus || 1.0)));
-  p.inventory.ca = (p.inventory.ca || 0) + qty;
-  logLine(state, `🎣 Ngồi mép sông câu cá, thu được ${qty} giỏ cá.`);
-  return { ok: true, feedback: [{ text: `+${qty} Cá`, tone: "good" }, { text: "-16 TL", tone: "bad" }], sfx: "murmur" };
-}
-
-export function actionDanhBatVenBien(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Nghĩa quân không mở thuyền đánh bắt dân sinh lúc này." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
-  if (p.theLuc < 24) return { ok: false, msg: "Cần 24 thể lực." };
-  const coastalRegions = new Set([RegionId.AN_QUANG, RegionId.HAI_DUONG]);
-  if (!coastalRegions.has(p.currentRegion)) return { ok: false, msg: "Phải ở vùng ven biển mới tổ chức đánh bắt." };
-  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
-  p.theLuc -= 24;
-  const seaMul = p.currentRegion === RegionId.AN_QUANG ? 1.25 : 1.0;
-  const weatherMul = (state.thoiTiet === Weather.BAO) ? 0.65 : (state.thoiTiet === Weather.MUA ? 1.1 : 1.0);
-  const qty = Math.max(1, Math.floor((2 + randInt(0, 3)) * seaMul * weatherMul * (state._quanLyBonus || 1.0)));
-  p.inventory.ca = (p.inventory.ca || 0) + qty;
-  logLine(state, `🚣 Ra cửa biển đánh lưới, mang về ${qty} giỏ cá.`);
-  return { ok: true, feedback: [{ text: `+${qty} Cá`, tone: "good" }, { text: "-24 TL", tone: "bad" }], sfx: "battle" };
-}
-
-export function actionBuonLauMuoi(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không đi buôn bán chợ búa nữa." };
-  if (p.dangOm) return { ok: false, msg: "Đang ốm." };
-  if (p.tien < 10) return { ok: false, msg: "Cần ít nhất 10 quan làm vốn." };
-  p.tien -= 10;
-  p.theLuc -= 15;
-  const amMuuBonus = state._amMuuBonus || 1.0;
-  let catchRate = Math.max(0.05, 0.30 - p.muuMeo * 0.01) / amMuuBonus;
-  if (p._patronClanId && (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO)) {
-    const preset = getClanPressurePreset(state);
-    catchRate *= preset.smuggleCatchMul;
-  }
-  if (Math.random() < catchRate) {
-    p.trongSoDenLy = true;
-    logLine(state, "Bị tuần tráng phát hiện! Bị tịch thu tiền muối và ghi vào sổ bìa đen.");
-    return { ok: true, shake: true, sfx: "caiVa" };
-  }
-  let gained = randInt(20, 45);
-  gained = Math.floor(gained * (state._quanLyBonus || 1.0));
-  p.tien += gained;
-  p.quanLy = Math.min(100, p.quanLy + 0.5);
-  logLine(state, `Chuyến buôn muối trót lọt, thu về ${gained} quan.`);
-  return { ok: true, feedback: [{ text: `+${gained} Quan`, tone: "good" }], sfx: "coin" };
-}
-
-
-
-
-
-export function actionMoBinh(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì phải mộ binh theo địa bàn chiếm đóng (mục Nghĩa Quân)." };
-  if (p.tien < 30) return { ok: false, msg: "Không có tiền mộ lính (cần 30 quan/10 lính)." };
-  if (p.thocCaNhan < 20) return { ok: false, msg: "Không có thóc nuôi binh (cần 20 thóc)." };
-  
-  let maxSuatDinh = Math.floor(totalPops(state.village) / 5);
-  let currentlyDrafted = state.village.drafted || 0;
-  let suatDinhRanhRoi = maxSuatDinh - currentlyDrafted;
-  
-  if (suatDinhRanhRoi < 10) {
-      return { ok: false, msg: `Làng ${state.village.name} đã cạn kiệt trai tráng! Chỉ còn lại ${suatDinhRanhRoi} suất đinh rảnh rỗi.` };
-  }
-  
-  p.tien -= 30;
-  p.thocCaNhan -= 20;
-  p.quanSo += 10;
-  p.binhQuyen += 15;
-  state.village.drafted = currentlyDrafted + 10;
-  
-  logLine(state, `Xuất lúa tiền mộ lính. 10 trai tráng làng ${state.village.name} tòng quân. Làng rầu rĩ vì mất đi nhân lực.`);
-  return { ok: true, feedback: [{ text: "+10 Lính", tone: "good" }], sfx: "battle" };
-}
-
-export function actionLuyenVo(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn luyện võ ở võ đường triều đình." };
-  if (p.theLuc < 30) return { ok: false, msg: "Thể lực âm qué (cần 30+). Nghỉ ngơi trước." };
-  if (p.tien < 3) return { ok: false, msg: "Cần 3 Quan mã bóng thuốc xương khớp cho buổi tập." };
-  p.tien -= 3;
-  p.theLuc -= 30;
-  // Slow stat progression: accumulate training; only occasionally convert to +1
-  if (typeof p._voTrainAccum !== "number") p._voTrainAccum = 0;
-  const gain = (Math.random() < 0.18) ? 2 : 1; // rarely "great session"
-  p._voTrainAccum += gain;
-  let ups = 0;
-  while (p._voTrainAccum >= 4) { p._voTrainAccum -= 4; ups++; }
-  if (ups > 0) {
-    p.voThuat = Math.min(100, (p.voThuat || 0) + ups);
-    logLine(state, `Khổ luyện có ngày. Võ Thuật +${ups}.`);
-    return { ok: true, feedback: [{ text: `+${ups} Võ Thuật`, tone: "good" }, { text: "-30 TL", tone: "bad" }], sfx: "battle" };
-  }
-  logLine(state, "Mồ hôi đổ xuống đất. Võ đạo tiến rất chậm, cần tích lũy lâu dài.");
-  return { ok: true, feedback: [{ text: "Tiến bộ (tích lũy)", tone: "good" }, { text: "-30 TL", tone: "bad" }], sfx: "murmur" };
-}
-
-
-
-
 
 // ================= REBEL-ONLY ACTIONS ================= //
 function ensureRebel(state) {
@@ -3409,226 +2459,10 @@ function isControlledByRebelsHere(state) {
   return xaObj?.control === Faction.NGHIA_QUAN;
 }
 
-export function actionRebelTrain(state) {
-  const gate = ensureRebel(state); if (gate) return gate;
-  const p = state.player;
-  if (p.theLuc < 25) return { ok: false, msg: "Thể lực không đủ (cần 25)." };
-  if (p.thocCaNhan < 8) return { ok: false, msg: "Thiếu lương để luyện quân (cần 8 thóc)." };
-  p.theLuc -= 25;
-  p.thocCaNhan -= 8;
-  const gain = Math.max(5, Math.floor(p.quanSo * (0.01 + Math.random() * 0.02)));
-  p.quanSo += gain;
-  p.voThuat = Math.min(100, p.voThuat + 0.5);
-  logLine(state, `🥁 Luyện binh suốt ngày. Quân nhuệ tăng, tàn quân tụ về thêm ${gain} người.`);
-  return { ok: true, feedback: [{ text: `+${gain} Quân`, tone: "good" }, { text: "-8 Thóc", tone: "bad" }], sfx: "battle" };
-}
-
-export function actionRebelRaidSupply(state) {
-  const gate = ensureRebel(state); if (gate) return gate;
-  const p = state.player;
-  if (p.theLuc < 35) return { ok: false, msg: "Thể lực không đủ (cần 35)." };
-  if (p.quanSo < 30) return { ok: false, msg: "Quân quá ít để tập kích (cần 30+)." };
-  p.theLuc -= 35;
-  const risk = 0.22 + Math.max(0, (p.wantedLevel || 0) * 0.02);
-  const success = Math.random() > risk;
-  if (success) {
-    const thoc = 30 + Math.floor(Math.random() * 60) + Math.floor(p.quanSo * 0.01);
-    const tien = 20 + Math.floor(Math.random() * 80);
-    p.thocCaNhan += thoc;
-    p.tien += tien;
-    p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 1);
-    logLine(state, `🥷 Tập kích kho lương địch. Cướp được ${thoc} thóc và ${tien} quan!`, true);
-    return { ok: true, feedback: [{ text: `+${thoc} Thóc`, tone: "good" }, { text: `+${tien} Quan`, tone: "good" }, { text: "+Truy nã", tone: "bad" }], sfx: "coin" };
-  } else {
-    const loss = Math.ceil(p.quanSo * (0.06 + Math.random() * 0.12));
-    p.quanSo = Math.max(0, p.quanSo - loss);
-    p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 2);
-    if (typeof p.hp === "number") p.hp = Math.max(1, p.hp - 6);
-    logLine(state, `🚨 Tập kích thất bại. Bị phục kích, mất ${loss} quân rồi tháo chạy!`, true);
-    return { ok: true, feedback: [{ text: `-${loss} Quân`, tone: "bad" }, { text: "+Truy nã", tone: "bad" }], sfx: "caiVa" };
-  }
-}
-
-export function actionRebelAidPeople(state) {
-  const gate = ensureRebel(state); if (gate) return gate;
-  const p = state.player;
-  if (p.theLuc < 20) return { ok: false, msg: "Thể lực không đủ (cần 20)." };
-  if (!isControlledByRebelsHere(state)) return { ok: false, msg: "Chưa kiểm soát địa bàn này — khó mà 'giúp dân' công khai." };
-  if (p.thocCaNhan < 15) return { ok: false, msg: "Cần 15 thóc để cứu tế." };
-  p.theLuc -= 20;
-  p.thocCaNhan -= 15;
-  const uy = 12 + Math.floor(Math.random() * 10);
-  p.uyTinCong += uy;
-  state.village.unrest = Math.max(0, state.village.unrest - 8);
-  logLine(state, `🤝 Phát chẩn cứu tế. Dân vùng chiếm đóng cảm kích, bất ổn giảm mạnh.`, true);
-  return { ok: true, feedback: [{ text: `+${uy} Uy tín`, tone: "good" }, { text: "-15 Thóc", tone: "bad" }], sfx: "murmur" };
-}
-
-export function actionRebelBurnYamen(state) {
-  const gate = ensureRebel(state); if (gate) return gate;
-  const p = state.player;
-  if (p.theLuc < 45) return { ok: false, msg: "Thể lực không đủ (cần 45)." };
-  if (p.quanSo < 60) return { ok: false, msg: "Quân quá ít để đốt phủ nha (cần 60+)." };
-  // Must be in enemy-controlled huyen for meaningful sabotage
-  const ctrl = getHuyenControl(state, p.currentHuyen);
-  if (ctrl !== Faction.TRIEU_DINH) return { ok: false, msg: "Ở đất đã kiểm soát rồi, đốt phủ nha làm gì?" };
-  p.theLuc -= 45;
-  const success = Math.random() < (0.35 + (p.muuMeo || 0) * 0.004);
-  if (success) {
-    const dmg = 6 + Math.floor(Math.random() * 10);
-    state.village.unrest = Math.min(100, state.village.unrest + 10);
-    p.danhVong += 20;
-    p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 2);
-    // Push the warfront a bit towards rebels
-    state._battleChaos = state._battleChaos || {};
-    const bs = getBattleState(state, getHuyen(p.currentRegion, p.currentPhu, p.currentHuyen)?.historicalBattle);
-    logLine(state, `🔥 Đốt phủ nha, phá sổ sách thuế. Quan quân rối loạn, thế trận nghiêng về nghĩa quân!`, true);
-    return { ok: true, feedback: [{ text: "+Danh vọng", tone: "good" }, { text: "+Truy nã", tone: "bad" }], sfx: "battle" };
-  } else {
-    const loss = Math.ceil(p.quanSo * (0.10 + Math.random() * 0.12));
-    p.quanSo = Math.max(0, p.quanSo - loss);
-    p.wantedLevel = Math.min(10, (p.wantedLevel || 0) + 3);
-    logLine(state, `🚨 Đốt phủ nha hỏng. Bị kỵ binh đuổi giết, mất ${loss} quân!`, true);
-    return { ok: true, feedback: [{ text: `-${loss} Quân`, tone: "bad" }, { text: "+Truy nã", tone: "bad" }], sfx: "caiVa" };
-  }
-}
-
-export function actionRebelRecruitLocal(state) {
-  const gate = ensureRebel(state); if (gate) return gate;
-  const p = state.player;
-  if (p.theLuc < 25) return { ok: false, msg: "Thể lực không đủ (cần 25)." };
-  if (!isControlledByRebelsHere(state)) return { ok: false, msg: "Chưa chiếm được địa bàn này thì không mộ binh được." };
-  // Recruit from local drafted pool
-  let maxSuatDinh = Math.floor(totalPops(state.village) / 5);
-  let drafted = state.village.drafted || 0;
-  let free = maxSuatDinh - drafted;
-  if (free < 8) return { ok: false, msg: "Địa phương đã cạn trai tráng." };
-  const qty = Math.min(20, Math.max(8, Math.floor(free * 0.3)));
-  const thocCost = Math.ceil(qty * 1.5);
-  const tienCost = Math.ceil(qty * 2);
-  if (p.thocCaNhan < thocCost) return { ok: false, msg: `Cần ${thocCost} thóc để nuôi ${qty} tân binh.` };
-  if (p.tien < tienCost) return { ok: false, msg: `Cần ${tienCost} quan để phát áo giáp vũ khí.` };
-  p.theLuc -= 25;
-  p.thocCaNhan -= thocCost;
-  p.tien -= tienCost;
-  p.quanSo += qty;
-  state.village.drafted = drafted + qty;
-  p.uyTinCong += 5;
-  logLine(state, `🧑‍🌾 Mộ binh địa phương: ${qty} người theo nghĩa quân.`, true);
-  return { ok: true, feedback: [{ text: `+${qty} Quân`, tone: "good" }, { text: `-${thocCost} Thóc`, tone: "bad" }, { text: `-${tienCost} Quan`, tone: "bad" }], sfx: "battle" };
-}
-
 // ================= PRISONERS ================= //
 function nextPrisonerId(state) {
   state._prisonerSeq = (state._prisonerSeq || 1) + 1;
   return `pr_${state._prisonerSeq}_${Math.floor(Math.random() * 9999)}`;
-}
-
-export function addPrisoner(state, info) {
-  if (!state.prisoners) state.prisoners = [];
-  const p = state.player;
-  const entry = {
-    id: nextPrisonerId(state),
-    name: info?.name || "Tù binh vô danh",
-    side: info?.side || "unknown",
-    value: Math.max(50, info?.value || 200),
-    capturedAt: `${state.ban}-${state.monthIndex}-${state.gameDay}`,
-    capturedHuyen: p.currentHuyen,
-  };
-  state.prisoners.push(entry);
-  return entry;
-}
-
-export function actionPrisonerRelease(state, prisonerId) {
-  const idx = (state.prisoners || []).findIndex(x => x.id === prisonerId);
-  if (idx < 0) return { ok: false, msg: "Không tìm thấy tù binh." };
-  const pr = state.prisoners[idx];
-  state.prisoners.splice(idx, 1);
-  state.player.uyTinCong += 8;
-  logLine(state, `Thả tù binh ${pr.name}. Lòng người xôn xao.`);
-  return { ok: true, feedback: [{ text: "+Uy tín", tone: "good" }], sfx: "murmur" };
-}
-
-export function actionPrisonerExecute(state, prisonerId) {
-  const idx = (state.prisoners || []).findIndex(x => x.id === prisonerId);
-  if (idx < 0) return { ok: false, msg: "Không tìm thấy tù binh." };
-  const pr = state.prisoners[idx];
-  state.prisoners.splice(idx, 1);
-  state.player.danhVong += 15;
-  state.player.uyTinCong = Math.max(0, state.player.uyTinCong - 10);
-  logLine(state, `☠️ Chém tù binh ${pr.name}. Máu nhuộm doanh trại.`, true);
-  return { ok: true, feedback: [{ text: "+Danh vọng", tone: "good" }, { text: "-Uy tín", tone: "bad" }], sfx: "battle" };
-}
-
-export function actionPrisonerRansom(state, prisonerId) {
-  const idx = (state.prisoners || []).findIndex(x => x.id === prisonerId);
-  if (idx < 0) return { ok: false, msg: "Không tìm thấy tù binh." };
-  const pr = state.prisoners[idx];
-  const chancePay = 0.55;
-  if (Math.random() < chancePay) {
-    state.player.tien += pr.value;
-    state.prisoners.splice(idx, 1);
-    logLine(state, `💰 Nhận tiền chuộc ${pr.value} quan cho ${pr.name}.`);
-    return { ok: true, feedback: [{ text: `+${pr.value} Quan`, tone: "good" }], sfx: "coin" };
-  } else {
-    logLine(state, `Sứ giả địch chối bỏ, không chịu chuộc ${pr.name}.`);
-    return { ok: true, feedback: [{ text: "Không chuộc", tone: "bad" }], sfx: "caiVa" };
-  }
-}
-
-export function actionXayNha(state, propId) {
-  const p = state.player;
-  const propKey = Object.keys(PropertyDb).find(k => PropertyDb[k].id === propId);
-  const prop = propKey ? PropertyDb[propKey] : null;
-  if (!prop) return { ok: false, msg: "Không tìm thấy loại công trình." };
-
-  if (!p.homeRegion) p.homeRegion = p.currentRegion;
-
-  // Kiểm tra điều kiện mở khoá
-  const cond = prop.unlockCondition || {};
-  if (cond.minRank) {
-    const rankOrder = Object.values(PlayerRank);
-    const playerRankIdx = rankOrder.indexOf(p.rank);
-    const reqRankIdx    = rankOrder.indexOf(cond.minRank);
-    if (playerRankIdx < reqRankIdx) {
-      return { ok: false, msg: `Chức vụ chưa đủ để xây ${prop.name} (cần: ${RankLabel[cond.minRank]}).` };
-    }
-  }
-  if (cond.minUyTin && p.uyTinCong < cond.minUyTin) {
-    return { ok: false, msg: `Cần tối thiểu ${cond.minUyTin} Uy Tín để xây.` };
-  }
-  if (p.currentRegion !== p.homeRegion) {
-    return { ok: false, msg: `Chỉ được xây kiến trúc tại nơi lập nghiệp (${RegionsDb[p.homeRegion]?.name || p.homeRegion}). Ngươi đang ở ${RegionsDb[p.currentRegion]?.name || p.currentRegion}!` };
-  }
-
-  if (!p.holdings) p.holdings = [];
-  let existing = p.holdings.find(h => h.typeId === propId && h.regionId === p.currentRegion);
-
-  if (existing) {
-    if (existing.level >= prop.maxLevel) return { ok: false, msg: `${prop.name} đã ở cấp tối đa (${prop.maxLevel}).` };
-    let cost = prop.upgradeCost * existing.level;
-    if (p.tien < cost) return { ok: false, msg: `Nâng cấp ${prop.name} cần ${cost} Quan. Bạn có ${p.tien}.` };
-    p.tien -= cost;
-    existing.level++;
-    logLine(state, `Đại tu ${prop.name} lên Cấp ${existing.level}! Hiệu ứng tăng mạnh.`);
-    return { ok: true, feedback: [{ text: `${prop.name} ↑ Cấp ${existing.level}`, tone: "good" }], sfx: "coin" };
-  } else {
-    if (p.tien < prop.cost) return { ok: false, msg: `Xây ${prop.name} cần ${prop.cost} Quan. Bạn có ${p.tien}.` };
-    p.tien -= prop.cost;
-    // Build now takes time. Queue job; completion handled in daily tick.
-    if (!p.buildQueue) p.buildQueue = [];
-    const baseDays = Math.max(2, Math.min(40, Math.ceil((prop.cost || 0) / 1200)));
-    const days = baseDays + (prop.maxLevel >= 3 ? 2 : 0);
-    p.buildQueue.push({
-      id: `bq_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-      typeId: propId,
-      regionId: p.currentRegion,
-      daysLeft: days,
-      startedAt: { ban: state.ban, monthIndex: state.monthIndex, gameDay: state.gameDay }
-    });
-    logLine(state, `🏗 Khởi công ${prop.name} (dự kiến ${days} ngày).`, true);
-    return { ok: true, feedback: [{ text: `Khởi công ${prop.name}`, tone: "good" }, { text: `${days} ngày`, tone: "bad" }], sfx: "murmur" };
-  }
 }
 
 export const MaaDb = {
@@ -3645,184 +2479,6 @@ export const MaaDb = {
   thuy_quan:   { id:"thuy_quan",   name:"Chiến Thuyền Giao Châu",type:"Thủy Quân", quanSo: 400, cost: 2500, unlock:"thuy_doanh" },
 };
 
-export function actionRecruitMaa(state, maaId) {
-  const p = state.player;
-  const maa = MaaDb[maaId];
-  if (!maa) return { ok: false, msg: "Binh chủng không hợp lệ." };
-
-  // Rebel tech limits: no firearms/artillery/elephants/imperial guards by default.
-  if (p.faction === Faction.NGHIA_QUAN) {
-    const allowed = new Set(["nhat_binh","uu_binh","khinh_ky","trong_ky","bo_binh_nhe","cung_no","thuy_quan","dan_binh"]);
-    if (!allowed.has(maaId)) {
-      return { ok: false, msg: "Nghĩa quân không đủ công nghệ để tự tuyển binh chủng này. Chỉ có thể cướp được (nếu có)." };
-    }
-  }
-
-  let cost = maa.cost;
-  if (hasPerk(state, "qs_04")) cost = Math.floor(cost * 0.85);
-  if (p.tien < cost) return { ok: false, msg: `Cần ${cost} Quan.` };
-
-  // Check if property is built
-  const propBuilt = p.holdings?.some(h => PropertyDb[Object.keys(PropertyDb).find(k => PropertyDb[k].id === h.typeId)]?.id === maa.unlock);
-  if (!propBuilt) return { ok: false, msg: `Cần xây dựng ${PropertyDb[Object.keys(PropertyDb).find(k=>PropertyDb[k].id===maa.unlock)]?.name} trước!` };
-
-  // Limit Men-at-Arms (max 5 đạo)
-  if (!p.maa) p.maa = [];
-  if (p.maa.length >= 5) return { ok: false, msg: "Chỉ được chỉ huy tối đa 5 đạo Binh Chủng Đặc Biệt!" };
-
-  p.tien -= cost;
-  p.maa.push({ ...maa, curQuanSo: maa.quanSo });
-  p.quanSo += maa.quanSo; // Add to total
-  
-  logLine(state, `Chiêu mộ thành công 1 đạo ${maa.name} (${maa.quanSo} quân).`);
-  return { ok: true, feedback: [{ text: `+${maa.quanSo} ${maa.name}`, tone: "good" }, { text: `-${cost} Quan`, tone: "bad" }], sfx: "coin" };
-}
-
-export function actionDemolishNha(state, propId) {
-  const p = state.player;
-  const propKey = Object.keys(PropertyDb).find(k => PropertyDb[k].id === propId);
-  const prop = propKey ? PropertyDb[propKey] : null;
-  if (!prop) return { ok: false, msg: "Không tìm thấy." };
-  if (!p.holdings) return { ok: false, msg: "Không sở hữu gì." };
-  const idx = p.holdings.findIndex(h => h.typeId === propId);
-  if (idx < 0) return { ok: false, msg: `Chưa xây ${prop.name}.` };
-  const level = p.holdings[idx].level;
-  const refund = Math.floor(prop.cost * 0.5 + (level > 1 ? prop.upgradeCost * (level - 1) * 0.4 : 0));
-  p.holdings.splice(idx, 1);
-  p.tien += refund;
-  logLine(state, `Phá dỡ ${prop.name}. Hoàn lại ${refund} quan (50% phí xây).`);
-  return { ok: true, feedback: [{ text: `+${refund} Quan hoàn lại`, tone: "good" }], sfx: "coin" };
-}
-
-export function actionTradeItem(state, itemKey, isBuying, qty) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn giao dịch chợ búa như dân thường." };
-  if (!qty || qty <= 0) return { ok: false, msg: "Số lượng giao dịch không hợp lệ." };
-  const item = ItemsDb[itemKey];
-  if (!item) return { ok: false, msg: "Mặt hàng chưa được hỗ trợ." };
-  if (typeof p.merchantXp !== "number") p.merchantXp = 0;
-  if (typeof p.merchantTier !== "number") p.merchantTier = 0;
-  const quote = getTradeQuote(state, itemKey, isBuying);
-  let unitPrice = quote.unitPrice;
-  let totalCost = unitPrice * qty;
-  let getBal = () => {
-    if (itemKey === 'thoc') return p.thocCaNhan;
-    if (!p.inventory) p.inventory = {};
-    return p.inventory[itemKey] || 0;
-  };
-  let editBal = (delta) => {
-    if (itemKey === 'thoc') {
-      p.thocCaNhan += delta;
-    } else {
-      if (!p.inventory) p.inventory = {};
-      p.inventory[itemKey] = (p.inventory[itemKey] || 0) + delta;
-    }
-  };
-  if (isBuying) {
-    if (p.tien < totalCost) return { ok: false, msg: `Cần ${totalCost} quan để mua ${qty} ${item.name}.` };
-    p.tien -= totalCost;
-    editBal(qty);
-    const xp = Math.max(1, Math.floor(totalCost / 30));
-    p.merchantXp += xp;
-    logLine(state, `Mua ${qty} ${item.name} giá ${totalCost} quan. (+${xp} XP Thương nhân)`);
-    return { ok: true, feedback: [{ text: `-${totalCost} Quan`, tone: "bad" }, { text: `+${qty} ${item.name}`, tone: "good" }, { text: `+${xp} XP Chợ`, tone: "good" }], sfx: "coin" };
-  } else {
-    if (getBal() < qty) return { ok: false, msg: `Chỉ có ${getBal()} ${item.name}.` };
-    editBal(-qty);
-    const revenue = Math.floor(totalCost * (state._quanLyBonus || 1.0));
-    p.tien += revenue;
-    const contract = state._marketScene?.contract;
-    if (contract && contract.accepted && !contract.completed && contract.itemKey === itemKey) {
-      contract.delivered = Math.min(contract.qtyRequired, (contract.delivered || 0) + qty);
-      if (contract.delivered >= contract.qtyRequired) {
-        contract.completed = true;
-        const bonus = Math.max(10, Math.floor((contract.reward || 0) * (1 + (p.merchantTier || 0) * 0.04)));
-        p.tien += bonus;
-        p.merchantXp = (p.merchantXp || 0) + Math.max(8, Math.floor(bonus / 20));
-        logLine(state, `📦 Hoàn tất kèo chợ ${ItemsDb[itemKey]?.name}: thưởng thêm ${bonus} quan từ ${state._marketScene?.trader || "thương hội"}.`, true);
-      }
-    }
-    const xp = Math.max(1, Math.floor(revenue / 24));
-    p.merchantXp += xp;
-    const oldTier = p.merchantTier || 0;
-    const tierByXp = (xpVal) => xpVal >= 1200 ? 5 : xpVal >= 760 ? 4 : xpVal >= 430 ? 3 : xpVal >= 200 ? 2 : xpVal >= 70 ? 1 : 0;
-    p.merchantTier = tierByXp(p.merchantXp || 0);
-    if (p.merchantTier > oldTier) logLine(state, `📈 Danh tiếng thương nhân tăng lên Cấp ${p.merchantTier}.`, true);
-    logLine(state, `Bán ${qty} ${item.name} thu được ${revenue} quan. (+${xp} XP Thương nhân)`);
-    return { ok: true, feedback: [{ text: `+${revenue} Quan`, tone: "good" }, { text: `+${xp} XP Chợ`, tone: "good" }], sfx: "coin" };
-  }
-}
-
-export function getTradeQuote(state, itemKey, isBuying) {
-  const p = state?.player || {};
-  const item = ItemsDb[itemKey];
-  if (!item) {
-    return { ok: false, msg: "Mặt hàng không hợp lệ.", unitPrice: 0, rawPrice: 0, margin: 0, marketScene: null, haggle: null };
-  }
-  const pm = RegionsDb[p.currentRegion]?.pm?.[itemKey] ?? 1.0;
-  if (!state._marketHaggle) state._marketHaggle = {};
-  const marketScene = getMarketSceneBrief(state);
-  const basePrice = itemKey === "thoc" ? state.marketPriceThoc : item.basePrice;
-  let rawPrice = basePrice * pm;
-  if (itemKey === marketScene.focusItem) rawPrice *= 1.08;
-  rawPrice *= isBuying ? (marketScene.buyMul || 1.0) : (marketScene.sellMul || 1.0);
-
-  let margin = Math.max(0.05, 0.20 - ((p.quanLy || 0) * 0.01) - Math.min(0.06, (p.merchantTier || 0) * 0.012));
-  if (state._quanLyBonus && state._quanLyBonus > 1) margin *= 0.8;
-  let unitPrice = isBuying ? Math.ceil(rawPrice * (1 + margin)) : Math.floor(rawPrice * (1 - margin));
-
-  const ym = `${state.ban}-${state.monthIndex}`;
-  const hag = state._marketHaggle[itemKey];
-  if (hag && hag.ym === ym) {
-    if (isBuying) unitPrice = Math.max(1, Math.floor(unitPrice * (hag.buyMul || 1)));
-    else unitPrice = Math.max(1, Math.floor(unitPrice * (hag.sellMul || 1)));
-  }
-  return {
-    ok: true,
-    unitPrice,
-    rawPrice,
-    margin,
-    marketScene,
-    haggle: (hag && hag.ym === ym) ? hag : null
-  };
-}
-
-export function actionMarketHaggle(state, itemKey) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đang thời chiến, không thể đi mặc cả dân sự." };
-  if (!ItemsDb[itemKey]) return { ok: false, msg: "Mặt hàng không hợp lệ." };
-  if (!state._marketHaggle) state._marketHaggle = {};
-  const ym = `${state.ban}-${state.monthIndex}`;
-  const cur = state._marketHaggle[itemKey];
-  if (cur && cur.ym === ym) return { ok: false, msg: "Tháng này đã mặc cả mặt hàng này rồi." };
-  const chance = Math.max(0.2, Math.min(0.9, 0.26 + (p.ngoaiGiao || 0) * 0.007 + (p.muuMeo || 0) * 0.002 + (p.merchantTier || 0) * 0.045));
-  if (Math.random() < chance) {
-    const buyMul = 0.90 - Math.min(0.05, (p.merchantTier || 0) * 0.01);
-    const sellMul = 1.06 + Math.min(0.05, (p.merchantTier || 0) * 0.01);
-    state._marketHaggle[itemKey] = { ym, buyMul, sellMul, success: true };
-    logLine(state, `🧮 Mặc cả thành công với lái buôn ${ItemsDb[itemKey].name}: giá mua giảm, giá bán tăng trong tháng.`, true);
-    return { ok: true, feedback: [{ text: "Mặc cả thành công", tone: "good" }, { text: "Dựa trên Ngoại Giao", tone: "good" }], sfx: "coin" };
-  }
-  state._marketHaggle[itemKey] = { ym, buyMul: 1.04, sellMul: 0.96, success: false };
-  logLine(state, `🗣️ Mặc cả hỏng với lái buôn ${ItemsDb[itemKey].name}: giá tạm thời bất lợi.`, false);
-  return { ok: true, feedback: [{ text: "Mặc cả hỏng", tone: "bad" }, { text: "Ngoại Giao chưa đủ sắc", tone: "bad" }], sfx: "caiVa" };
-}
-
-export function getMerchantProgress(state) {
-  const p = state?.player || {};
-  const xp = Math.max(0, Math.floor(p.merchantXp || 0));
-  const tier = Math.max(0, Math.floor(p.merchantTier || 0));
-  const nextByTier = { 0: 70, 1: 200, 2: 430, 3: 760, 4: 1200 };
-  const next = nextByTier[tier] || null;
-  const pct = next ? Math.max(0, Math.min(100, Math.round((xp / next) * 100))) : 100;
-  return { xp, tier, nextXp: next, pct };
-}
-
-function ensureMarketSceneState(state) {
-  if (!state._marketScene) state._marketScene = {};
-  if (!state._marketScene.contract) state._marketScene.contract = null;
-}
-
 const MARKET_TRADER_NAMES = [
   "Lái buôn Phúc Lộc", "Gánh hàng Hồng Vân", "Phường thương Đông Kỳ", "Thuyền chủ Cẩm Hải", "Trùm nậu Vạn Xuân"
 ];
@@ -3831,70 +2487,6 @@ const MARKET_MOODS = [
   { key: "fair", label: "Phiên chợ thường", buyMul: 1.0, sellMul: 1.0 },
   { key: "slump", label: "Phiên chợ ế", buyMul: 0.94, sellMul: 0.90 },
 ];
-
-function rollMonthlyMarketScene(state) {
-  ensureMarketSceneState(state);
-  const ym = `${state.ban}-${state.monthIndex}`;
-  if (state._marketScene.ym === ym) return;
-  const itemKeys = Object.keys(ItemsDb);
-  const focusItem = itemKeys[randInt(0, itemKeys.length - 1)];
-  const mood = MARKET_MOODS[randInt(0, MARKET_MOODS.length - 1)];
-  const trader = MARKET_TRADER_NAMES[randInt(0, MARKET_TRADER_NAMES.length - 1)];
-  const qty = 6 + randInt(0, 10) + Math.max(0, Math.floor((state.player?.merchantTier || 0) * 1.5));
-  const price = Math.max(30, Math.floor((ItemsDb[focusItem]?.basePrice || 10) * qty * (1.2 + Math.random() * 0.5)));
-  state._marketScene = {
-    ym,
-    trader,
-    mood,
-    focusItem,
-    contract: {
-      id: `mc_${state.ban}_${state.monthIndex}_${focusItem}`,
-      itemKey: focusItem,
-      qtyRequired: qty,
-      delivered: 0,
-      reward: price,
-      accepted: false,
-      completed: false,
-      expiresYm: ym
-    }
-  };
-  logLine(state, `🏮 ${trader} mở ${mood.label.toLowerCase()} tháng này, chuộng ${ItemsDb[focusItem]?.name || focusItem}.`, false);
-}
-
-export function actionAcceptMarketContract(state) {
-  const p = state.player;
-  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Nghĩa quân không ký kèo thương vụ dân sự." };
-  rollMonthlyMarketScene(state);
-  const c = state._marketScene?.contract;
-  if (!c) return { ok: false, msg: "Tháng này chưa có hợp đồng." };
-  if (c.completed) return { ok: false, msg: "Kèo đã hoàn tất." };
-  if (c.accepted) return { ok: false, msg: "Đã nhận kèo tháng này." };
-  c.accepted = true;
-  logLine(state, `🧾 Nhận hợp đồng: giao ${c.qtyRequired} ${ItemsDb[c.itemKey]?.name || c.itemKey} trước khi hết tháng.`, false);
-  return { ok: true, feedback: [{ text: "Đã nhận hợp đồng", tone: "good" }, { text: `${c.qtyRequired} đơn vị`, tone: "good" }], sfx: "murmur" };
-}
-
-export function getMarketSceneBrief(state) {
-  rollMonthlyMarketScene(state);
-  const ms = state._marketScene || {};
-  const c = ms.contract || null;
-  return {
-    trader: ms.trader || "Phiên chợ địa phương",
-    moodLabel: ms.mood?.label || "Phiên chợ thường",
-    moodKey: ms.mood?.key || "fair",
-    focusItem: ms.focusItem || null,
-    buyMul: ms.mood?.buyMul || 1.0,
-    sellMul: ms.mood?.sellMul || 1.0,
-    contract: c ? {
-      itemKey: c.itemKey,
-      qtyRequired: c.qtyRequired,
-      delivered: c.delivered || 0,
-      reward: c.reward || 0,
-      accepted: !!c.accepted,
-      completed: !!c.completed,
-    } : null
-  };
-}
 
 export function actionTangRuouNPC(state, npcId) {
   const p = state.player;
@@ -4673,29 +3265,10 @@ export function gameTick(state) {
   // Weather is rolled at month change (not daily) to avoid chaotic flicker.
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function getFactionStore(state, faction) {
   if (!state?.factions) return null;
   return faction === Faction.NGHIA_QUAN ? state.factions.nghiaQuan : state.factions.trieuDinh;
 }
-
-
 
 function estimateHuyenDefense(state, entry, faction) {
   const g = getHuyenGarrisonPower(state, entry.huyenId, faction);
@@ -4726,7 +3299,6 @@ function strategicAiReinforceWeakControl(state, faction, entries) {
   state._huyenGarrisons[hid] = { faction, quan: have + reinforce, level, morale };
   return true;
 }
-
 
 function strategicAiTrainFieldForces(state, faction) {
   const store = getFactionStore(state, faction);
@@ -4853,7 +3425,6 @@ function strategicAiRaidWeakEnemy(state, faction, entries) {
   markWarFrontPulse(state);
   return true;
 }
-
 
 function updateSeasonalCampaigns(state) {
   // Seasonal AI pressure so the map feels alive even without player interaction.
@@ -4991,7 +3562,6 @@ function updateSeasonalCampaigns(state) {
   }
 }
 
-
 function processMonthlyDebts(state) {
   if (state.player.noVayConLai > 0) {
     if (state.player.tien >= state.player.noVayConLai + 5) {
@@ -5084,7 +3654,6 @@ function processMonthlyGarrisonUpkeep(state) {
     logLine(state, `⚠️ Thiếu lương đồn trú tại ${huyenId}, ${loss} quân bỏ trốn khỏi trấn.`, true);
   }
 }
-
 
 function processMonthlyFactionInfighting(state) {
   ensureAdvancedWarState(state);
@@ -5640,25 +4209,7 @@ export function checkWantedArrest(state) {
 }
 
 // Helper exports for war/legacy.js
-export {
-  clamp,
-  currentYmSerial,
-  ensurePostingIfNeeded,
-  estimateHuyenDefense,
-  getFactionStore,
-  getHuyenGarrisonTroops,
-  getPosting,
-  postingHere,
-  pushCelebration,
-  randInt,
-  strategicAiCounterRaidPlayer,
-  strategicAiRaidWeakEnemy,
-  strategicAiReinforceWeakControl,
-  strategicAiTrainFieldForces,
-  syncHuyenBannerFromXaBalance,
-  totalDaysAbs,
-  ymKey
-};
+export { clamp, currentYmSerial, ensurePostingIfNeeded, estimateHuyenDefense, getFactionStore, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, randInt, strategicAiCounterRaidPlayer, strategicAiRaidWeakEnemy, strategicAiReinforceWeakControl, strategicAiTrainFieldForces, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
 
 // Re-exports from war/legacy.js
 export {
@@ -5670,3 +4221,23 @@ export {
 export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission };
 
 export { addCase, daySerial, scheduleDelayedEffect };
+
+export { collapseFromExhaustion, actionCayRuong, actionNghiAnCom, actionKhaiThacDacSan, actionChatGo, actionDetVai, actionChanNuoiLon, actionNauRuou, actionCauCaSong, actionDanhBatVenBien, actionBuonLauMuoi, actionMoBinh, actionLuyenVo };
+
+export { actionTradeItem, getTradeQuote, actionMarketHaggle, getMerchantProgress, actionAcceptMarketContract, getMarketSceneBrief };
+
+export { MARKET_MOODS, MARKET_TRADER_NAMES };
+
+export { actionPostingBuild, resolveCase, actionAssumeOfficeHere, actionLocalLevy, actionLocalFund, actionLocalEmbezzle, actionLocalRecruitMaa, actionLocalCollectTax, actionLocalPatrol, actionLocalPacify, actionLocalBribeSuperior };
+
+export { PostingBuildingDb, ensureCaseList, isOfficialRank, perkFx };
+
+export { actionRebelTrain, actionRebelRaidSupply, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRecruitLocal, addPrisoner, actionPrisonerRelease, actionPrisonerExecute, actionPrisonerRansom };
+
+export { ensureRebel, isControlledByRebelsHere, nextPrisonerId };
+
+export { initQuestsIfNeeded, refreshQuestsYearly, tickQuests };
+
+export { actionXayNha, actionRecruitMaa, actionDemolishNha };
+
+export { hasPerk };
