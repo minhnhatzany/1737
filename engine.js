@@ -20,31 +20,6 @@ import { logLine } from "./log.js";
 import { getLowerRegions, getRegion, getBattleState, getAllRegions, getPhu, getHuyen } from "./map_data.js";
 import { simulateBattle } from "./warfare.js";
 export { logLine };
-import {
-  ensureAdvancedWarState,
-  warStatInc,
-  currentWarPhase,
-  isWarTruceActive,
-  updateMonthlyWarEconomyByHuyen,
-  planMonthlyWarConvoys,
-  tickWarConvoysDaily,
-  tryMonthlyWarTruce,
-  tickWarObjectivesMonthly,
-  pushYearlyWarReplay,
-  getAllWarHuyenEntries,
-  estimateFrontlineStrength,
-  tickStrategicWarAi,
-  tickLiveBattles,
-  processMonthlyWarEconomyAI,
-  collectWarControlStats,
-  markWarFrontPulse,
-  recordWarRegionalIncident,
-  flushWarRegionalDigestForYear,
-  hasRebelHeldMajorFrontHuyen,
-  isWarStillRaging,
-  updateWarFrontControl,
-  ensureBattleLedgerAndSimCompat
-} from "./war/legacy.js";
 
 export { RegionId };
 
@@ -493,11 +468,6 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     recentEventIds: [],
     onceDoneEventIds: [],
     marqueeQueue: [],
-    _battleChaos: {},
-    _battleContrib: {},
-    _battleSim: {}, // live daily progression for active fronts
-    _battleLedger: [], // digest: mở trận / tuần / kết thúc (UI Binh Pháp Đài)
-    _warRegionalScratch: {},
     _huyenControl: {},
     _huyenGarrisons: {}, // huyenId -> { faction, quan } — quân tách ra giữ đất
     _quanLyBonus: 1.0,
@@ -532,11 +502,6 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     _delayedEffects: [],
     _clanMission: null,
     victory: { offered: false, chosen: null, nextOfferYm: null },
-    _warAi: { nextDecisionAbs: 0, chatterCd: 0, truceUntilYm: 0, phase: "mobilize", lastCouncilYm: null },
-    _warLogistics: { seq: 1, convoys: [] },
-    _warEconomy: { huyen: {} },
-    _warObjectives: { current: null, lastRollYm: null },
-    _warAnnualStats: { year: 1737, battles: 0, flips: 0, convoysRaided: 0, supplyMoved: 0, localRequisition: 0, objectivesDone: 0, truceMonths: 0 },
   };
   for (const c of clans) state.clanFavor[c.id] = 0;
 
@@ -1947,60 +1912,6 @@ function syncHuyenBannerFromXaBalance(state, huyenId) {
 }
 
 /** Tuần phu / hương dân đoàn tái chiếm dần xã — không cần mũi chủ lực vạn người. */
-function tickImperialGrassrootsRecovery(state) {
-  if (isWarTruceActive(state)) return;
-  if (rng(state) > 0.02) return;
-  const regions = getAllRegions();
-  const ids = [];
-  for (const r of regions) {
-    for (const ph of Object.values(r.phu || {})) {
-      for (const h of Object.values(ph.huyen || {})) {
-        if (getHuyenControl(state, h.id) === Faction.NGHIA_QUAN) ids.push(h.id);
-      }
-    }
-  }
-  if (!ids.length) return;
-  const hid = ids[randInt(0, ids.length - 1)];
-  const geo = getLowerRegions(state, hid);
-  const xaList = [];
-  for (const t of Object.values(geo.tong || {})) {
-    for (const x of Object.values(t.xa || {})) {
-      if (x.control === Faction.NGHIA_QUAN) xaList.push(x);
-    }
-  }
-  if (!xaList.length) return;
-  const nFlip = Math.min(xaList.length, randInt(1, 2));
-  for (let k = 0; k < nFlip; k++) {
-    const x = xaList[randInt(0, xaList.length - 1)];
-    x.control = Faction.TRIEU_DINH;
-  }
-  syncHuyenBannerFromXaBalance(state, hid);
-  let rid = "";
-  let rnm = "";
-  for (const r of getAllRegions()) {
-    for (const ph of Object.values(r.phu || {})) {
-      if (ph?.huyen?.[hid]) {
-        rid = r.id;
-        rnm = r.name || r.id;
-        break;
-      }
-    }
-    if (rid) break;
-  }
-  if (rid) {
-    recordWarRegionalIncident(state, rid, rnm, {
-      kind: "grassroots_recovery",
-      scale: "Xã",
-      place: `Thu hồi ${nFlip} xã quanh huyện ${hid}`,
-      attackers: "Triều đình / dân đoàn",
-      defenders: "Nghĩa quân địa phương",
-      winner: "td",
-      atkCas: randInt(40, 320) * nFlip,
-      defCas: randInt(60, 400) * nFlip,
-      note: "Không phải đại quân — tuần phủ + dân đoàn bóp nghẹt đầu mối.",
-    });
-  }
-}
 
 function applyPartialLowerControl(state, huyenId, faction, captureMode = "contest") {
   const geo = getLowerRegions(state, huyenId);
@@ -2090,52 +2001,6 @@ function collectXaFactionStats(state) {
 /** Gộp buffer chiến sự theo năm game (mỗi trấn một dòng + chi tiết bấm mở). */
 
 /** Giành giật xã/tổng trong huyện mặt trận — bổ sung “đánh liên tục” cấp thấp. */
-function tickLowerGeographyScramble(state) {
-  if (isWarTruceActive(state)) return;
-  ensureAdvancedWarState(state);
-  if (!state.factions?.trieuDinh || !state.factions?.nghiaQuan) return;
-  if (rng(state) > 0.38) return;
-  const entries = getAllWarHuyenEntries(state).filter(e => e.historicalBattle || getHuyenControl(state, e.huyenId) === Faction.NGHIA_QUAN);
-  if (!entries.length) return;
-  const e = entries[randInt(0, entries.length - 1)];
-  const geo = getLowerRegions(state, e.huyenId);
-  if (!geo?.tong) return;
-  const tongs = Object.values(geo.tong);
-  if (!tongs.length) return;
-  const tPick = tongs[randInt(0, tongs.length - 1)];
-  const xas = Object.values(tPick.xa || {});
-  if (!xas.length) return;
-  const xa = xas[randInt(0, xas.length - 1)];
-  const cur = xa.control;
-  const hCtrl = getHuyenControl(state, e.huyenId);
-  const roll = rng(state);
-  let next = cur;
-  if (roll < 0.34) next = hCtrl;
-  else if (roll < 0.68) next = hCtrl === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
-  else next = cur === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
-  if (next === cur && rng(state) < 0.35) return;
-  xa.control = next;
-  const xaArr = Object.values(tPick.xa || {});
-  const own = xaArr.filter(x => x.control === Faction.NGHIA_QUAN).length;
-  tPick.control = own >= Math.ceil(xaArr.length / 2) ? Faction.NGHIA_QUAN : Faction.TRIEU_DINH;
-  syncHuyenBannerFromXaBalance(state, e.huyenId);
-  const atkCas = randInt(12, 180);
-  const defCas = randInt(12, 180);
-  const winner = next === Faction.NGHIA_QUAN ? "nq" : "td";
-  const phuName = getPhu(e.regionId, e.phuId)?.name || e.phuId;
-  const r = getRegion(e.regionId);
-  recordWarRegionalIncident(state, e.regionId, r?.name || e.regionId, {
-    kind: "xa_tong",
-    scale: "Xã / tổng",
-    place: `${xa.name || "xã"} · ${tPick.name || "tổng"} · ${e.name} · ${phuName}`,
-    attackers: winner === "nq" ? "Nghĩa quân / nghĩa dân" : "Quan quân / dân đoàn",
-    defenders: winner === "nq" ? "Quan quân / dân đoàn" : "Nghĩa quân / nghĩa dân",
-    winner,
-    atkCas,
-    defCas,
-    note: "Cước võ lưu động — đốt trại, chặn đường tiếp vận; thắng bên củng cố vài thôn rồi rút trước đại đội.",
-  });
-}
 
 /** Vừa có tập kích / đổi chủ huyện trên bản đồ chiến lược — tin “Quốc cục đã định” sẽ mâu thuẫn. */
 
@@ -2152,7 +2017,14 @@ function tryOfferVictoryChoice(state) {
   const p = state.player;
   if (!p) return;
 
-  const controlHuyen = collectWarControlStats(state);
+  // (bước 12) đếm huyện theo phe — thay collectWarControlStats() đã xoá cùng war/legacy.js
+  const controlHuyen = (() => {
+    let nq = 0, td = 0;
+    for (const r of getAllRegions()) for (const ph of Object.values(r.phu || {})) for (const h of Object.values(ph.huyen || {})) {
+      if (getHuyenControl(state, h.id) === Faction.NGHIA_QUAN) nq++; else td++;
+    }
+    return { nq, td, total: Math.max(1, nq + td) };
+  })();
   const ratioNq = controlHuyen.nq / controlHuyen.total;
   const controlsKinhKy = getHuyenControl(state, "tho_xuong") === Faction.NGHIA_QUAN
     || getHuyenControl(state, "quang_duc") === Faction.NGHIA_QUAN
@@ -2223,10 +2095,22 @@ function tryOfferVictoryChoice(state) {
     const xaC = collectXaFactionStats(state);
     const ratioTdXa = xaC.td / xaC.total;
     const ratioNqXa = xaC.nq / xaC.total;
-    const warRaging = isWarStillRaging(state);
+    // (bước 12) "chiến sự đang sôi" = còn huyện phe đối lập với người chơi kiểm soát trong phủ nhà.
+    const warRaging = (() => {
+      const hp = getRegion(state.player.homeRegion)?.phu?.[state.player.homePhu];
+      const opp = state.player.faction === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
+      for (const h of Object.values(hp?.huyen || {})) if (getHuyenControl(state, h.id) === opp) return true;
+      return false;
+    })();
     const highRank = [PlayerRank.HIEN_SAT_SU, PlayerRank.THUONG_THU, PlayerRank.THUA_CHINH_SU, PlayerRank.DOC_TRAN, PlayerRank.THAM_TUNG, PlayerRank.BOI_TUNG].includes(p.rank);
     // Không dùng tỉ lệ huyện (mặc định triều nếu chưa ghi) — theo xã + không tiền tuyến nóng + không còn huyện cối nghĩa quân.
-    const majorFrontClear = !hasRebelHeldMajorFrontHuyen(state);
+    // (bước 12) còn huyện trận-lịch-sử nào do nghĩa quân giữ?
+    const majorFrontClear = !(() => {
+      for (const r of getAllRegions()) for (const ph of Object.values(r.phu || {})) for (const h of Object.values(ph.huyen || {})) {
+        if (h.historicalBattle && getHuyenControl(state, h.id) === Faction.NGHIA_QUAN) return true;
+      }
+      return false;
+    })();
     const canTrungHung = !warRaging
       && majorFrontClear
       && ratioNqXa <= (0.055 / fac)
@@ -2747,8 +2631,6 @@ export function gameTick(state) {
   if (state.gameOver) return;
   state.uiShakeProfile = false;
   ensureVictoryState(state);
-  ensureAdvancedWarState(state);
-  ensureBattleLedgerAndSimCompat(state);
   expireInbox(state);
 
   // Adapters for new state shape (keep old UI working)
@@ -2794,10 +2676,8 @@ export function gameTick(state) {
       state.ban++;
       state.player.age++;
       state.npcs.forEach(n => n.age++);
-      try { flushWarRegionalDigestForYear(state, prevYear); } catch {}
       // Yearly merit reset + rewards (Top 50)
       try { resolveYearlyMeritAndReset(state, prevYear); } catch {}
-      try { pushYearlyWarReplay(state, prevYear); } catch {}
     }
 
     // Reset các buff/focus tháng
@@ -2941,17 +2821,7 @@ export function gameTick(state) {
     }
 
     checkHistoricalEvents(state);
-    // Update war control from historical fronts (so rebels can actually "own land")
-    updateWarFrontControl(state);
-    const warEntries = getAllWarHuyenEntries(state);
-    updateMonthlyWarEconomyByHuyen(state, warEntries);
-    planMonthlyWarConvoys(state, warEntries);
-    tryMonthlyWarTruce(state);
-    tickWarObjectivesMonthly(state, warEntries);
-    updateSeasonalCampaigns(state);
     updateEconomy(state);
-    processMonthlyWarEconomyAI(state);
-    processMonthlyFactionInfighting(state);
     updateNPCs(state);
     processMonthlyPropertyAndArmy(state);
     processMonthlyDebts(state);
@@ -3014,11 +2884,6 @@ export function gameTick(state) {
   // Marching happens before anything else (prevents "teleport gameplay")
   tickTravel(state);
   tickActivity(state);
-  tickWarConvoysDaily(state, getAllWarHuyenEntries(state));
-  tickStrategicWarAi(state);
-  tickLiveBattles(state);
-  try { tickImperialGrassrootsRecovery(state); } catch {}
-  try { tickLowerGeographyScramble(state); } catch {}
   processDelayedEffects(state);
 
   // Build queue (daily)
@@ -3295,302 +3160,6 @@ export function gameTick(state) {
   // Weather is rolled at month change (not daily) to avoid chaotic flicker.
 }
 
-function getFactionStore(state, faction) {
-  if (!state?.factions) return null;
-  return faction === Faction.NGHIA_QUAN ? state.factions.nghiaQuan : state.factions.trieuDinh;
-}
-
-function estimateHuyenDefense(state, entry, faction) {
-  const g = getHuyenGarrisonPower(state, entry.huyenId, faction);
-  const front = estimateFrontlineStrength(state, entry, faction);
-  return g * 2.6 + front * 0.5;
-}
-
-function strategicAiReinforceWeakControl(state, faction, entries) {
-  const store = getFactionStore(state, faction);
-  if (!store) return false;
-  const mine = entries.filter(e => getHuyenControl(state, e.huyenId) === faction);
-  if (mine.length === 0) return false;
-  const weak = mine
-    .map(e => ({ e, score: estimateHuyenDefense(state, e, faction) }))
-    .sort((a, b) => a.score - b.score)[0];
-  if (!weak) return false;
-  if (!state._huyenGarrisons) state._huyenGarrisons = {};
-  const hid = weak.e.huyenId;
-  const cur = state._huyenGarrisons[hid];
-  const have = (cur && cur.faction === faction) ? Math.floor(cur.quan || 0) : 0;
-  const affordable = Math.floor(Math.min((store.treasury || 0) / 4, (store.granary || 0) / 2));
-  const reinforce = Math.max(0, Math.min(420, affordable, Math.max(80, 260 - have)));
-  if (reinforce <= 0) return false;
-  store.treasury = Math.max(0, (store.treasury || 0) - reinforce * 4);
-  store.granary = Math.max(0, (store.granary || 0) - reinforce * 2);
-  const morale = Math.max(58, Math.min(88, Math.floor((cur?.morale ?? 68) + 4)));
-  const level = Math.max(1, Math.min(3, Math.floor(cur?.level || 1)));
-  state._huyenGarrisons[hid] = { faction, quan: have + reinforce, level, morale };
-  return true;
-}
-
-function strategicAiTrainFieldForces(state, faction) {
-  const store = getFactionStore(state, faction);
-  if (!store || (store.treasury || 0) < 900 || (store.granary || 0) < 500) return;
-  if (!state._battleSim || typeof state._battleSim !== "object") return;
-  const keys = Object.keys(state._battleSim);
-  if (keys.length === 0) return;
-  const pick = keys[randInt(0, keys.length - 1)];
-  const snap = state._battleSim[pick];
-  if (!snap?.active) return;
-  const bs = getBattleState(state, pick);
-  if (!bs) return;
-  const atkRebel = /ngh[iĩ]a|khởi|phiến|phản/i.test(String(bs.atkName || "") + " " + String(bs.atkCommander || ""));
-  const sideIsAtk = faction === Faction.NGHIA_QUAN ? atkRebel : !atkRebel;
-  const budget = 650 + randInt(0, 500);
-  const grain = 320 + randInt(0, 220);
-  store.treasury = Math.max(0, (store.treasury || 0) - budget);
-  store.granary = Math.max(0, (store.granary || 0) - grain);
-  if (sideIsAtk) {
-    snap.atkQual = Math.min(1.55, (snap.atkQual || 1.0) + 0.012 + rng(state) * 0.015);
-    snap.atkCmd = Math.min(98, (snap.atkCmd || 50) + randInt(0, 1));
-    snap.atkKnights = Math.max(1, Math.floor((snap.atkKnights || 1) + 1 + rng(state) * 1.2));
-  } else {
-    snap.defQual = Math.min(1.55, (snap.defQual || 1.0) + 0.012 + rng(state) * 0.015);
-    snap.defCmd = Math.min(98, (snap.defCmd || 50) + randInt(0, 1));
-    snap.defKnights = Math.max(1, Math.floor((snap.defKnights || 1) + 1 + rng(state) * 1.2));
-  }
-}
-
-function strategicAiCounterRaidPlayer(state, faction, entries) {
-  const p = state.player;
-  if (!p || (p.quanSo || 0) < 1800) return false;
-  if (p.faction === faction || !p.faction) return false;
-  const playerHid = p.currentHuyen;
-  if (!playerHid || getHuyenControl(state, playerHid) !== faction) return false;
-
-  const retreatG = state._huyenGarrisons?.[playerHid];
-  let mobileTroops = 0;
-  if (retreatG && retreatG.faction === faction && retreatG.quan > 90) {
-    mobileTroops = Math.max(40, Math.floor(retreatG.quan * 0.35));
-    retreatG.quan -= mobileTroops;
-    retreatG.morale = Math.min(100, Math.floor((retreatG.morale || 70) + 3));
-  }
-
-  const preferredTargets = [p.homeHuyen, state.postingId, "tho_xuong", "quang_duc", "gia_lam"].filter(Boolean);
-  let picked = null;
-  for (const hid of preferredTargets) {
-    const e = entries.find(x => x.huyenId === hid);
-    if (!e) continue;
-    if (getHuyenControl(state, hid) === faction) continue;
-    picked = e;
-    break;
-  }
-  if (!picked) return false;
-
-  const enemy = faction === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
-  const enemyDef = estimateHuyenDefense(state, picked, enemy);
-  const myAtk = mobileTroops * 3.2 + 240 + rng(state) * 260;
-  const chance = Math.max(0.16, Math.min(0.78, 0.32 + (myAtk - enemyDef) / 1800));
-  if (rng(state) < chance) {
-    setHuyenControl(state, picked.huyenId, faction);
-    warStatInc(state, "flips", 1);
-    if (!state._huyenGarrisons) state._huyenGarrisons = {};
-    const hold = state._huyenGarrisons[picked.huyenId];
-    const holdQ = hold?.faction === faction ? Math.floor(hold.quan || 0) : 0;
-    state._huyenGarrisons[picked.huyenId] = {
-      faction,
-      quan: holdQ + Math.max(70, Math.floor(mobileTroops * 0.7)),
-      level: Math.max(1, Math.min(3, Math.floor(hold?.level || 1))),
-      morale: Math.max(62, Math.floor(hold?.morale || 70)),
-    };
-    const sideName = faction === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình";
-    const rMeta = getRegion(picked.regionId);
-    recordWarRegionalIncident(state, picked.regionId, rMeta?.name || picked.regionId, {
-      kind: "counter_raid",
-      scale: "Huyện",
-      place: `${picked.name} (${getPhu(picked.regionId, picked.phuId)?.name || picked.phuId})`,
-      attackers: sideName,
-      defenders: enemy === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình",
-      winner: faction === Faction.NGHIA_QUAN ? "nq" : "td",
-      atkCas: randInt(320, 2400),
-      defCas: randInt(280, 2200),
-      note: "Rút né mũi truy quét rồi đánh úp hậu phương — có mộ binh theo cánh.",
-    });
-    markWarFrontPulse(state);
-    return true;
-  }
-  return false;
-}
-
-function strategicAiRaidWeakEnemy(state, faction, entries) {
-  const enemy = faction === Faction.NGHIA_QUAN ? Faction.TRIEU_DINH : Faction.NGHIA_QUAN;
-  const candidates = entries.filter(e => getHuyenControl(state, e.huyenId) === enemy);
-  if (candidates.length === 0) return false;
-  const target = candidates
-    .map(e => {
-      const def = estimateHuyenDefense(state, e, enemy);
-      const atk = estimateFrontlineStrength(state, e, faction) * 0.7 + getHuyenGarrisonPower(state, e.huyenId, faction) * 1.2;
-      return { e, score: atk - def * 0.8 };
-    })
-    .sort((a, b) => b.score - a.score)[0];
-  if (!target) return false;
-  const chance = Math.max(0.10, Math.min(0.74, 0.30 + target.score / 1700));
-  if (rng(state) >= chance) return false;
-  setHuyenControl(state, target.e.huyenId, faction, faction === Faction.TRIEU_DINH ? "soft" : "contest");
-  warStatInc(state, "flips", 1);
-  if (!state._huyenGarrisons) state._huyenGarrisons = {};
-  const ex = state._huyenGarrisons[target.e.huyenId];
-  const q = ex?.faction === faction ? Math.floor(ex.quan || 0) : 0;
-  state._huyenGarrisons[target.e.huyenId] = { faction, quan: q + randInt(70, 180), level: Math.max(1, Math.floor(ex?.level || 1)), morale: 70 };
-  const sideName = faction === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình";
-  const rMeta = getRegion(target.e.regionId);
-  recordWarRegionalIncident(state, target.e.regionId, rMeta?.name || target.e.regionId, {
-    kind: "pincer_raid",
-    scale: "Huyện",
-    place: `${target.e.name} (${getPhu(target.e.regionId, target.e.phuId)?.name || target.e.phuId})`,
-    attackers: sideName,
-    defenders: enemy === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình",
-    winner: faction === Faction.NGHIA_QUAN ? "nq" : "td",
-    atkCas: randInt(400, 2600),
-    defCas: randInt(360, 2400),
-    note: "Tập kích hợp vây — đổi màu chiến tuyến; hậu cần kiệt bèn mộ thêm dân binh lấp chỗ trống.",
-  });
-  markWarFrontPulse(state);
-  return true;
-}
-
-function updateSeasonalCampaigns(state) {
-  // Seasonal AI pressure so the map feels alive even without player interaction.
-  // Spring/Summer: rebels raid/expand. Autumn/Winter: imperial sweeps/recapture.
-  const ym = ymKey(state);
-  if (state._campaignYm === ym) return;
-  state._campaignYm = ym;
-  if (!state._huyenControl) state._huyenControl = {};
-  if (isWarTruceActive(state)) return;
-
-  const m = state.monthIndex || 1;
-  const season = (m <= 3) ? "spring" : (m <= 6) ? "summer" : (m <= 9) ? "autumn" : "winter";
-  const side = (season === "spring" || season === "summer") ? Faction.NGHIA_QUAN : Faction.TRIEU_DINH;
-  const sideName = side === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình";
-
-  const candidates = [];
-  const regions = getAllRegions();
-  for (const r of regions) {
-    for (const phuId of Object.keys(r.phu || {})) {
-      const ph = r.phu?.[phuId];
-      for (const huyenId of Object.keys(ph?.huyen || {})) {
-        const h = ph.huyen?.[huyenId];
-        if (!h?.historicalBattle) continue;
-        const bs = getBattleState(state, h.historicalBattle);
-        if (!bs) continue;
-        const cur = state._huyenControl[h.id] || Faction.TRIEU_DINH;
-        if (side === Faction.NGHIA_QUAN && cur === Faction.TRIEU_DINH) candidates.push({ r, phuId, h, bs, cur });
-        if (side === Faction.TRIEU_DINH && cur === Faction.NGHIA_QUAN) candidates.push({ r, phuId, h, bs, cur });
-      }
-    }
-  }
-  if (candidates.length === 0) return;
-
-  // Pick up to 2 operations per month (scaled lightly by global unrest)
-  const phase = currentWarPhase(state);
-  const baseOps = phase === "clash" ? 3 : phase === "march" ? 3 : phase === "mobilize" ? 2 : 2;
-  const ops = baseOps + ((state.village.unrest || 0) >= 60 && rng(state) < 0.35 ? 1 : 0);
-  let flips = 0;
-  for (let i = 0; i < ops; i++) {
-    if (candidates.length === 0) break;
-    // Prefer softer targets (low enemy garrison / favorable momentum), but keep some randomness.
-    const scored = candidates.map((x, idx) => {
-      const hold = getHuyenGarrisonPower(state, x.h.id, x.cur);
-      const momentum = (side === Faction.NGHIA_QUAN) ? ((x.bs.thangVong || 50) / 100) : (1 - (x.bs.thangVong || 50) / 100);
-      const pressure = momentum * 1.6 - Math.min(0.9, hold / 500);
-      return { idx, pressure };
-    }).sort((a, b) => b.pressure - a.pressure);
-    const pool = scored.slice(0, Math.min(3, scored.length));
-    const chosen = pool[randInt(0, pool.length - 1)];
-    const c = candidates.splice(chosen.idx, 1)[0];
-    // AI evaluates strength before committing.
-    // Interpret battleState forces as "frontline available troops" (approx).
-    const atk = Math.max(1, c.bs.atkForce || 1);
-    const def = Math.max(1, c.bs.defForce || 1);
-    let attackerForce = (side === Faction.NGHIA_QUAN) ? atk : def;
-    let defenderForce = (side === Faction.NGHIA_QUAN) ? def : atk;
-    const garHold = getHuyenGarrisonPower(state, c.h.id, c.cur);
-    if (garHold > 0) defenderForce += garHold * 2.8;
-    const ratio = attackerForce / defenderForce; // >1 means attacker stronger
-
-    // Baseline appetite by season; winter reduces operations.
-    const fatigue = (season === "winter") ? 0.90 : 1.0;
-    // Require some minimum strength to attempt flipping control.
-    const commitGate = (season === "spring" || season === "summer") ? 0.85 : 0.95;
-    if (ratio < commitGate) {
-      if (rng(state) < 0.22) {
-        const phuName = getPhu(c.r.id, c.phuId)?.name || c.phuId;
-        const hName = c.h.name || c.h.id;
-        recordWarRegionalIncident(state, c.r.id, c.r.name, {
-          kind: "harass",
-          scale: "Phủ / huyện",
-          place: `${hName} (${phuName})`,
-          attackers: sideName,
-          defenders: side === Faction.NGHIA_QUAN ? "Phòng thủ triều" : "Phòng thủ nghĩa",
-          winner: "draw",
-          atkCas: randInt(80, 520),
-          defCas: randInt(90, 540),
-          note: `Quấy phá (${season}) — chưa đủ lực công phá kiên trì.`,
-        });
-      }
-      continue;
-    }
-
-    // Chance of success scales with ratio and historical momentum.
-    const momentum = (side === Faction.NGHIA_QUAN) ? (c.bs.thangVong / 100) : (1 - c.bs.thangVong / 100);
-    const ratioBoost = Math.max(0, Math.min(0.30, (ratio - 1) * 0.22));
-    const chance = Math.max(0.10, Math.min(0.60, (0.18 + momentum * 0.35 + ratioBoost) * fatigue));
-    if (rng(state) < chance) {
-      setHuyenControl(state, c.h.id, side, "soft");
-      warStatInc(state, "flips", 1);
-      markWarFrontPulse(state);
-      // Winning side seeds an initial garrison so control has inertia.
-      if (!state._huyenGarrisons) state._huyenGarrisons = {};
-      const ex = state._huyenGarrisons[c.h.id];
-      const exQ = (ex && ex.faction === side) ? (ex.quan || 0) : 0;
-      if (exQ <= 0) {
-        const seed = Math.max(60, Math.min(220, Math.floor(attackerForce * 0.06)));
-        state._huyenGarrisons[c.h.id] = { faction: side, quan: seed, level: 1, morale: 70 };
-      }
-      flips++;
-      const phuName = getPhu(c.r.id, c.phuId)?.name || c.phuId;
-      const hName = c.h.name || c.h.id;
-      recordWarRegionalIncident(state, c.r.id, c.r.name, {
-        kind: "huyen_flip",
-        scale: "Huyện",
-        place: `${hName} (${phuName})`,
-        attackers: sideName,
-        defenders: side === Faction.NGHIA_QUAN ? "Triều đình" : "Nghĩa quân",
-        winner: side === Faction.NGHIA_QUAN ? "nq" : "td",
-        atkCas: randInt(520, 4200),
-        defCas: randInt(480, 4000),
-        note: `Giành thế kiểm soát (${season}) — có tiếp tế & mộ binh vá chỗ hổng.`,
-      });
-    } else {
-      if (rng(state) < 0.55) {
-        const phuName = getPhu(c.r.id, c.phuId)?.name || c.phuId;
-        const hName = c.h.name || c.h.id;
-        recordWarRegionalIncident(state, c.r.id, c.r.name, {
-          kind: "huyen_repulse",
-          scale: "Huyện",
-          place: `${hName} (${phuName})`,
-          attackers: sideName,
-          defenders: side === Faction.NGHIA_QUAN ? "Triều đình" : "Nghĩa quân",
-          winner: side === Faction.NGHIA_QUAN ? "td" : "nq",
-          atkCas: randInt(400, 3600),
-          defCas: randInt(380, 3400),
-          note: `Tiến công (${season}) nhưng bị đẩy lui — hai bên đều hao quân nặng.`,
-        });
-      }
-    }
-  }
-
-  if (flips > 0) {
-    if (rng(state) < 0.12) pushCelebration(state, "CHIẾN BÁO", `${sideName} mở chiến dịch mùa ${season}. Bản đồ chuyển động.`, "battle");
-  }
-}
 
 function processMonthlyDebts(state) {
   if (state.player.noVayConLai > 0) {
@@ -3685,32 +3254,6 @@ function processMonthlyGarrisonUpkeep(state) {
   }
 }
 
-function processMonthlyFactionInfighting(state) {
-  ensureAdvancedWarState(state);
-  const entries = getAllWarHuyenEntries(state);
-  const sides = [Faction.TRIEU_DINH, Faction.NGHIA_QUAN];
-  for (const side of sides) {
-    const store = getFactionStore(state, side);
-    if (!store) continue;
-    const lowSupply = (store.treasury || 0) < 35000 || (store.granary || 0) < 32000;
-    const pressure = (state.village?.unrest || 0) > 72;
-    if (!(lowSupply && pressure) || rng(state) >= 0.22) continue;
-    const mine = entries.filter(e => getHuyenControl(state, e.huyenId) === side);
-    if (mine.length === 0) continue;
-    const pick = mine[randInt(0, mine.length - 1)];
-    const g = state._huyenGarrisons?.[pick.huyenId];
-    if (g && g.faction === side) {
-      const loss = Math.max(20, Math.floor((g.quan || 0) * (0.10 + rng(state) * 0.16)));
-      g.quan = Math.max(0, (g.quan || 0) - loss);
-      g.morale = Math.max(25, (g.morale || 70) - 18);
-      if (g.quan <= 0) delete state._huyenGarrisons[pick.huyenId];
-    }
-    const stolen = Math.max(300, Math.floor((store.treasury || 0) * 0.04));
-    store.treasury = Math.max(0, (store.treasury || 0) - stolen);
-    const sideName = side === Faction.NGHIA_QUAN ? "Nghĩa quân" : "Triều đình";
-    logLine(state, `🩸 Nội bộ ${sideName} lục đục tranh công tại ${pick.name}: thất thoát ${stolen}Q và suy giảm đồn trú.`, true);
-  }
-}
 
 function processMonthlySalary(state) {
   const p = state.player;
@@ -4240,15 +3783,9 @@ export function checkWantedArrest(state) {
   }
 }
 
-// Helper exports for war/legacy.js
-export { clamp, currentYmSerial, ensurePostingIfNeeded, estimateHuyenDefense, getFactionStore, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, strategicAiCounterRaidPlayer, strategicAiRaidWeakEnemy, strategicAiReinforceWeakControl, strategicAiTrainFieldForces, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
+// Internal helpers exported for other modules
+export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
 
-// Re-exports from war/legacy.js
-export {
-  ensureBattleLedgerAndSimCompat,
-  getWarHudIntel,
-  getWarCouncilBrief
-} from "./war/legacy.js";
 
 export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission };
 

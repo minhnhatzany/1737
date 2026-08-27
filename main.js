@@ -1,5 +1,5 @@
 import {
-  createInitialState, gameTick, logLine, ensureBattleLedgerAndSimCompat,
+  createInitialState, gameTick, logLine,
   actionCayRuong, actionKhaiThacDacSan,
   actionBuonLauMuoi, actionChatGo, actionDetVai, actionChanNuoiLon, actionNauRuou, actionCauCaSong, actionDanhBatVenBien, actionMarketHaggle, actionAcceptMarketContract, getMerchantProgress, getMarketSceneBrief, getTradeQuote, actionMoBinh, actionLuyenVo,
   actionRebelTrain, actionRebelRaidSupply, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRecruitLocal,
@@ -19,7 +19,6 @@ import {
   initQuestsIfNeeded, tickQuests,
   getHuyenControl, siegeHuyen, actionAssignGarrison, actionRecallGarrison, actionUpgradeGarrison,
   canPlayerCommandStrategicGarrison,
-  getWarHudIntel, getWarCouncilBrief,
   isTraveling, startTravel,
   repairGeoCacheFactionFlags,
 } from "./engine.js";
@@ -126,7 +125,6 @@ let tickInterval = null;
 const MS_PER_DAY = 1500;
 let logFilterMode = "all";
 let _lastHudHeavyRenderAt = 0;
-let _warMiniMapCells = [];
 
 // Hộp thư (bước 9b): modal sự kiện là danh sách; đồng hồ KHÔNG dừng vì modal.
 let _blockingShownFor = null;   // id thư blocking đã auto-mở modal đúng 1 lần
@@ -374,42 +372,6 @@ window.setUiUxMode = (mode) => {
   showToast(m === "strategic" ? "Đã chuyển Strategic UI: mở đầy đủ bảng chiến lược." : "Đã chuyển Newbie UI: ẩn bớt bảng nặng, ưu tiên dễ chơi.");
 };
 
-function warDashboardMetrics() {
-  const p = state?.player;
-  if (!p) return null;
-  const regions = getAllRegions();
-  const ids = [];
-  for (const r of regions) {
-    for (const ph of Object.values(r.phu || {})) {
-      for (const h of Object.values(ph.huyen || {})) ids.push(h.id);
-    }
-  }
-  let td = 0, nq = 0;
-  for (const hid of ids) {
-    const c = getHuyenControl(state, hid);
-    if (c === Faction.NGHIA_QUAN) nq++; else td++;
-  }
-  const total = Math.max(1, ids.length);
-  const side = p.faction === Faction.NGHIA_QUAN ? Faction.NGHIA_QUAN : Faction.TRIEU_DINH;
-  const ownRatio = side === Faction.NGHIA_QUAN ? Math.round((nq / total) * 100) : Math.round((td / total) * 100);
-  const enemyRatio = side === Faction.NGHIA_QUAN ? Math.round((td / total) * 100) : Math.round((nq / total) * 100);
-  return {
-    ownRatio,
-    enemyRatio,
-    money: p.tien || 0,
-    army: p.quanSo || 0,
-    unrest: state?.village?.unrest || 0,
-  };
-}
-
-function isWarUiUnlocked() {
-  const p = state?.player;
-  if (!p) return false;
-  if (p.faction === Faction.NGHIA_QUAN) return true; // vào vai nghĩa quân thì cần chiến báo ngay
-  if ((p.quanSo || 0) >= 180) return true;            // có thực lực quân sự tối thiểu
-  if (p.rank && p.rank !== PlayerRank.DAN_THUONG) return true; // đã có phẩm hàm/chức vị
-  return false;
-}
 
 function buildPriorityActions() {
   const p = state?.player;
@@ -425,97 +387,7 @@ function buildPriorityActions() {
   return actions.slice(0, 3);
 }
 
-function renderBattleLedgerPanel() {
-  const el = $("battleLedgerPanel");
-  if (!el || !state) return;
-  if (!isWarUiUnlocked()) {
-    el.innerHTML = "";
-    return;
-  }
-  const active = [];
-  for (const [bid, snap] of Object.entries(state._battleSim || {})) {
-    if (!snap?.active) continue;
-    const bs = getBattleState(state, bid);
-    active.push({ bid, name: (bs?.name || bid).slice(0, 42) });
-  }
-  const chips = active.length
-    ? `<div class="battle-ledger-chips">${active.map(({ bid, name }) => `
-      <button type="button" class="battle-ledger-chip" onclick='window.focusBattleOnMap(${JSON.stringify(bid)})'>${escapeHtml(name)}</button>
-    `).join("")}</div>`
-    : `<p class="muted battle-ledger-empty">Hiện không có mặt trận đang mở — nhật ký vẫn ghi các sự kiện gần đây.</p>`;
 
-  const ledger = Array.isArray(state._battleLedger) ? state._battleLedger : [];
-  const rows = ledger.slice(0, 18).map((row) => {
-    const t = `Ngày ${row.gameDay}/${row.monthIndex}/${row.ban}`;
-    const pin = row.battleId
-      ? `<button type="button" class="battle-ledger-pin" title="Mở bản đồ tới huyện" aria-label="Định vị" onclick='window.focusBattleOnMap(${JSON.stringify(row.battleId)})'>📍</button>`
-      : "";
-    return `<div class="battle-ledger-row">${pin}<div class="battle-ledger-body"><span class="battle-ledger-meta">${escapeHtml(t)}</span><span class="battle-ledger-text">${escapeHtml(row.text || "")}</span></div></div>`;
-  }).join("");
-
-  el.innerHTML = `
-    <h5 class="battle-ledger-title">📜 Nhật ký tiền tuyến</h5>
-    <p class="muted battle-ledger-hint">Mặt trận đang diễn ra (bấm chip hoặc 📍 để nhảy bản đồ).</p>
-    ${chips}
-    <div class="battle-ledger-list">${rows || '<p class="muted">Chưa có mục nhật ký.</p>'}</div>
-  `;
-}
-
-function renderWarMiniMap() {
-  const canvas = $("warMiniMapCanvas");
-  if (!canvas || !state?.player) return;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#100b07";
-  ctx.fillRect(0, 0, w, h);
-
-  const allHuyen = [];
-  const regions = getAllRegions();
-  for (const r of regions) for (const ph of Object.values(r.phu || {})) for (const hy of Object.values(ph.huyen || {})) allHuyen.push(hy.id);
-  if (allHuyen.length === 0) return;
-  allHuyen.sort();
-  const cols = Math.max(10, Math.min(22, Math.ceil(Math.sqrt(allHuyen.length * 1.8))));
-  const rows = Math.ceil(allHuyen.length / cols);
-  const pad = 4;
-  const gap = 2;
-  const cellW = Math.max(3, Math.floor((w - pad * 2 - (cols - 1) * gap) / cols));
-  const cellH = Math.max(3, Math.floor((h - pad * 2 - (rows - 1) * gap) / rows));
-
-  const hotHuyen = new Set();
-  for (const [bid, snap] of Object.entries(state._battleSim || {})) {
-    if (!snap?.active) continue;
-    const loc = getBattleLocation(bid);
-    if (loc?.huyenId) hotHuyen.add(loc.huyenId);
-  }
-  const meHid = state.player.currentHuyen;
-  _warMiniMapCells = [];
-  allHuyen.forEach((hid, idx) => {
-    const r = Math.floor(idx / cols);
-    const c = idx % cols;
-    const x = pad + c * (cellW + gap);
-    const y = pad + r * (cellH + gap);
-    const side = getHuyenControl(state, hid);
-    ctx.fillStyle = side === Faction.NGHIA_QUAN ? "#9f4433" : "#3f678f";
-    ctx.fillRect(x, y, cellW, cellH);
-    if (hotHuyen.has(hid)) {
-      ctx.strokeStyle = "#f59f00";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, Math.max(1, cellW - 1), Math.max(1, cellH - 1));
-    }
-    if (hid === meHid) {
-      ctx.fillStyle = "#f5d980";
-      const cx = x + Math.floor(cellW / 2);
-      const cy = y + Math.floor(cellH / 2);
-      ctx.beginPath();
-      ctx.arc(cx, cy, Math.max(1.5, Math.min(cellW, cellH) / 3), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    _warMiniMapCells.push({ hid, x, y, w: cellW, h: cellH, hot: hotHuyen.has(hid) });
-  });
-}
 
 function findHuyenLocation(huyenId) {
   const regions = getAllRegions();
@@ -883,33 +755,11 @@ function render() {
     riskLine.style.color = risk.label === "Cao" ? "#f87171" : (risk.label === "Trung bình" ? "#d6a75a" : "var(--text-dim)");
   }
   const victoryLine = $("victoryProgressLine");
-  if (victoryLine) {
-    victoryLine.textContent = isWarUiUnlocked() ? buildVictoryProgressText() : "";
-  }
-  const warIntelLine = $("warIntelLine");
-  if (warIntelLine) {
-    warIntelLine.textContent = isWarUiUnlocked() ? getWarHudIntel(state) : "";
-  }
-  const warCouncilLine = $("warCouncilLine");
-  if (warCouncilLine) {
-    warCouncilLine.textContent = isWarUiUnlocked() ? getWarCouncilBrief(state) : "";
-  }
-  $("warCommandDeck")?.classList.toggle("hidden", !isWarUiUnlocked());
+  if (victoryLine) victoryLine.textContent = buildVictoryProgressText();
   const nowMs = Date.now();
-  const shouldHeavyRefresh = isWarUiUnlocked() && (!state.performanceMode || (nowMs - _lastHudHeavyRenderAt >= 380));
+  const shouldHeavyRefresh = !state.performanceMode || (nowMs - _lastHudHeavyRenderAt >= 380);
   if (shouldHeavyRefresh) {
     _lastHudHeavyRenderAt = nowMs;
-    renderWarMiniMap();
-    const metrics = warDashboardMetrics();
-    const cardsEl = $("warDashboardCards");
-    if (cardsEl && metrics) {
-      cardsEl.innerHTML = `
-        <div class="war-kpi-card"><div class="war-kpi-label">Kiểm soát phe ta</div><div class="war-kpi-value">${metrics.ownRatio}%</div></div>
-        <div class="war-kpi-card"><div class="war-kpi-label">Kiểm soát phe địch</div><div class="war-kpi-value">${metrics.enemyRatio}%</div></div>
-        <div class="war-kpi-card"><div class="war-kpi-label">Ngân quỹ cá nhân</div><div class="war-kpi-value">${metrics.money}Q</div></div>
-        <div class="war-kpi-card"><div class="war-kpi-label">Binh lực hiện hữu</div><div class="war-kpi-value">${metrics.army}</div></div>
-      `;
-    }
     const priorityEl = $("actionPriorityBar");
     if (priorityEl) {
       const picks = buildPriorityActions();
@@ -921,7 +771,6 @@ function render() {
       `).join("");
     }
   }
-  if (isWarUiUnlocked()) renderBattleLedgerPanel();
 
   // Activity HUD & modal pulse
   const a = activityStatus(state);
@@ -4790,27 +4639,6 @@ function initButtons() {
   $("btnUxModeStrategic")?.addEventListener("click", () => window.setUiUxMode("strategic"));
   $("btnThemeInkSoft")?.addEventListener("click", () => window.setThemeInkMode("soft"));
   $("btnThemeInkBold")?.addEventListener("click", () => window.setThemeInkMode("bold"));
-  $("warMiniMapCanvas")?.addEventListener("click", (ev) => {
-    const canvas = ev.currentTarget;
-    const rect = canvas.getBoundingClientRect();
-    const sx = canvas.width / Math.max(1, rect.width);
-    const sy = canvas.height / Math.max(1, rect.height);
-    const x = (ev.clientX - rect.left) * sx;
-    const y = (ev.clientY - rect.top) * sy;
-    const hit = _warMiniMapCells.find(c => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h);
-    if (!hit?.hid) return;
-    window.focusMapToHuyen(hit.hid);
-  });
-  $("warMiniMapCanvas")?.addEventListener("mousemove", (ev) => {
-    const canvas = ev.currentTarget;
-    const rect = canvas.getBoundingClientRect();
-    const sx = canvas.width / Math.max(1, rect.width);
-    const sy = canvas.height / Math.max(1, rect.height);
-    const x = (ev.clientX - rect.left) * sx;
-    const y = (ev.clientY - rect.top) * sy;
-    const hit = _warMiniMapCells.find(c => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h);
-    canvas.title = hit?.hid ? `Tới huyện: ${hit.hid}${hit.hot ? " · đang có chiến sự" : ""}` : "Mini bản đồ chiến tuyến";
-  });
 
   // Tab switching
   document.querySelectorAll(".tab-btn").forEach(btn => {
