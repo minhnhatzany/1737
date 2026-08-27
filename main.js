@@ -25,6 +25,7 @@ import {
 } from "./engine.js";
 
 import { rollDailyEvent, resolveEventChoice } from "./events.js";
+import { drainPendingToInbox } from "./core/inbox.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -2889,9 +2890,10 @@ function doAction(fn, args = []) {
   initQuestsIfNeeded(state);
   tickQuests(state);
 
-  // If an action created a pending event (e.g., captured after rout), show it immediately
-  if (state.pendingEvent) {
-    openEventModal(state.pendingEvent);
+  // If an action created an event (e.g., captured after rout), route it to the inbox and show it.
+  drainPendingToInbox(state);
+  if (state.inbox && state.inbox.length && !$("eventModal")?.classList.contains("open")) {
+    openEventModal(state.inbox[0]);
     return result;
   }
   const p = state.player;
@@ -3866,6 +3868,7 @@ window.__migrateLoadedState = () => {
   if (!("firstResourceActionDone" in state.onboarding)) state.onboarding.firstResourceActionDone = false;
   if (!("clanPressureMode" in state)) state.clanPressureMode = "standard";
   if (!("performanceMode" in state)) state.performanceMode = false;
+  if (!Array.isArray(state.inbox)) state.inbox = [];
   if (!("uiUxMode" in state)) state.uiUxMode = state.uxFirstPlay ? "newbie" : "strategic";
   if (!("themeInkMode" in state)) state.themeInkMode = "soft";
   if (!state.clanFavor) state.clanFavor = {};
@@ -3978,9 +3981,9 @@ function openEventModal(ev) {
 }
 
 window.pickEventChoice = idx => {
-  if (!state.pendingEvent) return;
-  const evId = state.pendingEvent.id;
-  resolveEventChoice(state, evId, idx);
+  const ev = state.pendingEvent || (state.inbox && state.inbox[0]);
+  if (!ev) return;
+  resolveEventChoice(state, ev.id, idx);
   $("eventModal").classList.remove("open");
   $("eventModal").setAttribute("aria-hidden", "true");
   playSfxKey("coin");
@@ -4523,7 +4526,6 @@ function renderActivityResults(a, opts = {}) {
 function isGameClockFrozenModal() {
   return [
     "tutorialModal",
-    "eventModal",
     "activityModal",
     "caseModal",
     "npcModal",
@@ -4555,13 +4557,9 @@ function tickGame() {
   state.gameDay++;
   gameTick(state);
 
-  // Roll daily event
+  // Roll daily event -> route to inbox; đồng hồ KHÔNG dừng dù có thư chưa trả lời (bước 9a)
   rollDailyEvent(state);
-  if (state.pendingEvent) {
-    autoSaveMonthly(prevMonth, prevYear);
-    openEventModal(state.pendingEvent);
-    return;
-  }
+  drainPendingToInbox(state);
 
   autoSaveMonthly(prevMonth, prevYear);
   if (state.monthIndex !== prevMonth || state.ban !== prevYear) {
@@ -4570,6 +4568,10 @@ function tickGame() {
       if (!state.uiCelebrations) state.uiCelebrations = [];
       state.uiCelebrations.push(summary);
     }
+  }
+
+  if (state.inbox && state.inbox.length && !$("eventModal")?.classList.contains("open")) {
+    openEventModal(state.inbox[0]);
   }
 
   render();

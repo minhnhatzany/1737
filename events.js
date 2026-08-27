@@ -1,6 +1,7 @@
 import { rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { PlayerRank, Faction, RegionId, NpcTrait } from "./models.js";
 import { logLine } from "./log.js";
+import { inboxFull } from "./core/inbox.js";
 
 
 // ============================================================
@@ -42,7 +43,7 @@ function impactStr(effects) {
 }
 
 export function rollDailyEvent(state) {
-  if (state.pendingEvent || state.gameOver) return null;
+  if (state.pendingEvent || inboxFull(state) || state.gameOver) return null;
   if (state.travel?.active) return null;
 
   // Chờ ít nhất 1 tháng (30 ngày) trước khi bắt đầu có sự kiện
@@ -1227,6 +1228,7 @@ function evBiBatLinh(state) {
   if (state.player.rank !== PlayerRank.DAN_THUONG && state.player.rank !== PlayerRank.PHU_HO) return null;
   return {
     id: "bi_bat_linh",
+    inboxDays: 2,
     title: "Tróc Nã Sung Quân",
     narrative: "Quân triều đình đang càn quét giặc cỏ. Lính nha môn ập vào nhà bắt đinh tráng đi lính hầu hạ trận tiền!",
     choices: [
@@ -1260,6 +1262,7 @@ function evRebelKhuyenHang(state) {
   if (state.player.rank === PlayerRank.THU_LINH || state.player.faction === "nghia_quan") return null;
   return {
     id: "rebel_khuyen_hang",
+    inboxDays: 2,
     title: "Nghĩa Quân Vây Làng",
     narrative: "Một toán nghĩa quân cầm đao súng xông vào làng. Đầu lĩnh nói: 'Ai theo nghĩa quân thì ăn no, ai chống cự thì mất mạng!'",
     choices: [
@@ -1815,9 +1818,18 @@ function evDanhBai(state) {
 // ============================================================
 
 export function resolveEventChoice(state, eventId, choiceIndex) {
-  const ev = state.pendingEvent;
-  if (!ev || ev.id !== eventId) return false;
-  ev.choices[choiceIndex].apply(state);
-  state.pendingEvent = null;
+  // Sự kiện hành quân vẫn nằm trên state.pendingEvent (phiên liên tục, không phải thư).
+  if (state.pendingEvent && state.pendingEvent.id === eventId) {
+    const chT = state.pendingEvent.choices && state.pendingEvent.choices[choiceIndex];
+    if (chT && typeof chT.apply === "function") chT.apply(state);
+    state.pendingEvent = null;
+    return true;
+  }
+  const arr = Array.isArray(state.inbox) ? state.inbox : [];
+  const i = arr.findIndex(x => x.id === eventId);
+  if (i < 0) return false;
+  const ch = arr[i].choices && arr[i].choices[choiceIndex];
+  if (ch && typeof ch.apply === "function") ch.apply(state);
+  arr.splice(i, 1);
   return true;
 }

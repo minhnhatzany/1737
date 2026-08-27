@@ -1,6 +1,7 @@
 import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { Faction, RegionId } from "../models.js";
 import { logLine } from "../log.js";
+import { inboxFull } from "../core/inbox.js";
 import { getAllRegions, getRegion, getBattleState } from "../map_data.js";
 import {
   clamp,
@@ -744,7 +745,7 @@ export function processMonthlyWarEconomyAI(state) {
   ensurePostingIfNeeded(state);
   const po = getPosting(state);
   const p = state.player;
-  if (!state.pendingEvent && p?.faction === Faction.TRIEU_DINH && po && postingHere(state) && rng(state) < 0.34) {
+  if (!state.pendingEvent && !inboxFull(state) && p?.faction === Faction.TRIEU_DINH && po && postingHere(state) && rng(state) < 0.34) {
     const reqCash = Math.max(60, Math.floor((po.treasury || 0) * (0.22 + rng(state) * 0.16)));
     const reqGrain = Math.max(45, Math.floor((state.village?.khoThoc || 0) * (0.04 + rng(state) * 0.03)));
     const reqTroops = Math.max(20, Math.floor((po.garrison || 0) * (0.16 + rng(state) * 0.14)));
@@ -752,6 +753,18 @@ export function processMonthlyWarEconomyAI(state) {
       id: "imperial_war_supply_order",
       title: "📜 Công văn trưng phát chiến dịch",
       narrative: `Tướng phủ gửi thư hỏa tốc: yêu cầu địa phương nộp <strong>${reqCash}Q</strong>, <strong>${reqGrain} thóc</strong> và điều <strong>${reqTroops} quân</strong> hỗ trợ mặt trận.`,
+      onExpire(s){
+        const triS = s.factions && s.factions.trieuDinh; const poS = getPosting(s);
+        if (!poS) { logLine(s, "📜 Công văn trưng phát bị bỏ lửng — ngươi không còn ở nhiệm sở."); return; }
+        const payCash = Math.min(Math.floor(reqCash * 0.5), Math.max(0, poS.treasury || 0));
+        const payGrain = Math.min(Math.floor(reqGrain * 0.5), Math.max(0, (s.village && s.village.khoThoc) || 0));
+        poS.treasury = Math.max(0, (poS.treasury || 0) - payCash);
+        if (s.village) s.village.khoThoc = Math.max(0, (s.village.khoThoc || 0) - payGrain);
+        if (triS) { triS.treasury = (triS.treasury||0) + payCash; triS.granary = (triS.granary||0) + payGrain; }
+        warStatInc(s, "localRequisition", payCash + payGrain);
+        s.player.uyTinCong = Math.max(0, (s.player.uyTinCong || 0) - 8);
+        logLine(s, `📜 Không hồi đáp công văn. Ty lại tự trưng thu ${payCash}Q + ${payGrain} thóc từ kho địa phương. Uy tín giảm.`, true);
+      },
       choices: [
         { label: "Tuân chỉ, chuyển đủ ngay", impact:[{label:"Được tín nhiệm",color:"#51cf66"}], apply(s){
           const triS = s.factions?.trieuDinh;

@@ -1,4 +1,5 @@
 import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
+import { expireInbox, inboxFull } from "./core/inbox.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
@@ -487,7 +488,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     logDirty: false,
     thueDinh: 8, suuDich: 4, trieuThangNop: 15,
     extraVillages: [],
-    pendingEvent: null, gameOver: false, gameOverReason: "",
+    pendingEvent: null, inbox: [], gameOver: false, gameOverReason: "",
     gameOverType: "lose",
     recentEventIds: [],
     onceDoneEventIds: [],
@@ -1191,7 +1192,7 @@ function tryGenerateTransferEdict(state) {
   if (p.faction !== Faction.TRIEU_DINH) return;
   if (!isOfficialRank(p.rank)) return;
   if (!state.postingId) return;
-  if (state.pendingEvent) return;
+  if (state.pendingEvent || inboxFull(state)) return;
   if (state.travel?.active) return;
   if ((state.jailDays || 0) > 0) return;
   if (state.postingOrder?.active) return;
@@ -1209,6 +1210,12 @@ function tryGenerateTransferEdict(state) {
 
   state.pendingEvent = {
     id: "imperial_transfer_edict",
+    onExpire(s){
+      ensurePostingOrderState(s);
+      // Làm ngơ chỉ dụ: triều đình vẫn ghi lệnh điều nhiệm (việc BÊN NGOÀI vẫn xảy ra).
+      s.postingOrder = { active: true, kind: "transfer", issuedYm: ymKeyShort(s), dueTotalDays: due, to: { regionId: pick.regionId, phuId: pick.phuId, huyenId: pick.huyenId }, status: "accepted" };
+      logLine(s, `📜 Ngươi làm ngơ chỉ dụ điều nhiệm. Triều vẫn ghi lệnh — phải tới ${targetName} trước hạn, không thì bị tra xét.`, true);
+    },
     title: "📜 Chỉ dụ điều nhiệm",
     narrative: `Triều đình ban chỉ: ngươi phải lập tức lên đường nhận nhiệm sở mới tại <strong>${targetName}</strong>. Kháng lệnh là tội lớn.`,
     choices: [
@@ -2137,7 +2144,7 @@ function tickLowerGeographyScramble(state) {
 /** Còn mặt trận đang hỗn chiến hoặc vừa có biến động tiền tuyến — không mở kết cục “Trung Hưng” ảo. */
 
 function tryOfferVictoryChoice(state) {
-  if (state.gameOver || state.pendingEvent) return;
+  if (state.gameOver || state.pendingEvent || inboxFull(state)) return;
   ensureVictoryState(state);
   if (state.victory.chosen) return;
   const ym = currentYmSerial(state);
@@ -2160,6 +2167,7 @@ function tryOfferVictoryChoice(state) {
     state.victory.offered = true;
     state.pendingEvent = {
       id: "ending_rebel_choice",
+      blocking: true,
       title: "🏴 Thiên Hạ Đã Nghiêng",
       narrative: "Nghĩa quân của ngươi đã thành thế lớn. Nay là lúc chọn đại cục: phò Lê diệt Trịnh hay tự lập vương quyền.",
       choices: [
@@ -2236,6 +2244,7 @@ function tryOfferVictoryChoice(state) {
     state.victory.offered = true;
     state.pendingEvent = {
       id: "ending_court_choice",
+      blocking: true,
       title: "🏯 Quốc Cục Đã Định",
       narrative: "Theo sổ xã và cờ huyện mặt trận lịch sử: không còn tiền tuyến đang đổi màu gần đây, nghĩa quân cũng đã lui khỏi các cứ điểm lớn. Khi ấy mới hợp để chốt đại nghiệp (bình định hay cải cách).",
       choices: [
@@ -2740,6 +2749,7 @@ export function gameTick(state) {
   ensureVictoryState(state);
   ensureAdvancedWarState(state);
   ensureBattleLedgerAndSimCompat(state);
+  expireInbox(state);
 
   // Adapters for new state shape (keep old UI working)
   if (state.player && typeof state.player.personalFood !== "number") {
@@ -3047,7 +3057,7 @@ export function gameTick(state) {
     }
   }
   // Overdue posting order => punishment event (if not traveling and not jailed)
-  if (state.postingOrder?.active && !state.pendingEvent && !state.travel?.active && (state.jailDays || 0) <= 0) {
+  if (state.postingOrder?.active && !state.pendingEvent && !inboxFull(state) && !state.travel?.active && (state.jailDays || 0) <= 0) {
     const now = totalDaysAbs(state);
     if (now > (state.postingOrder.dueTotalDays || 0)) {
       const to = state.postingOrder.to;
@@ -3085,7 +3095,7 @@ export function gameTick(state) {
   ensurePostingIfNeeded(state);
   {
     const po = getPosting(state);
-    if (!state.pendingEvent && po && postingHere(state) && state.player.faction === Faction.TRIEU_DINH) {
+    if (!state.pendingEvent && !inboxFull(state) && po && postingHere(state) && state.player.faction === Faction.TRIEU_DINH) {
       const yearGate = (po.lastAuditYear || 0) !== state.ban;
       const risk = 0.006 + (po.corruption || 0) * 0.00020 + Math.max(0, (state.village.unrest - 35)) * 0.00014;
       if (yearGate && rng(state) < risk) {
@@ -3096,6 +3106,21 @@ export function gameTick(state) {
           id: "court_audit",
           title: "🏯 Thanh tra từ Phủ Chúa",
           narrative: "Quan trên và ty lại về địa phương tra sổ. Dân chúng kéo tới kêu oan. Nếu phát hiện tham ô hoặc dân oán, ngươi khó thoát.",
+          onExpire(s){
+            const p = s.player; const poX = getPosting(s);
+            if (!poX) { logLine(s, "🏯 Thanh tra tới nhưng ngươi đã rời nhiệm sở, việc bỏ lửng."); return; }
+            const harsh = (poX.corruption||0) > 35 || s.village.unrest > 70;
+            if (harsh) {
+              const take = Math.min(p.tien, fine);
+              p.tien -= take;
+              p.uyTinCong = Math.max(0, p.uyTinCong - 40);
+              poX.corruption = Math.max(0, (poX.corruption||0) - 10);
+              logLine(s, `🏯 Vắng mặt khi thanh tra. Ty lại tự tra sổ: phạt ${take}Q, ghi sổ đen, uy tín giảm.`, true);
+            } else {
+              p.uyTinCong = Math.max(0, p.uyTinCong - 10);
+              logLine(s, "🏯 Thanh tra tự tra sổ rồi rút. Ngươi bị khiển trách nhẹ vì vắng mặt.", false);
+            }
+          },
           choices: [
             { label: `Hối lộ để êm chuyện (${fine}Q)`, impact:[{label:"Thoát",color:"#51cf66"}], apply(s){
               const p = s.player;
@@ -3177,7 +3202,7 @@ export function gameTick(state) {
   // Mandatory local uprising response when posted
   ensurePostingIfNeeded(state);
   const poNow = getPosting(state);
-  if (!state.pendingEvent && poNow && postingHere(state)) {
+  if (!state.pendingEvent && !inboxFull(state) && poNow && postingHere(state)) {
     const ctrl = getHuyenControl(state, poNow.huyenId);
     const danger = (ctrl === Faction.NGHIA_QUAN) || (state.village.unrest >= 75);
     if (danger && rng(state) < 0.12) {
@@ -3185,6 +3210,10 @@ export function gameTick(state) {
         id: "local_uprising",
         title: "⚔️ Loạn bùng tại địa phương",
         narrative: "Tin cấp báo: nghĩa quân nổi lên/quân phản loạn đánh phá. Nếu ngươi là quan tại nhiệm, không thể ngó lơ.",
+        onExpire(s){
+          s.village.unrest = Math.min(100, (s.village.unrest||0) + 25);
+          logLine(s, "⚔️ Không ai đứng ra xử loạn. Nghĩa quân hoành hành, bất ổn lan rộng khắp vùng.", true);
+        },
         choices: [
           { label: "Dẫn quân dẹp loạn ngay", impact:[{label:"Chiến đấu",color:"#ffd43b"}], apply(s){
             const p = s.player;
@@ -3969,6 +3998,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
     pushCelebration(state, "BẮT TƯỚNG", `Bắt sống <strong>${prisoner.name}</strong>. Có thể giam/chuộc/chém/thả.`, "battle");
     state.pendingEvent = {
       id: "captured_commander",
+      blocking: true,
       title: "⛓ Bắt được tướng địch",
       narrative: `Tàn quân tan vỡ. Quân lính lôi tới một tù binh quan trọng: <strong>${prisoner.name}</strong>. Ngươi định xử trí ra sao?`,
       choices: [
@@ -3990,6 +4020,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
       const ransom = Math.max(120, Math.floor((p.quanSo + 100) * 2));
       state.pendingEvent = {
         id: "battle_captured",
+        blocking: true,
         title: "⛓ Bị bắt làm tù binh",
         narrative: `Ngươi bị bắt sống sau khi vỡ trận. Địch đòi chuộc ${ransom} quan.`,
         choices: [
