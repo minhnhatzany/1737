@@ -2998,7 +2998,7 @@ export function gameTick(state) {
         logLine(state, `ĐỜI NGƯỜI CHẤM DỨT Ở TUỔI ${state.player.age}! Con trai nối dõi tiếp quản.`, true);
         state.player.age = 18;
         state.player.giaDinh.con -= 1;
-        state.player.theLuc = 100;
+        state.player.theLuc = state.player.theLucMax || 144;
         state.player.dangOm = false;
         state.player.rank = PlayerRank.DAN_THUONG;
         state.player.faction = Faction.TRIEU_DINH;
