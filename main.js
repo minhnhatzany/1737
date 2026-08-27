@@ -163,23 +163,9 @@ window.loadLatestAutoSave = () => {
     showToast("Nạp autosave thất bại.", true);
   }
 };
-function updateDifficultyUi() {
-  const d = state?.difficulty || "normal";
-  $("btnDifficultyEasy")?.classList.toggle("active", d === "easy");
-  $("btnDifficultyNormal")?.classList.toggle("active", d === "normal");
-  $("btnDifficultyHardcore")?.classList.toggle("active", d === "hardcore");
-}
-window.setDifficulty = (difficulty) => {
-  if (!state) return;
-  const d = (difficulty === "easy" || difficulty === "hardcore") ? difficulty : "normal";
-  state.difficulty = d;
-  updateDifficultyUi();
-  showToast(`Độ khó đã đổi: ${d === "easy" ? "Dễ" : d === "hardcore" ? "Hardcore" : "Chuẩn"}`);
-};
 function buildVictoryProgressText() {
   if (!state?.player) return "";
-  const d = state.difficulty || "normal";
-  const df = d === "easy" ? 0.9 : (d === "hardcore" ? 1.14 : 1.0);
+  const df = 1.0;
   const p = state.player;
   const regions = getAllRegions();
   const allHuyen = [];
@@ -291,27 +277,15 @@ window.actionAttackVillage = (langId) => {
 // ──────────────────────────────────────────────────
 let state  = null;
 let paused = false;
-let speed  = 1;  // 1, 2, 3
 let tickInterval = null;
-const MS_PER_DAY_BASE = { 1: 1500, 2: 700, 3: 280 };
-const SPEED_PROFILE_MUL = { slow: 1.35, normal: 1.0, fast: 0.72 };
+const MS_PER_DAY = 1500;
 let logFilterMode = "all";
 let _lastHudHeavyRenderAt = 0;
 let _warMiniMapCells = [];
 
-function syncTimeUi() {
-  if ($("btnPause")) $("btnPause").textContent = paused ? "▶" : "⏸";
-  if ($("timeStatus")) $("timeStatus").textContent = paused ? "DỪNG" : `x${speed}`;
-  document.querySelectorAll(".speed-btn").forEach((b, i) => {
-    b.classList.toggle("active", !paused && speed === (i + 1));
-  });
-}
-
 function resetTimeToDefaultSpeed() {
   paused = false;
-  speed = 1;
-  setIntervalSpeed(speed);
-  syncTimeUi();
+  setIntervalSpeed();
 }
 
 // ──────────────────────────────────────────────────
@@ -861,7 +835,6 @@ function ensureUxState() {
   if (!("uxFirstPlay" in state)) state.uxFirstPlay = !!state.firstRun;
   if (!state.clanFavor) state.clanFavor = {};
   if (!state._delayedEffects) state._delayedEffects = [];
-  if (!("speedProfile" in state)) state.speedProfile = "normal";
   if (!("performanceMode" in state)) state.performanceMode = false;
 }
 
@@ -1355,8 +1328,6 @@ function render() {
   // Lifestyle
   renderLifestyle();
   updateTabDiscoverabilityUi();
-  updateSpeedPresetUi();
-  updateDifficultyUi();
 
   // Contextual hints to guide first 10 minutes
   if (isUxAssistEnabled() && !state.uiSeenTabs?.tabMarket && p.tien >= 25) {
@@ -2957,8 +2928,7 @@ function doAction(fn, args = []) {
     const delta = newV - oldV;
     if (delta <= 0) continue; // keep losses/flat as-is
     p[k] = oldV;
-    const diff = state?.difficulty || "normal";
-    const statRate = diff === "easy" ? 0.3 : (diff === "hardcore" ? 0.2 : 0.26);
+    const statRate = 0.26;
     p._coreStatAccum[k] = (p._coreStatAccum[k] || 0) + delta * statRate;
     const gain = Math.floor(p._coreStatAccum[k]);
     if (gain > 0) {
@@ -3895,8 +3865,6 @@ window.__migrateLoadedState = () => {
   if (!state.onboarding) state.onboarding = { firstResourceActionDone: false, firstTradeDone: false, firstTravelDone: false, firstFocusDone: false };
   if (!("firstResourceActionDone" in state.onboarding)) state.onboarding.firstResourceActionDone = false;
   if (!("clanPressureMode" in state)) state.clanPressureMode = "standard";
-  if (!("speedProfile" in state)) state.speedProfile = "normal";
-  if (!("difficulty" in state)) state.difficulty = "normal";
   if (!("performanceMode" in state)) state.performanceMode = false;
   if (!("uiUxMode" in state)) state.uiUxMode = state.uxFirstPlay ? "newbie" : "strategic";
   if (!("themeInkMode" in state)) state.themeInkMode = "soft";
@@ -3970,21 +3938,6 @@ window.actionLoadGame = () => {
   } catch { showToast("File save bị lỗi!", true); }
 };
 
-// Debug cheat
-window.debugHackQuan = () => {
-  const p = state.player;
-  p.tien = 99999; p.thocCaNhan = 5000;
-  p.ngoaiGiao = 100; p.voThuat = 100; p.quanLy = 100; p.muuMeo = 100; p.hocVan = 100;
-  p.quanSo = 10000; p.uyTinCong = 9999; p.danhVong = 9999;
-  p.theLuc = 100; p.lifestylePoints += 50; p.dangOm = false;
-  showToast("GOD MODE kích hoạt!");
-  render();
-};
-window.debugHackTime = () => {
-  state.ban = 1740; state.monthIndex = 1; state.gameDay = 1;
-  showToast("Tua tới 1740 — Trịnh Doanh đại chiến!");
-  render();
-};
 
 // Rebel
 $("btnRaiseRebel")?.addEventListener("click", () => {
@@ -4690,8 +4643,6 @@ function itStart() {
   if (!paused) {
     paused = true;
     state._pauseByInteractiveTutorial = true;
-    if ($("btnPause")) $("btnPause").textContent = "▶";
-    if ($("timeStatus")) $("timeStatus").textContent = "DỪNG";
   }
   itShowStep(true);
 }
@@ -4705,8 +4656,6 @@ function itFinish(markCompleted) {
   if (state._pauseByInteractiveTutorial) {
     paused = false;
     state._pauseByInteractiveTutorial = false;
-    if ($("btnPause")) $("btnPause").textContent = "⏸";
-    if ($("timeStatus")) $("timeStatus").textContent = `x${speed}`;
   }
   if (typeof window.actionSaveGame === "function") window.actionSaveGame();
 }
@@ -4798,30 +4747,11 @@ window.resetInteractiveTutorial = () => {
 function setIntervalSpeed(s) {
   if (tickInterval) clearInterval(tickInterval);
   if (s === 0) return;
-  const profile = state?.speedProfile || "normal";
-  const mul = SPEED_PROFILE_MUL[profile] || 1.0;
-  const ms = Math.max(120, Math.floor((MS_PER_DAY_BASE[s] || 1500) * mul));
-  tickInterval = setInterval(tickGame, ms);
-}
-
-function setSpeedProfile(profile) {
-  if (!state) return;
-  const next = (profile === "slow" || profile === "fast") ? profile : "normal";
-  state.speedProfile = next;
-  updateSpeedPresetUi();
-  if (!paused) setIntervalSpeed(speed);
-}
-
-function updateSpeedPresetUi() {
-  const profile = state?.speedProfile || "normal";
-  $("btnSpeedPresetSlow")?.classList.toggle("active", profile === "slow");
-  $("btnSpeedPresetNormal")?.classList.toggle("active", profile === "normal");
-  $("btnSpeedPresetFast")?.classList.toggle("active", profile === "fast");
+  tickInterval = setInterval(tickGame, MS_PER_DAY);
 }
 
 function startGameLoop() {
-  setIntervalSpeed(speed);
-  syncTimeUi();
+  setIntervalSpeed();
 }
 
 // ──────────────────────────────────────────────────
@@ -4884,8 +4814,6 @@ function closeTutorialModal(startInteractive = false) {
   if (state?._pauseByReadTutorial) {
     paused = false;
     state._pauseByReadTutorial = false;
-    if ($("btnPause")) $("btnPause").textContent = "⏸";
-    if ($("timeStatus")) $("timeStatus").textContent = `x${speed}`;
   }
   if (startInteractive) {
     try { itStart(); } catch {}
@@ -4901,8 +4829,6 @@ function openTutorial() {
   if (state && !paused) {
     paused = true;
     state._pauseByReadTutorial = true;
-    if ($("btnPause")) $("btnPause").textContent = "▶";
-    if ($("timeStatus")) $("timeStatus").textContent = "DỪNG";
   }
 }
 
@@ -5003,12 +4929,6 @@ function initButtons() {
     render();
   });
 
-  // Time controls
-  $("btnPause")?.addEventListener("click", () => {
-    paused = !paused;
-    syncTimeUi();
-  });
-
   // Prisoner modal close
   $("prisonerClose")?.addEventListener("click", () => {
     $("prisonerModal")?.classList.remove("open");
@@ -5030,20 +4950,6 @@ function initButtons() {
     $("caseModal")?.classList.remove("open");
     $("caseModal")?.setAttribute("aria-hidden", "true");
   });
-  ["btnSpeed1","btnSpeed2","btnSpeed3"].forEach((id, i) => {
-    $(id)?.addEventListener("click", () => {
-      speed = i + 1;
-      paused = false;
-      setIntervalSpeed(speed);
-      syncTimeUi();
-    });
-  });
-  $("btnSpeedPresetSlow")?.addEventListener("click", () => setSpeedProfile("slow"));
-  $("btnSpeedPresetNormal")?.addEventListener("click", () => setSpeedProfile("normal"));
-  $("btnSpeedPresetFast")?.addEventListener("click", () => setSpeedProfile("fast"));
-  $("btnDifficultyEasy")?.addEventListener("click", () => window.setDifficulty("easy"));
-  $("btnDifficultyNormal")?.addEventListener("click", () => window.setDifficulty("normal"));
-  $("btnDifficultyHardcore")?.addEventListener("click", () => window.setDifficulty("hardcore"));
 
   ["all","kinhte","dongho","honnhan","sukien","chienbao"].forEach(mode => {
     $(`logFilter_${mode}`)?.addEventListener("click", () => {

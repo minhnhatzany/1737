@@ -473,7 +473,6 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     rngSeed, rngState,
     thoiTiet: rollWeather(),
     _weatherForecast: null,
-    difficulty: "normal",
     marketPriceThoc: 1.5,
     uiShakeProfile: false,
     player, clans, npcs,
@@ -2153,8 +2152,7 @@ function tryOfferVictoryChoice(state) {
     || getHuyenControl(state, "gia_lam") === Faction.NGHIA_QUAN;
 
   if (p.faction === Faction.NGHIA_QUAN) {
-    const diff = state.difficulty || "normal";
-    const fac = diff === "easy" ? 0.9 : (diff === "hardcore" ? 1.14 : 1.0);
+    const fac = 1.0;
     const canPhoLe = ratioNq >= (0.42 * fac) && controlsKinhKy && (p.danhVong || 0) >= Math.floor(380 * fac);
     const canXungVuong = ratioNq >= (0.55 * fac) && (p.quanSo || 0) >= Math.floor(1800 * fac) && (p.tien || 0) >= Math.floor(2500 * fac) && (p.danhVong || 0) >= Math.floor(520 * fac);
     const canLapTanChua = ratioNq >= (0.48 * fac) && controlsKinhKy && (p.quanSo || 0) >= Math.floor(1200 * fac) && (p.danhVong || 0) >= Math.floor(430 * fac);
@@ -2213,8 +2211,7 @@ function tryOfferVictoryChoice(state) {
   }
 
   if (p.faction === Faction.TRIEU_DINH) {
-    const diff = state.difficulty || "normal";
-    const fac = diff === "easy" ? 0.9 : (diff === "hardcore" ? 1.14 : 1.0);
+    const fac = 1.0;
     const xaC = collectXaFactionStats(state);
     const ratioTdXa = xaC.td / xaC.total;
     const ratioNqXa = xaC.nq / xaC.total;

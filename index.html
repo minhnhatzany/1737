@@ -131,11 +131,6 @@
             <span class="weather-line"> — <span id="weatherLine">Khí hậu: Ôn hòa</span></span>
           </div>
           <div class="time-controls">
-            <span id="timeStatus" class="time-label">x1</span>
-            <button type="button" id="btnPause" class="btn-tiny">⏸</button>
-            <button type="button" class="btn-tiny speed-btn" id="btnSpeed1">x1</button>
-            <button type="button" class="btn-tiny speed-btn" id="btnSpeed2">x2</button>
-            <button type="button" class="btn-tiny speed-btn" id="btnSpeed3">x3</button>
             <button type="button" id="btnQuickLog" class="btn-tiny btn-icon mobile-only" title="Mở tab Sự Kiện">📜</button>
             <button type="button" id="btnMuteAudio" class="btn-tiny btn-icon" title="Bật/tắt âm thanh">🔊</button>
             <button type="button" id="btnSettings" class="btn-tiny btn-icon" title="Cài đặt">⚙</button>
@@ -534,25 +529,6 @@
           Âm lượng: <input type="range" id="volumeSlider" min="0" max="100" value="70" style="width:120px;vertical-align:middle;" />
         </label>
 
-        <h4 class="mt-4 mb-2" style="font-size:0.85rem;color:var(--danger-light);text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--danger-red);padding-bottom:4px;">🔴 Bảng Điều Khiển Dev</h4>
-        <div class="action-grid mt-2 mb-3">
-          <button class="action-btn danger" onclick="window.debugHackQuan()">💉 God Mode: +10K Quân, Max Stats</button>
-          <button class="action-btn highlight-blue" onclick="window.debugHackTime()">⏩ Tua Tới 1740 Đại Loạn</button>
-        </div>
-
-        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Tùy Chọn Khác</h4>
-        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Preset Tốc Độ</h4>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn-tiny" id="btnSpeedPresetSlow">Chậm</button>
-          <button class="btn-tiny active" id="btnSpeedPresetNormal">Chuẩn</button>
-          <button class="btn-tiny" id="btnSpeedPresetFast">Nhanh</button>
-        </div>
-        <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Độ Khó Campaign</h4>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn-tiny" id="btnDifficultyEasy">Dễ</button>
-          <button class="btn-tiny active" id="btnDifficultyNormal">Chuẩn</button>
-          <button class="btn-tiny" id="btnDifficultyHardcore">Hardcore</button>
-        </div>
         <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Hiệu Năng</h4>
         <label class="settings-row"><input type="checkbox" id="chkPerfMode" /> Performance Mode (giảm hiệu ứng, ưu tiên mượt)</label>
         <h4 class="mt-3 mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Chế Độ Giao Diện</h4>
