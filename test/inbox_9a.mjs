@@ -57,13 +57,14 @@ check("type B hết hạn -> onExpire chạy đúng 1 lần", fired === 1);
 check("type B hết hạn -> KHÔNG áp choice", b.player.tien < 9999);
 check("type B hết hạn -> bị gỡ khỏi inbox", !b.inbox.some(x => x.id === "ev_b"));
 
-// --- 6. inboxFull(): sau 1 thư -> true (gate ở nơi sinh sự kiện dùng cái này, INBOX_MAX=1) ---
+// --- 6. inboxFull(): true khi đã đủ INBOX_MAX thư (9b: 5). Gate ở nơi sinh sự kiện dùng cái này. ---
+import { INBOX_MAX } from "../core/inbox.js";
 const f = createInitialState("F", 4);
 check("inbox rỗng -> inboxFull() = false", inboxFull(f) === false);
-pushInbox(f, { id: "first", title: "1", narrative: "", choices: [] });
-check("có 1 thư -> inboxFull() = true", inboxFull(f) === true);
-pushInbox(f, { id: "first", title: "dup", narrative: "", choices: [] });
-check("pushInbox trùng id -> không thêm bản sao", f.inbox.length === 1);
+for (let i = 0; i < INBOX_MAX; i++) pushInbox(f, { id: "m" + i, title: "" + i, narrative: "", choices: [] });
+check(`đủ ${INBOX_MAX} thư -> inboxFull() = true`, inboxFull(f) === true);
+pushInbox(f, { id: "m0", title: "dup", narrative: "", choices: [] });
+check("pushInbox trùng id -> không thêm bản sao", f.inbox.length === INBOX_MAX);
 
 console.log(pass ? "\nPASS - hộp thư 9a hoạt động đúng A/B/C, đồng hồ không bị chặn" : "\nFAIL");
 process.exit(pass ? 0 : 1);

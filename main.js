@@ -155,7 +155,6 @@ window.loadLatestAutoSave = () => {
     $("roleScreen").classList.add("hidden");
     $("gameRoot").classList.remove("hidden");
     initButtons();
-    resetTimeToDefaultSpeed();
     if ($("chkBgm")?.checked) audioManager.unlock().then(() => audioManager.startBg()).catch(() => {});
     startGameLoop();
     render();
@@ -277,17 +276,15 @@ window.actionAttackVillage = (langId) => {
 // GAME STATE
 // ──────────────────────────────────────────────────
 let state  = null;
-let paused = false;
 let tickInterval = null;
 const MS_PER_DAY = 1500;
 let logFilterMode = "all";
 let _lastHudHeavyRenderAt = 0;
 let _warMiniMapCells = [];
 
-function resetTimeToDefaultSpeed() {
-  paused = false;
-  setIntervalSpeed();
-}
+// Hộp thư (bước 9b): modal sự kiện là danh sách; đồng hồ KHÔNG dừng vì modal.
+let _blockingShownFor = null;   // id thư blocking đã auto-mở modal đúng 1 lần
+let _openModalRef = null;       // { kind:"npc"|"case"|"prisoner"|"activity", id, fp } — modal đang mở
 
 // ──────────────────────────────────────────────────
 // UTILS
@@ -449,7 +446,6 @@ function bindCharacterCreationEvents() {
     roleScreen.classList.add("hidden");
     gameRoot.classList.remove("hidden");
     initButtons();
-    resetTimeToDefaultSpeed();
     render();
     startGameLoop();
 
@@ -981,6 +977,7 @@ function runNextTicker() {
 // ──────────────────────────────────────────────────
 function render() {
   if (!state) return;
+  { const _bi = $("btnInbox"); if (_bi) _bi.textContent = (state.inbox && state.inbox.length) ? ("📨" + state.inbox.length) : "📨"; }
   ensureUxState();
   applyPerformanceModeUi();
   applyThemeInkMode();
@@ -1097,7 +1094,7 @@ function render() {
     }
   }
 
-  if (state?._pendingExamResultModal && !$("activityModal")?.classList.contains("open")) {
+  if (state?._pendingExamResultModal) {
     const pay = state._pendingExamResultModal;
     state._pendingExamResultModal = null;
     setTimeout(() => {
@@ -2843,6 +2840,16 @@ function doAction(fn, args = []) {
     showToast("Đang hành quân — không thể làm việc khác.", true);
     return;
   }
+  // Loại C — thư blocking chặn MỌI hành động vật chất tới khi trả lời (KHÔNG chặn đồng hồ).
+  // GĐ2: thêm danh sách SOCIAL_ACTIONS miễn trừ (chat/đọc feed/nhắn tin) — brief C.3 mục 6.
+  {
+    const _blocker = (state.inbox || []).find(x => x.blocking);
+    if (_blocker) {
+      showToast(`Phải xử lý "${_blocker.title}" trước đã.`, true);
+      openEventModal();
+      return { ok: false, msg: "Đang có việc bắt buộc phải xử lý." };
+    }
+  }
   audioManager.unlock().catch(() => {});
   const before = {
     rank: state.player.rank,
@@ -2892,9 +2899,13 @@ function doAction(fn, args = []) {
 
   // If an action created an event (e.g., captured after rout), route it to the inbox and show it.
   drainPendingToInbox(state);
-  if (state.inbox && state.inbox.length && !$("eventModal")?.classList.contains("open")) {
-    openEventModal(state.inbox[0]);
-    return result;
+  {
+    const _b = (state.inbox || []).find(x => x.blocking);
+    if (_b && _blockingShownFor !== _b.id) {
+      _blockingShownFor = _b.id;
+      openEventModal();
+      return result;
+    }
   }
   const p = state.player;
   if (p.rank !== before.rank) {
@@ -3372,6 +3383,7 @@ window.moveToHuyen = (tranId, phuId, huyenId) => {
 window.openNpcModal = npcId => {
   const npc = state.npcById[npcId];
   if (!npc) return;
+  _openModalRef = { kind: "npc", id: npcId }; _openModalRef.fp = _modalFp("npc", npcId);
   const p = state.player;
 
   const opColor = npc.opinion > 40 ? "#88e88d" : npc.opinion < 0 ? "#f87171" : "#aaa";
@@ -3927,7 +3939,6 @@ window.actionLoadGame = () => {
     $("roleScreen").classList.add("hidden");
     $("gameRoot").classList.remove("hidden");
     initButtons();
-    resetTimeToDefaultSpeed();
     if ($("chkBgm")?.checked) {
       audioManager.unlock().then(() => audioManager.startBg()).catch(() => {});
     }
@@ -3959,36 +3970,74 @@ $("btnRaiseRebel")?.addEventListener("click", () => {
 // ──────────────────────────────────────────────────
 // EVENT MODAL
 // ──────────────────────────────────────────────────
-function openEventModal(ev) {
-  setText("eventTitle", ev.title);
-  setText("eventNarrative", ev.narrative);
-  const choiceDiv = $("eventChoices");
-  choiceDiv.innerHTML = ev.choices.map((c, i) => {
-    const impactHtml = (c.impact || []).map(imp =>
-      `<span style="font-size:0.75rem;color:${imp.color};font-weight:600;">${imp.label}</span>`
-    ).join(" &nbsp;");
+function closeEventModal() {
+  $("eventModal").classList.remove("open");
+  $("eventModal").setAttribute("aria-hidden", "true");
+}
 
-    return `<div class="event-choice-wrapper">
-      <div class="event-impact-row">${impactHtml}</div>
-      <button class="event-choice-btn"
-              id="evChoice_${i}"
-              onclick="window.pickEventChoice(${i})">${c.label}</button>
-    </div>`;
+// Modal sự kiện = danh sách hộp thư. Sự kiện HÀNH QUÂN (state.pendingEvent) hiển thị đơn lẻ.
+function openEventModal() {
+  const pend = state.pendingEvent;
+  const items = pend ? [pend] : (Array.isArray(state.inbox) ? state.inbox : []);
+  if (!items.length) { closeEventModal(); return; }
+  const now = (state.ban - 1737) * 360 + state.monthIndex * 30 + (state.gameDay || 1);
+  setText("eventTitle", pend ? pend.title : `📨 Hộp thư (${items.length})`);
+  setText("eventNarrative", pend ? pend.narrative : "");
+  $("eventChoices").innerHTML = items.map(ev => {
+    const dl = ev.blocking
+      ? `<div style="color:#ff9b9b;font-weight:700;font-size:0.8rem;margin:2px 0;">⛓ Bắt buộc xử lý</div>`
+      : (ev.deadlineDay != null ? `<div style="color:var(--text-dim);font-size:0.75rem;margin:2px 0;">Còn ${Math.max(0, ev.deadlineDay - now)} ngày</div>` : "");
+    const head = pend ? "" : `<div style="font-weight:700;color:var(--gold-light);margin-bottom:2px;">${ev.title}</div>` +
+      `<div style="font-size:0.85rem;color:var(--text-muted);font-style:italic;margin-bottom:4px;line-height:1.55;">${ev.narrative}</div>`;
+    const choices = (ev.choices || []).map((c, i) => {
+      const imp = (c.impact || []).map(x => `<span style="font-size:0.72rem;color:${x.color};font-weight:600;">${x.label}</span>`).join(" &nbsp;");
+      return `<div class="event-choice-wrapper"><div class="event-impact-row">${imp}</div>` +
+        `<button class="event-choice-btn" onclick="window.pickEventChoice(\x27${ev.id}\x27, ${i})">${c.label}</button></div>`;
+    }).join("");
+    return `<div style="border-top:1px solid var(--border-dim);padding-top:8px;margin-top:8px;">${head}${dl}${choices}</div>`;
   }).join("");
-
   $("eventModal").setAttribute("aria-hidden", "false");
   $("eventModal").classList.add("open");
 }
 
-window.pickEventChoice = idx => {
-  const ev = state.pendingEvent || (state.inbox && state.inbox[0]);
-  if (!ev) return;
-  resolveEventChoice(state, ev.id, idx);
-  $("eventModal").classList.remove("open");
-  $("eventModal").setAttribute("aria-hidden", "true");
+window.pickEventChoice = (letterId, idx) => {
+  if (!resolveEventChoice(state, letterId, idx)) return;
   playSfxKey("coin");
+  if (_blockingShownFor === letterId) _blockingShownFor = null;
+  const more = state.pendingEvent || (state.inbox && state.inbox.length);
+  if (more) openEventModal(); else closeEventModal();
   render();
 };
+
+function _modalFp(kind, id) {
+  try {
+    if (kind === "npc") { const n = state.npcById[id]; return n ? [n.opinion, n.age, n.currentRegion, n.rank, n.quanSo, n.clanId, n.giaDinh && n.giaDinh.vo].join("|") : "gone"; }
+    if (kind === "case") { const po = (state.postingsByHuyen && state.postingId) ? state.postingsByHuyen[state.postingId] : null; return (po && po.cases || []).map(c => c.id).join(","); }
+    if (kind === "prisoner") return (state.prisoners || []).map(p => p.id).join(",");
+    if (kind === "activity") { const a = state.activity; return a ? (a.phase + "|" + a.kind + "|" + (a.daysToStart | 0)) : ("none|" + (state._pendingExamResultModal ? "res" : "-")); }
+  } catch (e) {}
+  return "";
+}
+
+// Tick chạy hàm này sau render(): modal đang mở mà state đổi dưới chân -> re-render (chỉ khi
+// vân tay đổi, tránh nháy/mất cuộn). KHÔNG bao giờ chặn tick.
+function refreshOpenModal() {
+  if (!_openModalRef) return;
+  const kind = _openModalRef.kind, id = _openModalRef.id;
+  const modalId = kind === "npc" ? "npcModal" : kind === "case" ? "caseModal" : kind === "prisoner" ? "prisonerModal" : "activityModal";
+  if (!$(modalId) || !$(modalId).classList.contains("open")) { _openModalRef = null; return; }
+  const fp = _modalFp(kind, id);
+  if (fp === _openModalRef.fp) return;
+  if (kind === "npc") {
+    if (!state.npcById[id]) { $("npcModal").classList.remove("open"); $("npcModal").setAttribute("aria-hidden", "true"); _openModalRef = null; showToast("Người này không còn ở đây."); return; }
+    window.openNpcModal(id);
+  } else if (kind === "case") { window.openCases(); }
+  else if (kind === "prisoner") { window.openPrisoners(); }
+  else if (kind === "activity") {
+    if (!state.activity && !state._pendingExamResultModal) { closeActivityModal(); _openModalRef = null; }
+    else { _openModalRef.fp = fp; }
+  }
+}
 
 // ──────────────────────────────────────────────────
 // PRISONERS UI
@@ -3997,6 +4046,7 @@ window.openPrisoners = () => {
   if (!state) return;
   const modal = $("prisonerModal");
   if (!modal) return;
+  _openModalRef = { kind: "prisoner", id: null }; _openModalRef.fp = _modalFp("prisoner", null);
   const list = $("prisonerList");
   const prs = state.prisoners || [];
   list.innerHTML = prs.length === 0
@@ -4044,6 +4094,7 @@ window.openCases = () => {
   const modal = $("caseModal");
   const list = $("caseList");
   if (!modal || !list) return;
+  _openModalRef = { kind: "case", id: null }; _openModalRef.fp = _modalFp("case", null);
   const po = (state.postingsByHuyen && state.postingId) ? state.postingsByHuyen[state.postingId] : null;
   const cases = po?.cases || [];
   if (!po) {
@@ -4084,6 +4135,7 @@ window.resolveCase = (caseId, idx) => doAction(resolveCase, [caseId, idx]);
 // ──────────────────────────────────────────────────
 function openActivityModal(title, bodyHtml, actionsHtml) {
   setText("activityTitle", title);
+  _openModalRef = { kind: "activity", id: null }; _openModalRef.fp = _modalFp("activity", null);
   const b = $("activityBody");
   const a = $("activityActions");
   if (b) b.innerHTML = bodyHtml || "";
@@ -4523,25 +4575,13 @@ function renderActivityResults(a, opts = {}) {
 // ──────────────────────────────────────────────────
 // GAME LOOP
 // ──────────────────────────────────────────────────
-function isGameClockFrozenModal() {
-  return [
-    "tutorialModal",
-    "activityModal",
-    "caseModal",
-    "npcModal",
-    "prisonerModal",
-    "celebrateModal",
-  ].some(id => $(id)?.classList.contains("open"));
-}
-
 function tickGame() {
-  if (!state || paused || state.gameOver) return;
+  if (!state || state.gameOver) return;
   if (itActive()) return;
   if (state.pendingEvent) {
-    openEventModal(state.pendingEvent);
+    openEventModal();
     return;
   }
-  if (isGameClockFrozenModal()) return;
   const prevMonth = state.monthIndex;
   const prevYear = state.ban;
   const monthSnapshot = {
@@ -4570,11 +4610,16 @@ function tickGame() {
     }
   }
 
-  if (state.inbox && state.inbox.length && !$("eventModal")?.classList.contains("open")) {
-    openEventModal(state.inbox[0]);
+  // Auto-mở modal ĐÚNG MỘT LẦN cho thư blocking mới tới; sau đó thôi (đồng hồ vẫn chạy,
+  // người chơi phải đóng được). Chặn hành động do doAction lo, không phải modal ép.
+  const _blk = (state.inbox || []).find(x => x.blocking);
+  if (_blk && _blockingShownFor !== _blk.id && !$("eventModal")?.classList.contains("open")) {
+    _blockingShownFor = _blk.id;
+    openEventModal();
   }
 
   render();
+  refreshOpenModal();
 }
 
 // ──────────────────────────────────────────────────
@@ -4642,10 +4687,6 @@ function itStart() {
   state.tutorial = state.tutorial || { completed: false, track: null, step: 0 };
   state.tutorial.completed = false;
   state.tutorial.step = 0;
-  if (!paused) {
-    paused = true;
-    state._pauseByInteractiveTutorial = true;
-  }
   itShowStep(true);
 }
 
@@ -4655,10 +4696,6 @@ function itFinish(markCompleted) {
   itutor.dim && (itutor.dim.style.display = "none");
   itutor.spot && (itutor.spot.style.display = "none");
   itutor.card && (itutor.card.style.display = "none");
-  if (state._pauseByInteractiveTutorial) {
-    paused = false;
-    state._pauseByInteractiveTutorial = false;
-  }
   if (typeof window.actionSaveGame === "function") window.actionSaveGame();
 }
 
@@ -4813,10 +4850,6 @@ let tutPage = 0;
 function closeTutorialModal(startInteractive = false) {
   $("tutorialModal")?.classList.remove("open");
   $("tutorialModal")?.setAttribute("aria-hidden", "true");
-  if (state?._pauseByReadTutorial) {
-    paused = false;
-    state._pauseByReadTutorial = false;
-  }
   if (startInteractive) {
     try { itStart(); } catch {}
   }
@@ -4828,10 +4861,6 @@ function openTutorial() {
   renderTutorialPage();
   $("tutorialModal")?.classList.add("open");
   $("tutorialModal")?.setAttribute("aria-hidden", "false");
-  if (state && !paused) {
-    paused = true;
-    state._pauseByReadTutorial = true;
-  }
 }
 
 // Settings screen uses inline onclick="openTutorial()"
@@ -4980,6 +5009,8 @@ function initButtons() {
     $("btnMuteAudio").textContent = isMuted ? "🔇" : "🔊";
   });
   $("btnQuickLog")?.addEventListener("click", () => openTab("tabLog", { markSeen: true }));
+  $("btnInbox")?.addEventListener("click", () => openEventModal());
+  $("eventModalClose")?.addEventListener("click", () => closeEventModal());
   $("playerWantedBadge")?.addEventListener("click", () => {
     const lvl = state?.player?.wantedLevel || 0;
     if (lvl <= 0) return;

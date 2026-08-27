@@ -20,9 +20,8 @@
  */
 import { logLine } from "../log.js";
 
-// Bước 9a: mỗi lúc chỉ một thư (giữ ngữ nghĩa "một sự kiện tại một thời điểm" như cũ).
-// Bước 9b sẽ nâng số này để thư xếp chồng thành danh sách.
-export const INBOX_MAX = 1;
+// Bước 9b: tối đa 5 thư xếp chồng. Đầy 5 -> các cổng !inboxFull() ngừng đẻ event mới.
+export const INBOX_MAX = 5;
 const INBOX_HARD_CAP = 20;
 
 function absDay(state) {

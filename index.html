@@ -132,6 +132,7 @@
           </div>
           <div class="time-controls">
             <button type="button" id="btnQuickLog" class="btn-tiny btn-icon mobile-only" title="Mở tab Sự Kiện">📜</button>
+            <button type="button" id="btnInbox" class="btn-tiny btn-icon" title="Hộp thư">📨</button>
             <button type="button" id="btnMuteAudio" class="btn-tiny btn-icon" title="Bật/tắt âm thanh">🔊</button>
             <button type="button" id="btnSettings" class="btn-tiny btn-icon" title="Cài đặt">⚙</button>
           </div>
@@ -500,6 +501,7 @@
     <!-- Event Modal -->
     <div id="eventModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="modal-inner">
+        <button type="button" id="eventModalClose" style="position:absolute;top:0.8rem;right:0.8rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
         <h3 id="eventTitle" class="asian-title"></h3>
         <p id="eventNarrative" style="font-size:0.9rem;color:var(--text-muted);margin:0.8rem 0;line-height:1.65;font-style:italic;"></p>
         <div id="eventChoices"></div>
