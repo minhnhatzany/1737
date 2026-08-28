@@ -805,12 +805,75 @@ function genGeoName(seedStr) {
 }
 
 /**
+ * T2.3: tim mang `tong` viet tay cua mot huyen (neu co) trong MapData.
+ * Huyen nao co field `tong` (mang) thi dia ly cap duoi doc tu do, khong sinh procedural.
+ */
+function findHandGeoTong(huyenId) {
+    for (const region of Object.values(MapData)) {
+        for (const phu of Object.values(region.phu || {})) {
+            for (const huyen of Object.values(phu.huyen || {})) {
+                if (huyen.id === huyenId && Array.isArray(huyen.tong)) return huyen.tong;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * T2.3: chuyen mang `tong` viet tay -> dung hinh dang getLowerRegions tra ve:
+ * object keyed by id, moi cap co id/name/control, pop cong don tu lang len.
+ * id theo schema vi tri `<huyenId>_t<i>_x<j>_l<k>` (khop dinh dang procedural, on dinh).
+ * Field them cho seats/nhan dien: xa co tenNom + lyTruong; lang co tenNom.
+ * lyTruong === null: ghe ly truong bo trong (vd xa Van Xuan).
+ * pop chi ghi tay o cap lang; xa/tong/huyen deu la tong cong (giong procedural).
+ */
+function normalizeHandGeo(huyenId, tongArr) {
+    const data = { tong: {} };
+    let totalPop = 0;
+    tongArr.forEach((tSrc, ti) => {
+        const tId = huyenId + "_t" + ti;
+        const tong = { id: tId, name: tSrc.name, xa: {}, pop: 0, suatDinh: 0, control: "trieu_dinh" };
+        (tSrc.xa || []).forEach((xSrc, xi) => {
+            const xId = tId + "_x" + xi;
+            const xa = {
+                id: xId, name: xSrc.name, tenNom: xSrc.tenNom || null,
+                lyTruong: xSrc.lyTruong === undefined ? null : xSrc.lyTruong,
+                lang: {}, pop: 0, suatDinh: 0, control: "trieu_dinh",
+            };
+            (xSrc.lang || []).forEach((lSrc, li) => {
+                const lId = xId + "_l" + li;
+                const pop = lSrc.pop || 0;
+                xa.lang[lId] = { id: lId, name: lSrc.name, tenNom: lSrc.tenNom || null, pop, suatDinh: Math.floor(pop / 5) };
+                xa.pop += pop;
+                xa.suatDinh += Math.floor(pop / 5);
+            });
+            tong.xa[xId] = xa;
+            tong.pop += xa.pop;
+            tong.suatDinh += xa.suatDinh;
+        });
+        data.tong[tId] = tong;
+        totalPop += tong.pop;
+    });
+    data.totalPop = totalPop;
+    data.totalSuatDinh = Math.floor(totalPop / 5);
+    return data;
+}
+
+/**
  * Lấy hoặc sinh tự động Bản đồ cấp dưới Huyện (Tổng -> Xã -> Làng)
  * Lưu vào state._geoCache để không thay đổi sau mỗi lần load.
  */
 export function getLowerRegions(state, huyenId) {
     if (!state._geoCache) state._geoCache = {};
     if (state._geoCache[huyenId]) return state._geoCache[huyenId];
+    
+    // T2.3: huyen co dia ly viet tay -> dung luon, khong sinh procedural.
+    const handTong = findHandGeoTong(huyenId);
+    if (handTong) {
+        const handData = normalizeHandGeo(huyenId, handTong);
+        state._geoCache[huyenId] = handData;
+        return handData;
+    }
     
     // Seed generation based on huyenId
     let numTong = 5 + Math.floor(rng(state) * 6); // 5-10 Tổng
