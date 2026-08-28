@@ -705,7 +705,7 @@ function render() {
   const p = state.player;
 
   // Header stats
-  setText("playerName",    p.ten);
+  setText("playerName",    p.name);
   setText("playerMoney",   p.tien);
   setText("playerThoc",    p.thocCaNhan);
   setText("playerHp",      (typeof p.hp === "number" ? p.hp : 100));
@@ -3108,7 +3108,7 @@ window.openNpcModal = npcId => {
         <div>Quân: <span style="color:var(--text-muted);">${npc.quanSo || 0}</span></div>
       </div>
       <div style="margin-top:0.4rem;font-size:0.8rem;color:var(--text-dim);">
-        Đặc tính: <em>${(npc.traits || []).join(", ") || "Bình thường"}</em>
+        Đặc tính: <em>${(npc.disposition || []).join(", ") || "Bình thường"}</em>
       </div>
       ${clanHtml}
     `;

@@ -113,8 +113,8 @@ export const NpcTrait = {
 };
 
 export const Gender = {
-  NAM: "Nam",
-  NU:  "Nữ",
+  NAM: "nam",
+  NU:  "nu",
 };
 
 export const ClanAttitude = {
@@ -167,64 +167,172 @@ export const LangNames = [
 let npcIdSeq = 1;
 export function nextNpcId() { return `npc_${npcIdSeq++}`; }
 
-export class NPC {
-  constructor({
-    id = nextNpcId(),
-    name,
-    age,
-    gender,
-    intelligence = 5,
-    stamina = 5,
-    uyTin = 0,
-    tien = randInt(0, 5),
-    quanSo = 0,
-    rank = PlayerRank.DAN_THUONG,
-    traits = [],
-    relationships = [],
-    clanId = null,
-    opinion = randInt(-10, 10),
-    faction = Faction.TRUNG_LAP,
-    currentRegion = RegionId.SON_NAM,
-    currentPhu = null,
-    currentHuyen = null,
-    currentTong = null,
-    currentXa = null,
-    currentLang = null,
-    isAI = true,
-    seatId = null,
-  }) {
-    this.id = id;
+export class Person {
+  constructor(opts = {}) {
+    const isAI = opts.isAI !== undefined ? opts.isAI : true;
+
+    if (isAI) {
+      // ===== Người do máy giữ chỗ (gốc: class NPC) =====
+      const {
+        id = nextNpcId(),
+        name,
+        age,
+        gender,
+        intelligence = 5,
+        stamina = 5,
+        uyTinCong = 0,
+        tien = randInt(0, 5),
+        quanSo = 0,
+        rank = PlayerRank.DAN_THUONG,
+        disposition = [],
+        relationships = [],
+        clanId = null,
+        opinion = randInt(-10, 10),
+        faction = Faction.TRUNG_LAP,
+        currentRegion = RegionId.SON_NAM,
+        currentPhu = null,
+        currentHuyen = null,
+        currentTong = null,
+        currentXa = null,
+        currentLang = null,
+        seatId = null,
+      } = opts;
+      this.id = id;
+      this.name = name;
+      this.isAI = true;
+      this.seatId = seatId;
+      this.age = age;
+      this.gender = gender;
+      this.intelligence = intelligence;
+      this.stamina = stamina;
+      this.uyTinCong = uyTinCong;
+      this.tien = tien;
+      this.quanSo = quanSo;
+      this.rank = rank;
+      this.disposition = disposition;
+      this.relationships = relationships;
+      this.clanId = clanId;
+      this.opinion = opinion;
+      this.faction = faction;
+      this.currentRegion = currentRegion;
+      this.currentPhu = currentPhu;
+      this.currentHuyen = currentHuyen;
+      this.currentTong = currentTong;
+      this.currentXa = currentXa;
+      this.currentLang = currentLang;
+      // 5 chỉ số — đa số 9–20, hiếm khi tới ~48 (không spam cao thủ)
+      const core = () => (rng() < 0.9)
+        ? 9 + Math.floor(rng() * 12)
+        : Math.min(48, 20 + Math.floor(rng() * 28));
+      this.ngoaiGiao = core();
+      this.voThuat   = core();
+      this.quanLy    = core();
+      this.muuMeo    = core();
+      this.hocVan    = core();
+      return;
+    }
+
+    // ===== Người thật (gốc: class Player) =====
+    const {
+      name,
+      id = "player",
+      tien = 10,
+      thocCaNhan = 15,
+      uyTinCong = 0,
+      rank = PlayerRank.DAN_THUONG,
+      villageId = "v1",
+      quyenLuc = 0,
+      binhQuyen = 0,
+      quanSo = 0,
+      faction = Faction.TRIEU_DINH,
+      homeRegion = RegionId.SON_NAM,
+      homePhu = "thien_truong",
+      homeHuyen = "my_loc",
+      homeTong = null,   // Will be populated dynamically
+      homeXa = null,
+      homeLang = null,
+      currentRegion = RegionId.SON_NAM,
+      currentPhu = "thien_truong",
+      currentHuyen = "my_loc",
+      currentTong = null,
+      currentXa = null,
+      currentLang = null,
+      ngoaiGiao = 5,
+      voThuat = 10,
+      quanLy = 5,
+      muuMeo = 5,
+      hocVan = 5,
+      seatId = null,
+      wantedLevel = 0,
+    } = opts;
     this.name = name;
-    this.age = age;
-    this.gender = gender;
-    this.intelligence = intelligence;
-    this.stamina = stamina;
-    this.uyTin = uyTin;
+    this.isAI = false;
+    this.seatId = seatId;
     this.tien = tien;
-    this.quanSo = quanSo;
+    this.thocCaNhan = thocCaNhan;
+    this.uyTinCong = uyTinCong;
     this.rank = rank;
-    this.traits = traits;
-    this.relationships = relationships;
-    this.clanId = clanId;
-    this.opinion = opinion;
+    this.villageId = villageId;
+    this.quyenLuc = quyenLuc;
+    this.binhQuyen = binhQuyen;
+    this.quanSo = quanSo;
     this.faction = faction;
+    this.homeRegion = homeRegion;
+    this.homePhu = homePhu;
+    this.homeHuyen = homeHuyen;
+    this.homeTong = homeTong;
+    this.homeXa = homeXa;
+    this.homeLang = homeLang;
     this.currentRegion = currentRegion;
     this.currentPhu = currentPhu;
     this.currentHuyen = currentHuyen;
     this.currentTong = currentTong;
     this.currentXa = currentXa;
     this.currentLang = currentLang;
-    this.isAI = isAI;
-    this.seatId = seatId;
-    // 5 chỉ số — đa số 9–20, hiếm khi tới ~48 (không spam cao thủ)
-    const core = () => (rng() < 0.9)
-      ? 9 + Math.floor(rng() * 12)
-      : Math.min(48, 20 + Math.floor(rng() * 28));
-    this.ngoaiGiao = core();
-    this.voThuat   = core();
-    this.quanLy    = core();
-    this.muuMeo    = core();
-    this.hocVan    = core();
+
+
+    this.ngoaiGiao = ngoaiGiao;
+    this.voThuat   = voThuat;
+    this.quanLy    = quanLy;
+    this.muuMeo    = muuMeo;
+    this.hocVan    = hocVan;
+
+    this.id = id;
+    this.wantedLevel = wantedLevel;
+
+    this.age = 18;
+    this.danhVong = 0;
+    this.diSan = [];
+    this.perks = [];
+    this.hocVi = "Vô Danh";
+
+    // Lối sống
+    this.lifestyleFocus = null;
+    this.lifestylePerks = {};
+    this.lifestyleXP = {};
+    this.lifestylePoints = 0;
+    this._hocThuatAccum = 0;
+
+    this.giaDinh = { vo: "", con: 0 };
+    this.holdings = [];
+    this.armies = [];
+    this.maa = [];
+    this.inventory = {
+      ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0,
+    };
+    this.properties = { ruongDat: 1, tuuLau: 0 };
+
+    // Sinh mệnh & Thể lực (tách riêng)
+    this.hpMax = 100;
+    this.hp = 100;
+    this.theLucMax = 144; // 9 buổi × 16
+    this.theLuc = 144;
+    this.dangOm = false;
+    this.noVayConLai = 0;
+    this.managedVillageIds = [];
+    this.trieuNopTichLuy = 0;
+    this.trongSoDenLy = false;
+    this.camCoRuongThang = 0;
   }
 }
 
@@ -272,109 +380,4 @@ export class Village {
 export function totalPops(v) {
   const p = v?.pops || {};
   return (p.nong || 0) + (p.tho || 0) + (p.thuong || 0);
-}
-
-export class Player {
-  constructor({
-    ten,
-    tien = 10,
-    thocCaNhan = 15,
-    uyTinCong = 0,
-    rank = PlayerRank.DAN_THUONG,
-    villageId = "v1",
-    quyenLuc = 0,
-    binhQuyen = 0,
-    quanSo = 0,
-    faction = Faction.TRIEU_DINH,
-    homeRegion = RegionId.SON_NAM,
-    homePhu = "thien_truong",
-    homeHuyen = "my_loc",
-    homeTong = null,   // Will be populated dynamically
-    homeXa = null,
-    homeLang = null,
-    currentRegion = RegionId.SON_NAM,
-    currentPhu = "thien_truong",
-    currentHuyen = "my_loc",
-    currentTong = null,
-    currentXa = null,
-    currentLang = null,
-    ngoaiGiao = 5,
-    voThuat = 10,
-    quanLy = 5,
-    muuMeo = 5,
-    hocVan = 5,
-    id = "player",
-    isAI = false,
-    seatId = null,
-    wantedLevel = 0,
-  }) {
-    this.ten = ten;
-    this.tien = tien;
-    this.thocCaNhan = thocCaNhan;
-    this.uyTinCong = uyTinCong;
-    this.rank = rank;
-    this.villageId = villageId;
-    this.quyenLuc = quyenLuc;
-    this.binhQuyen = binhQuyen;
-    this.quanSo = quanSo;
-    this.faction = faction;
-    this.homeRegion = homeRegion;
-    this.homePhu = homePhu;
-    this.homeHuyen = homeHuyen;
-    this.homeTong = homeTong;
-    this.homeXa = homeXa;
-    this.homeLang = homeLang;
-    this.currentRegion = currentRegion;
-    this.currentPhu = currentPhu;
-    this.currentHuyen = currentHuyen;
-    this.currentTong = currentTong;
-    this.currentXa = currentXa;
-    this.currentLang = currentLang;
-
-
-    this.ngoaiGiao = ngoaiGiao;
-    this.voThuat   = voThuat;
-    this.quanLy    = quanLy;
-    this.muuMeo    = muuMeo;
-    this.hocVan    = hocVan;
-
-    this.id = id;
-    this.isAI = isAI;
-    this.seatId = seatId;
-    this.wantedLevel = wantedLevel;
-
-    this.age = 18;
-    this.danhVong = 0;
-    this.diSan = [];
-    this.perks = [];
-    this.hocVi = "Vô Danh";
-
-    // Lối sống
-    this.lifestyleFocus = null;
-    this.lifestylePerks = {};
-    this.lifestyleXP = {};
-    this.lifestylePoints = 0;
-    this._hocThuatAccum = 0;
-
-    this.giaDinh = { vo: "", con: 0 };
-    this.holdings = [];
-    this.armies = [];
-    this.maa = [];
-    this.inventory = {
-      ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0,
-    };
-    this.properties = { ruongDat: 1, tuuLau: 0 };
-
-    // Sinh mệnh & Thể lực (tách riêng)
-    this.hpMax = 100;
-    this.hp = 100;
-    this.theLucMax = 144; // 9 buổi × 16
-    this.theLuc = 144;
-    this.dangOm = false;
-    this.noVayConLai = 0;
-    this.managedVillageIds = [];
-    this.trieuNopTichLuy = 0;
-    this.trongSoDenLy = false;
-    this.camCoRuongThang = 0;
-  }
 }

@@ -9,7 +9,7 @@ import { actionAcceptMarketContract, actionMarketHaggle, actionTradeItem, ensure
 import { actionBuonLauMuoi, actionCauCaSong, actionCayRuong, actionChanNuoiLon, actionChatGo, actionDanhBatVenBien, actionDetVai, actionKhaiThacDacSan, actionLuyenVo, actionMoBinh, actionNauRuou, actionNghiAnCom, collapseFromExhaustion } from "./actions/livelihood.js";
 import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, clanSurname, maybeAddClanRivalryCase, tickClanPressureForCommoner, tickLocalClansMonthly } from "./actions/clan.js";
 import {
-  NPC, Clan, Village, Player,
+  Person, Clan, Village,
   PlayerRank, Gender, ClanAttitude, Faction, NpcTrait, RegionId, MenAtArmType,
   HoldingType, LangNames, getDynastyInfo, RankLabel, totalPops
 } from "./models.js";
@@ -402,13 +402,14 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
       let isMale = rng() < 0.6;
       let traitList = Object.values(NpcTrait);
       let npcTraits = [traitList[randInt(0, traitList.length-1)]];
-      const npc = new NPC({
+      const npc = new Person({
         name: randomVietNameByHo(clanSurname(clan.name), isMale),
         gender: isMale ? Gender.NAM : Gender.NU,
         age: randInt(16, 50),
         clanId: clan.id,
-        traits: npcTraits,
-        uyTin: randInt(2, 20),
+        disposition: npcTraits,
+        uyTinCong: randInt(2, 20),
+        isAI: true,
         tien: randInt(5, 50),
         currentRegion: RegionId.SON_NAM,
       });
@@ -417,7 +418,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     }
   });
 
-  const player = new Player({ ten: playerName });
+  const player = new Person({ name: playerName, isAI: false, id: "player" });
   const allRegions = getAllRegions();
   const spawnRegion = allRegions[randInt(0, allRegions.length - 1)];
   const spawnPhuList = Object.values(spawnRegion?.phu || {});
@@ -604,8 +605,8 @@ function resolveYearlyMeritAndReset(state, prevYear) {
   const board = state.scoreboards.yearlyMerit;
   if (board.year !== prevYear) return;
   const p = state.player;
-  const myId = p?.ten ? `player:${p.ten}` : "player";
-  const idx = board.entries.findIndex(e => e.id === myId || e.name === p.ten);
+  const myId = p?.name ? `player:${p.name}` : "player";
+  const idx = board.entries.findIndex(e => e.id === myId || e.name === p.name);
   if (idx >= 0) {
     const rank = idx + 1;
     const wanted = (p.wantedLevel || 0) > 0;
@@ -1448,7 +1449,7 @@ function buildActivityPlayerEntry(state, kind) {
   return {
     id: "player",
     isPlayer: true,
-    name: p.ten,
+    name: p.name,
     skill,
     hocVan: Math.min(100, p.hocVan || 0),
     voThuat: Math.min(100, p.voThuat || 0),
@@ -1574,7 +1575,7 @@ function resolveBacCu(state) {
   const a = state.activity;
   ensureActivityRoster(state);
   const roster = (a.roster || []).filter(x => !x.withdrawn);
-  const playerEntry = roster.find(x => x.isPlayer) || { id: "player", name: p.ten, skill: p.voThuat || 0, isPlayer: true };
+  const playerEntry = roster.find(x => x.isPlayer) || { id: "player", name: p.name, skill: p.voThuat || 0, isPlayer: true };
   const others = roster.filter(x => !x.isPlayer);
   const pool = padBacCuPoolToEight([playerEntry, ...others]);
   const bracket = [{ round: 1, matches: [] }, { round: 2, matches: [] }, { round: 3, matches: [] }];
@@ -1653,7 +1654,7 @@ function resolveExam(state, kind) {
   }));
   scores.push({
     id: "player",
-    name: p.ten,
+    name: p.name,
     score: myScore,
     isPlayer: true,
     homeLabel: playerHomeLabel(state),
@@ -2288,7 +2289,7 @@ export function siegeHuyen(state, regionId, phuId, huyenId) {
   }
   defCount += getHuyenGarrisonPower(state, huyenId, enemy);
   const attacker = {
-    name: mySide === Faction.NGHIA_QUAN ? p.ten : `Quân Triều Đình của ${p.ten}`,
+    name: mySide === Faction.NGHIA_QUAN ? p.name : `Quân Triều Đình của ${p.name}`,
     armies: [{ type: "dan_binh", count: p.quanSo, morale: 85 }],
     martial: p.voThuat || 10,
     qualityMult: mySide === Faction.TRIEU_DINH ? 1.05 : 0.9,
@@ -2487,9 +2488,9 @@ function updateNPCs(state) {
       npc.opinion = -100;
     }
 
-    if (npc.traits.includes(NpcTrait.THAM_LAM) && npc.tien > 50) {
+    if (npc.disposition.includes(NpcTrait.THAM_LAM) && npc.tien > 50) {
       npc.tien -= 40;
-      npc.uyTin += 15;
+      npc.uyTinCong += 15;
       let clan = state.clanById[npc.clanId];
       if (clan) clan.quyenLuc += 10;
       if (rng(state) < 0.05) logLine(state, `${npc.name} mới đút lót lên quan phủ.`);
@@ -2545,7 +2546,7 @@ function updateNPCs(state) {
     }
 
     // Khởi nghĩa từ dân
-    if (state.village.unrest > 70 && npc.traits.includes(NpcTrait.HIEP_NGHIA) && npc.quanSo === 0 && npc.tien > 30) {
+    if (state.village.unrest > 70 && npc.disposition.includes(NpcTrait.HIEP_NGHIA) && npc.quanSo === 0 && npc.tien > 30) {
       npc.tien -= 30;
       npc.quanSo += 15;
       npc.rank = PlayerRank.THU_LINH;
@@ -3085,7 +3086,7 @@ export function gameTick(state) {
             const po = getPosting(s);
             const g = (po?.garrison || 0);
             const def = Math.max(80, Math.floor((g + p.quanSo) * 0.35));
-            const attacker = { name:`Quân triều đình (${p.ten})`, armies:[{type:"nhat_binh", count: Math.max(50, p.quanSo + Math.floor(g*0.6)), morale: 75}], martial: (p.voThuat||10), qualityMult:1.05, isPlayer:true, knights: Math.floor((p.danhVong||0)/250) };
+            const attacker = { name:`Quân triều đình (${p.name})`, armies:[{type:"nhat_binh", count: Math.max(50, p.quanSo + Math.floor(g*0.6)), morale: 75}], martial: (p.voThuat||10), qualityMult:1.05, isPlayer:true, knights: Math.floor((p.danhVong||0)/250) };
             const defender = { name:"Nghĩa quân", armies:[{type:"dan_binh", count: def, morale: 70}], martial: 18, qualityMult:0.85, knights: 1 };
             const sim = simulateBattle(attacker, defender, s);
             const win = sim.winner === attacker.name;
@@ -3513,7 +3514,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
     }
     // Merit tracking (Top 50). Use a rough proxy: win bonus + surviving force.
     const meritGain = 60 + Math.floor((beforeQuan || 0) / 20);
-    addMerit(state, `player:${p.ten}`, p.ten, p.faction, meritGain);
+    addMerit(state, `player:${p.name}`, p.name, p.faction, meritGain);
     const casualties = Math.max(0, beforeQuan - p.quanSo);
     if (casualties > 0) feedback.push({ text: `-${casualties} Quân số`, tone: "bad" });
   } else {
@@ -3526,7 +3527,7 @@ export function actionJoinBattle(state, battleId, side = "def") {
       feedback.push({ text: `-20 Uy tín`, tone: "bad" });
     }
     if (casualties > 0) feedback.push({ text: `-${casualties} Quân số`, tone: "bad" });
-    addMerit(state, `player:${p.ten}`, p.ten, p.faction, 12 + Math.floor((beforeQuan || 0) / 80));
+    addMerit(state, `player:${p.name}`, p.name, p.faction, 12 + Math.floor((beforeQuan || 0) / 80));
     logLine(state, `Trận ${battleState.name} thất lợi, quân ta tan tác. Vỡ trận phải tháo chạy.`, true);
     // Routed remnants slowly regroup over days (CK3-like)
     if (result.outcome?.type === "rout") {
@@ -3645,7 +3646,7 @@ export function actionAttackVillage(state, targetLangId, focusHuyenId = null) {
 
     // Simulate Battle
     const attacker = {
-        name: p.ten + " (Tiền quân)",
+        name: p.name + " (Tiền quân)",
         armies: [{ type: "dan_binh", count: p.quanSo, morale: 90 }],
         martial: p.voThuat,
         qualityMult: 1.0,
@@ -3707,7 +3708,7 @@ export function setWanted(state, level, reason, huyenId = null) {
   
   if (level > 0) {
     logLine(state, `🚩 HÀNH VI PHẠM TỘI: ${reason} (Mức ${p.wantedLevel})`, true);
-    state.marqueeQueue.push(`Lệnh truy nã: ${p.ten} bị quan phủ tầm nã vì ${reason}!`);
+    state.marqueeQueue.push(`Lệnh truy nã: ${p.name} bị quan phủ tầm nã vì ${reason}!`);
   }
 }
 
@@ -3765,7 +3766,7 @@ export function checkWantedArrest(state) {
       logLine(state, `TRẢM QUYẾT: ${arrestMsg} Bạn bị giải ra pháp trường vì tội phản nghịch!`, true);
       if (p.giaDinh.con > 0) {
         logLine(state, `May thay, con cái của bạn đã kịp kế thừa một phần gia sản (30%) và tiếp tục sự nghiệp của cha. Phần còn lại đã bị triều đình tịch biên.`, true);
-        p.ten = p.ten + " Hậu Duệ";
+        p.name = p.name + " Hậu Duệ";
         p.age = 18;
         // Kế thừa 30% (tịch biên gia sản)
         p.tien = Math.floor(p.tien * 0.3);

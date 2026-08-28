@@ -1,5 +1,5 @@
 import { rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
-import { PlayerRank, Faction, RegionId, NpcTrait } from "./models.js";
+import { PlayerRank, Faction, RegionId, NpcTrait, Gender } from "./models.js";
 import { logLine } from "./log.js";
 import { inboxFull } from "./core/inbox.js";
 
@@ -743,7 +743,7 @@ function evLayVo(state) {
 
   // NPC ngẫu nhiên từ làng — kiểm tra giới tính ngược
   const npcs = Object.values(state.npcById || {});
-  const targetGender = isNam ? "Nữ" : "Nam";
+  const targetGender = isNam ? Gender.NU : Gender.NAM;
   const candidates = npcs.filter(n => n.gender === targetGender && !n.married);
   const npc = candidates.length > 0 ? candidates[Math.floor(rng() * candidates.length)] : null;
 
