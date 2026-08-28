@@ -3,10 +3,20 @@
 Thay cho `getLowerRegions()` sinh ngẫu nhiên. 3 huyện × 3 tổng × 3 xã = **27 xã, 71 làng**.
 
 Cấp trên đã có sẵn trong `map_data.js`, không đổi:
+
 ```
 Trấn Sơn Tây — Đốc trấn Hoàng Công Kỳ, 3000 quân
   Phủ Quảng Oai — Tri phủ Đinh Văn Nhân, 400 quân
 ```
+
+**Đính chính (28/8):** Bản đầu dùng "Mỹ Lương" và "Tích Giang" — lấy theo tên có
+sẵn trong `map_data.js` mà không kiểm lại năm cụ thể. Tra Wikipedia thì phủ Quảng
+Oai năm Cảnh Hưng thứ 3 (1742, sát mốc game 1737) gồm 4 huyện: Tiên Phong, Minh
+Nghĩa, Bất Bạt, Phúc Lộc. Đã đổi "Mỹ Lương" → "Minh Nghĩa", "Tích Giang" →
+"Tiên Phong". "Bất Bạt" đúng từ đầu, không đổi. Xã lỵ sở huyện Tiên Phong đổi
+tên chữ thành "Tây Đằng" (tên thật của lỵ sở phủ Quảng Oai ngoài đời, tránh trùng
+tên với chính huyện). Nội dung khác (dân số, tổng xã làng, tính cách từng huyện,
+cốt truyện Vạn Xuân/Lạc Tứ) giữ nguyên — chỉ đổi nhãn, không đổi thiết kế.
 
 ## Quy ước
 
@@ -74,7 +84,7 @@ Quang Sơn (350) · Hang Đá (250) — thuộc Minh Quang
 
 ---
 
-# HUYỆN TÍCH GIANG
+# HUYỆN TIÊN PHONG
 
 > Tri huyện **Phạm Quốc Nhân** · 45 quân · quân thường
 > Đồi gò. Dân làm gỗ và than củi.
@@ -82,17 +92,17 @@ Quang Sơn (350) · Hang Đá (250) — thuộc Minh Quang
 **Tính chất**: huyện có tiền. Gỗ từ rừng đổ về, kết bè xuôi sông Hồng bán Thăng Long.
 Phú hộ ở đây giàu nhất phủ. **Đây là chỗ để làm ăn, và là chỗ đáng cướp.**
 
-## Tổng Tích Giang
+## Tổng Tiên Phong
 
 Lỵ sở huyện. Chợ lớn nhất phủ ngoài Cổ Đô.
 
 | Xã | Tên nôm | Dân | Lý trưởng | Đặc điểm |
 |---|---|---|---|---|
-| **Tích Giang** | Kẻ Tích | 2.600 | Ngô Văn Hoạch | Lỵ sở. Nha môn huyện đóng ở đây. Chợ phiên ngày 4 và ngày 9. |
+| **Tây Đằng** | Kẻ Tích | 2.600 | Ngô Văn Hoạch | Lỵ sở huyện, cũng là lỵ sở cả phủ. Nha môn đóng ở đây. Chợ phiên ngày 4 và ngày 9. |
 | **Trạch Mỹ Lộc** | Kẻ Trạch | 2.100 | Nguyễn Bá Đôn | Nhà họ Nguyễn có ba đời đỗ hương cống. Coi thường bọn buôn gỗ mới giàu. |
 | **Phúc Hoà** | Làng Vôi | 1.400 | Vũ Đình Xán | Lò vôi, lò gạch. Khói quanh năm. |
 
-Làng: Tích Nội (900) · Tích Ngoại (850) · Cầu Đá (850) — thuộc Tích Giang
+Làng: Tích Nội (900) · Tích Ngoại (850) · Cầu Đá (850) — thuộc Tây Đằng
 Trạch Thượng (800) · Trạch Hạ (700) · Văn Chỉ (600) — thuộc Trạch Mỹ Lộc
 Hoà Thôn (750) · Lò Vôi (650) — thuộc Phúc Hoà
 
@@ -126,7 +136,7 @@ Sơn Thượng (500) · Sơn Hạ (400) — thuộc An Sơn
 
 ---
 
-# HUYỆN MỸ LƯƠNG
+# HUYỆN MINH NGHĨA
 
 > Tri huyện **Nguyễn Hữu Khiêm** · 60 quân · quân ô hợp
 > Thung lũng hẹp, đất ít người thưa.
@@ -143,7 +153,7 @@ làng đi làm thuê hoặc đi làm cướp. **Đây là đất đẻ nghĩa qu
 |---|---|---|---|---|
 | **Lạc Tứ** | Kẻ Lạc | 1.500 | Trần Văn Ổn | Ruộng công bị nhà họ Trần lấn dần ba đời. Đơn kiện lên huyện bốn lần, chìm cả bốn. |
 | **Hưng Đạo** | Làng Đình | 1.100 | Nguyễn Văn Thảo | Đình làng to nhất tổng, dân góp xây từ đời trước, giờ không ai sửa nổi. |
-| **Đại Đồng** | Kẻ Cùng | 800 | Lê Văn Đắc | Nghèo rớt. Nửa số hộ đang cầm ruộng cho nhà giàu bên Tích Giang. |
+| **Đại Đồng** | Kẻ Cùng | 800 | Lê Văn Đắc | Nghèo rớt. Nửa số hộ đang cầm ruộng cho nhà giàu bên Tiên Phong. |
 
 Làng: Lạc Thượng (600) · Lạc Hạ (550) · Đồng Chằm (350) — thuộc Lạc Tứ
 Đạo Nội (600) · Cầu Đình (500) — thuộc Hưng Đạo
@@ -184,8 +194,8 @@ Vạn Thôn (300) · Đồng Hoang (200) — thuộc Vạn Xuân
 | Huyện | Tổng | Xã | Làng | Dân |
 |---|---:|---:|---:|---:|
 | Bất Bạt | 3 | 9 | 23 | 11.900 |
-| Tích Giang | 3 | 9 | 24 | 14.900 |
-| Mỹ Lương | 3 | 9 | 24 | 8.300 |
+| Tiên Phong | 3 | 9 | 24 | 14.900 |
+| Minh Nghĩa | 3 | 9 | 24 | 8.300 |
 | **Phủ Quảng Oai** | **9** | **27** | **71** | **35.100** |
 
 ---
@@ -215,8 +225,8 @@ lánh nhất, xã nghèo nhất. Người chơi mới có một mục tiêu cụ
 đều chìm. Đủ để làm điểm bắt đầu cho cả đường kiện tụng lẫn đường làm phản.
 
 **Ba huyện ba nghề khác nhau** nên giá cả tự chênh mà không cần bịa:
-Bất Bạt có muối và hàng lậu qua sông · Tích Giang có gỗ, than, vôi ·
-Mỹ Lương có đá và sức người rẻ. Trấn Sơn Tây vốn đã có `go: 0.5` trong `pm`,
+Bất Bạt có muối và hàng lậu qua sông · Tiên Phong có gỗ, than, vôi ·
+Minh Nghĩa có đá và sức người rẻ. Trấn Sơn Tây vốn đã có `go: 0.5` trong `pm`,
 tức gỗ rẻ bằng nửa nơi khác — tuyến buôn gỗ xuôi Thăng Long đã có cơ sở sẵn.
 
 ## Chưa làm, để sau
