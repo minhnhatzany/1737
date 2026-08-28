@@ -460,6 +460,8 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
       chanhTong: chanhTong ? chanhTong.id : null,
       triHuyen:  triHuyen  ? triHuyen.id  : null,
     },
+    seats: {},
+    seatsByScope: {},
     log: [],
     logDirty: false,
     thueDinh: 8, suuDich: 4, trieuThangNop: 15,
