@@ -190,6 +190,8 @@ export class NPC {
     currentTong = null,
     currentXa = null,
     currentLang = null,
+    isAI = true,
+    seatId = null,
   }) {
     this.id = id;
     this.name = name;
@@ -212,6 +214,8 @@ export class NPC {
     this.currentTong = currentTong;
     this.currentXa = currentXa;
     this.currentLang = currentLang;
+    this.isAI = isAI;
+    this.seatId = seatId;
     // 5 chỉ số — đa số 9–20, hiếm khi tới ~48 (không spam cao thủ)
     const core = () => (rng() < 0.9)
       ? 9 + Math.floor(rng() * 12)
@@ -299,6 +303,10 @@ export class Player {
     quanLy = 5,
     muuMeo = 5,
     hocVan = 5,
+    id = "player",
+    isAI = false,
+    seatId = null,
+    wantedLevel = 0,
   }) {
     this.ten = ten;
     this.tien = tien;
@@ -329,6 +337,11 @@ export class Player {
     this.quanLy    = quanLy;
     this.muuMeo    = muuMeo;
     this.hocVan    = hocVan;
+
+    this.id = id;
+    this.isAI = isAI;
+    this.seatId = seatId;
+    this.wantedLevel = wantedLevel;
 
     this.age = 18;
     this.danhVong = 0;
