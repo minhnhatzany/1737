@@ -2,6 +2,7 @@ import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { PostingBuildingDb, ensureCaseList, ensurePostingIfNeeded, getPosting, isOfficialRank, perkFx, postingHere, randInt } from "../engine.js";
 import { Faction, MenAtArmType, totalPops } from "../models.js";
 import { logLine } from "../log.js";
+import { scopeKey, SeatLegitimacy, syncRankFromSeats } from "../core/seats.js";
 
 export function actionPostingBuild(state, buildingId) {
   ensurePostingIfNeeded(state);
@@ -41,6 +42,16 @@ export function actionAssumeOfficeHere(state) {
   if (!state.postingsByHuyen) state.postingsByHuyen = {};
   state.postingId = p.currentHuyen;
   ensurePostingIfNeeded(state);
+  // T2.1: huyện này có ghế trong hệ mới -> ghi nhận player vào ghế (một chiều).
+  // Giữ nguyên luật "đứng đâu nhậm đó"; không chặn thêm; NPC cũ chỉ mất ghế, không bị xoá.
+  const _seatId = state.seatsByScope && state.seatsByScope[scopeKey("huyen", p.currentHuyen)];
+  const _seat = _seatId && state.seats ? state.seats[_seatId] : null;
+  if (_seat) {
+    _seat.occupantId = p.id;
+    _seat.appointedDay = state.gameDay;
+    _seat.legitimacy = SeatLegitimacy.BO_NHIEM;
+    syncRankFromSeats(state, p);
+  }
   return { ok: true, feedback: [{ text: "Nhậm chức tại đây", tone: "good" }], sfx: "coin" };
 }
 export function actionLocalLevy(state) {

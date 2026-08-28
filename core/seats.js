@@ -54,3 +54,19 @@ export function makeSeat({
     lastActiveDay: appointedDay,
   };
 }
+
+/**
+ * Đồng bộ MỘT CHIỀU: nếu person đang giữ một ghế thì person.rank = ghế.title.
+ * Person không giữ ghế nào -> KHÔNG đụng person.rank (24 đường ghi rank cũ vẫn chạy
+ * y nguyên; cache chỉ được kéo theo khi ghế có occupant, không ép ngược lại).
+ */
+export function syncRankFromSeats(state, person) {
+  if (!state || !state.seats || !person) return;
+  for (const id of Object.keys(state.seats)) {
+    const seat = state.seats[id];
+    if (seat && seat.occupantId === person.id) {
+      person.rank = seat.title;
+      return;
+    }
+  }
+}
