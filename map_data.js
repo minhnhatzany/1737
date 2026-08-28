@@ -163,9 +163,157 @@ export const MapData = {
         id: "quang_oai", name: "Phủ Quảng Oai",
         triPhu: "Đinh Văn Nhân", quanSo: 400, chatLuong: TroopQuality.THUONG,
         huyen: {
-          "minh_nghia": { id: "minh_nghia", name: "Huyện Minh Nghĩa", triHuyen: "Nguyễn Hữu Khiêm", quanSo: 60, chatLuong: TroopQuality.O_HOP, desc: "Thung lũng hẹp, đất ít người thưa" },
-          "tien_phong": { id: "tien_phong", name: "Huyện Tiên Phong", triHuyen: "Phạm Quốc Nhân", quanSo: 45, chatLuong: TroopQuality.THUONG, desc: "Đồi gò, dân làm gỗ và than củi" },
-          "bat_bat":    { id: "bat_bat",    name: "Huyện Bất Bạt",   triHuyen: "Lê Văn Tú", quanSo: 35, chatLuong: TroopQuality.O_HOP, desc: "Biên giới Sơn Tây–Hưng Hóa" },
+          "minh_nghia": {
+            id: "minh_nghia", name: "Huyện Minh Nghĩa", triHuyen: "Nguyễn Hữu Khiêm", quanSo: 60, chatLuong: TroopQuality.O_HOP, desc: "Thung lũng hẹp, đất ít người thưa",
+            tong: [
+              { name: "Tổng Lạc Tứ", xa: [
+                { name: "Lạc Tứ", tenNom: "Kẻ Lạc", lyTruong: "Trần Văn Ổn", lang: [
+                  { name: "Lạc Thượng", pop: 600 },
+                  { name: "Lạc Hạ", pop: 550 },
+                  { name: "Đồng Chằm", pop: 350 },
+                ] },
+                { name: "Hưng Đạo", tenNom: "Làng Đình", lyTruong: "Nguyễn Văn Thảo", lang: [
+                  { name: "Đạo Nội", pop: 600 },
+                  { name: "Cầu Đình", pop: 500 },
+                ] },
+                { name: "Đại Đồng", tenNom: "Kẻ Cùng", lyTruong: "Lê Văn Đắc", lang: [
+                  { name: "Đại Thôn", pop: 450 },
+                  { name: "Xóm Trại", pop: 350 },
+                ] },
+              ] },
+              { name: "Tổng Yên Duyệt", xa: [
+                { name: "Yên Duyệt", tenNom: "Kẻ Duyệt", lyTruong: "Phạm Văn Kỳ", lang: [
+                  { name: "Duyệt Nội", pop: 500 },
+                  { name: "Duyệt Ngoại", pop: 400 },
+                  { name: "Điếm Canh", pop: 300 },
+                ] },
+                { name: "Hoà Thạch", tenNom: "Làng Đá", lyTruong: "Đinh Văn Lự", lang: [
+                  { name: "Thạch Thượng", pop: 500 },
+                  { name: "Bãi Đá", pop: 400 },
+                ] },
+                { name: "Phú Mãn", tenNom: "Kẻ Mãn", lyTruong: "Bạch Văn Tôn", lang: [
+                  { name: "Mãn Sơn", pop: 400 },
+                  { name: "Xóm Mường", pop: 300 },
+                ] },
+              ] },
+              { name: "Tổng Thượng Tiết", xa: [
+                { name: "Thượng Tiết", tenNom: "Kẻ Tiết", lyTruong: "Ngô Văn Rậu", lang: [
+                  { name: "Tiết Nội", pop: 450 },
+                  { name: "Hang Chàng", pop: 300 },
+                  { name: "Trại Nứa", pop: 150 },
+                ] },
+                { name: "Tân Phong", tenNom: "Làng Nứa", lyTruong: "Đào Văn Chắt", lang: [
+                  { name: "Phong Thôn", pop: 400 },
+                  { name: "Xóm Bỏ", pop: 300 },
+                ] },
+                { name: "Vạn Xuân", tenNom: "Kẻ Vắng", lyTruong: null, lang: [
+                  { name: "Vạn Thôn", pop: 300 },
+                  { name: "Đồng Hoang", pop: 200 },
+                ] },
+              ] },
+            ],
+          },
+          "tien_phong": {
+            id: "tien_phong", name: "Huyện Tiên Phong", triHuyen: "Phạm Quốc Nhân", quanSo: 45, chatLuong: TroopQuality.THUONG, desc: "Đồi gò, dân làm gỗ và than củi",
+            tong: [
+              { name: "Tổng Tiên Phong", xa: [
+                { name: "Tây Đằng", tenNom: "Kẻ Tích", lyTruong: "Ngô Văn Hoạch", lang: [
+                  { name: "Tích Nội", pop: 900 },
+                  { name: "Tích Ngoại", pop: 850 },
+                  { name: "Cầu Đá", pop: 850 },
+                ] },
+                { name: "Trạch Mỹ Lộc", tenNom: "Kẻ Trạch", lyTruong: "Nguyễn Bá Đôn", lang: [
+                  { name: "Trạch Thượng", pop: 800 },
+                  { name: "Trạch Hạ", pop: 700 },
+                  { name: "Văn Chỉ", pop: 600 },
+                ] },
+                { name: "Phúc Hoà", tenNom: "Làng Vôi", lyTruong: "Vũ Đình Xán", lang: [
+                  { name: "Hoà Thôn", pop: 750 },
+                  { name: "Lò Vôi", pop: 650 },
+                ] },
+              ] },
+              { name: "Tổng Hạ Bằng", xa: [
+                { name: "Hạ Bằng", tenNom: "Kẻ Hạ", lyTruong: "Trịnh Văn Cẩn", lang: [
+                  { name: "Bằng Thượng", pop: 700 },
+                  { name: "Bằng Hạ", pop: 600 },
+                  { name: "Lò Than", pop: 500 },
+                ] },
+                { name: "Đồng Trúc", tenNom: "Làng Tre", lyTruong: "Kiều Văn Thịnh", lang: [
+                  { name: "Trúc Lâm", pop: 650 },
+                  { name: "Cầu Tre", pop: 550 },
+                ] },
+                { name: "Bình Yên", tenNom: "Kẻ Nghèn", lyTruong: "Đỗ Văn Rưỡi", lang: [
+                  { name: "Yên Nội", pop: 550 },
+                  { name: "Đồng Chó Ngáp", pop: 450 },
+                ] },
+              ] },
+              { name: "Tổng Cần Kiệm", xa: [
+                { name: "Cần Kiệm", tenNom: "Kẻ Cần", lyTruong: "Lê Đình Đót", lang: [
+                  { name: "Cần Nội", pop: 700 },
+                  { name: "Bến Bè", pop: 550 },
+                  { name: "Vạn Chài", pop: 350 },
+                ] },
+                { name: "Tuy Lai", tenNom: "Làng Gỗ", lyTruong: "Hoàng Văn Nghiên", lang: [
+                  { name: "Lai Xá", pop: 700 },
+                  { name: "Xưởng Cưa", pop: 600 },
+                ] },
+                { name: "An Sơn", tenNom: "Kẻ Trên", lyTruong: "Phùng Văn Tá", lang: [
+                  { name: "Sơn Thượng", pop: 500 },
+                  { name: "Sơn Hạ", pop: 400 },
+                ] },
+              ] },
+            ],
+          },
+          "bat_bat": {
+            id: "bat_bat",    name: "Huyện Bất Bạt",   triHuyen: "Lê Văn Tú", quanSo: 35, chatLuong: TroopQuality.O_HOP, desc: "Biên giới Sơn Tây–Hưng Hóa",
+            tong: [
+              { name: "Tổng Cổ Đô", xa: [
+                { name: "Cổ Đô", tenNom: "Kẻ Đô", lyTruong: "Nguyễn Đình Quýnh", lang: [
+                  { name: "Đô Thượng", pop: 800 },
+                  { name: "Đô Hạ", pop: 700 },
+                  { name: "Kẻ Chài", pop: 500 },
+                ] },
+                { name: "Phú Cường", tenNom: "Kẻ Cường", lyTruong: "Trần Văn Bảng", lang: [
+                  { name: "Cường Xá", pop: 900 },
+                  { name: "Bến Nứa", pop: 450 },
+                ] },
+                { name: "Vĩnh Phệ", tenNom: "Làng Bến Dưới", lyTruong: "Đỗ Văn Miện", lang: [
+                  { name: "Vĩnh Trung", pop: 600 },
+                  { name: "Cồn Vẹt", pop: 300 },
+                ] },
+              ] },
+              { name: "Tổng Vân Sa", xa: [
+                { name: "Vân Sa", tenNom: "Kẻ Sa", lyTruong: "Phạm Công Đĩnh", lang: [
+                  { name: "Sa Đông", pop: 700 },
+                  { name: "Sa Đoài", pop: 650 },
+                  { name: "Tằm Xá", pop: 550 },
+                ] },
+                { name: "Thanh Chiểu", tenNom: "Làng Đầm", lyTruong: "Lê Văn Trực", lang: [
+                  { name: "Chiểu Thượng", pop: 750 },
+                  { name: "Ao Sen", pop: 550 },
+                ] },
+                { name: "Tân Hội", tenNom: "Làng Mới", lyTruong: "Hoàng Văn Nhu", lang: [
+                  { name: "Hội Nội", pop: 500 },
+                  { name: "Hội Ngoại", pop: 400 },
+                ] },
+              ] },
+              { name: "Tổng Thượng Lâm", xa: [
+                { name: "Thượng Lâm", tenNom: "Kẻ Rừng", lyTruong: "Đinh Công Lệ", lang: [
+                  { name: "Lâm Nội", pop: 500 },
+                  { name: "Lâm Ngoại", pop: 400 },
+                  { name: "Bãi Sậy", pop: 300 },
+                ] },
+                { name: "Khê Thượng", tenNom: "Làng Suối", lyTruong: "Bùi Văn Chấn", lang: [
+                  { name: "Khê Trên", pop: 450 },
+                  { name: "Khê Dưới", pop: 350 },
+                ] },
+                { name: "Minh Quang", tenNom: "Kẻ Ngái", lyTruong: "Quách Văn Đôi", lang: [
+                  { name: "Quang Sơn", pop: 350 },
+                  { name: "Hang Đá", pop: 250 },
+                ] },
+              ] },
+            ],
+          },
         }
       },
       "tam_doi": {
