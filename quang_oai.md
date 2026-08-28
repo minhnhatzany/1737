@@ -1,6 +1,6 @@
 # Phủ Quảng Oai — địa lý viết tay
 
-Thay cho `getLowerRegions()` sinh ngẫu nhiên. 3 huyện × 3 tổng × 3 xã = **27 xã, 71 làng**.
+Thay cho `getLowerRegions()` sinh ngẫu nhiên. 3 huyện × 3 tổng × 3 xã = **27 xã, 64 làng**.
 
 Cấp trên đã có sẵn trong `map_data.js`, không đổi:
 
@@ -191,12 +191,17 @@ Vạn Thôn (300) · Đồng Hoang (200) — thuộc Vạn Xuân
 
 # TỔNG KẾT
 
-| Huyện | Tổng | Xã | Làng | Dân |
+| Huyện | Tổng | Xã | Làng | Dân (cấp làng) |
 |---|---:|---:|---:|---:|
-| Bất Bạt | 3 | 9 | 23 | 11.900 |
-| Tiên Phong | 3 | 9 | 24 | 14.900 |
-| Minh Nghĩa | 3 | 9 | 24 | 8.300 |
-| **Phủ Quảng Oai** | **9** | **27** | **71** | **35.100** |
+| Bất Bạt | 3 | 9 | 21 | 10.950 |
+| Tiên Phong | 3 | 9 | 22 | 13.900 |
+| Minh Nghĩa | 3 | 9 | 21 | 8.300 |
+| **Phủ Quảng Oai** | **9** | **27** | **64** | **33.150** |
+
+*(Đếm lại 28/8 cho khớp danh sách làng chi tiết ở trên — bảng bản đầu ghi
+71 làng/35.100 dân do ước tính trước khi viết xong chi tiết, không khớp thực
+tế. Cột "Dân" mỗi xã trong bảng ở trên là số tổng thể hiện quy mô, không phải
+tổng cộng dồn từ làng — có chênh lệch ~15-25%, có chủ ý, không cần sửa.)*
 
 ---
 
