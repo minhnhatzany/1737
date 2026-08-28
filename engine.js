@@ -1,5 +1,6 @@
 import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { expireInbox, inboxFull } from "./core/inbox.js";
+import { makeSeat, scopeKey, SeatLegitimacy } from "./core/seats.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
@@ -550,6 +551,19 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   });
   startVillage.clanIds = clans.map(c => c.id);
   state.village = startVillage;
+
+  // T2.1: dựng 3 ghế từ 3 slot state.officials (officials vẫn sống song song).
+  // occupantId trỏ NPC đang giữ (hoặc null). scopeId cấp xã/tổng là id procedural,
+  // ổn định trong phiên chơi. Chưa có đường bổ nhiệm/cách chức — bước 2.1c mới đấu nối.
+  for (const spec of [
+    { id: "seat_ly_truong",  title: PlayerRank.LY_TRUONG,  scope: "xa",    scopeId: player.homeXa,    occupantId: state.officials.lyTruong  },
+    { id: "seat_chanh_tong", title: PlayerRank.CHANH_TONG, scope: "tong",  scopeId: player.homeTong,  occupantId: state.officials.chanhTong },
+    { id: "seat_tri_huyen",  title: PlayerRank.TRI_HUYEN,  scope: "huyen", scopeId: player.homeHuyen, occupantId: state.officials.triHuyen  },
+  ]) {
+    const seat = makeSeat({ ...spec, appointedDay: 1, legitimacy: SeatLegitimacy.THE_TAP });
+    state.seats[seat.id] = seat;
+    state.seatsByScope[scopeKey(seat.scope, seat.scopeId)] = seat.id;
+  }
 
   // New namespaces (hard reset save is acceptable).
   state.factions = {
