@@ -12,6 +12,8 @@
  * Bổ nhiệm/cách chức/tiến cử/ghế phụ/giới hạn suất/AI lấp chỗ trống: các bước sau.
  */
 
+import { rng, rngInt, initSeed } from "./rng.js";
+
 // 6 nguồn hợp pháp của một ghế. Xem brief C.3 mục 4.
 export const SeatLegitimacy = Object.freeze({
   MUA:      "mua",       // mua thẳng từ người có quyền bổ nhiệm
@@ -69,4 +71,31 @@ export function syncRankFromSeats(state, person) {
       return;
     }
   }
+}
+
+/** Id ghế cấp xã sinh từ id xã (khớp scopeId dùng ở seatsByScope). */
+export function seatIdForXa(xaId) {
+  return "seat_xa_" + xaId;
+}
+
+/**
+ * Roll hồ sơ một lý trưởng xã từ STREAM RNG RIÊNG (seed = hash id xã).
+ * KHÔNG đụng state.rngState -> world-gen mọi seed không lệch. Tất định theo xaId.
+ * Công thức 5 chỉ số khớp core() trong Person isAI (models.js): đa số 9–20, hiếm ~48.
+ */
+export function rollLyTruongProfile(xaId) {
+  const s = { rngState: initSeed("lytruong:" + xaId) };
+  const core = () => (rng(s) < 0.9)
+    ? 9 + Math.floor(rng(s) * 12)
+    : Math.min(48, 20 + Math.floor(rng(s) * 28));
+  return {
+    age:       rngInt(s, 35, 60),
+    tien:      rngInt(s, 5, 50),
+    opinion:   rngInt(s, -10, 10),
+    ngoaiGiao: core(),
+    voThuat:   core(),
+    quanLy:    core(),
+    muuMeo:    core(),
+    hocVan:    core(),
+  };
 }
