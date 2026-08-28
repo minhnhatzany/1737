@@ -196,6 +196,11 @@ export class Person {
         currentXa = null,
         currentLang = null,
         seatId = null,
+        ngoaiGiao,
+        voThuat,
+        quanLy,
+        muuMeo,
+        hocVan,
       } = opts;
       this.id = id;
       this.name = name;
@@ -220,15 +225,17 @@ export class Person {
       this.currentTong = currentTong;
       this.currentXa = currentXa;
       this.currentLang = currentLang;
-      // 5 chỉ số — đa số 9–20, hiếm khi tới ~48 (không spam cao thủ)
+      // 5 chỉ số — đa số 9–20, hiếm khi tới ~48 (không spam cao thủ).
+      // Truyền sẵn (vd lý trưởng Quảng Oai roll từ stream riêng) -> dùng luôn,
+      // không rút rng() chung. Bỏ trống -> roll như NPC thường (giữ nguyên chuỗi RNG).
       const core = () => (rng() < 0.9)
         ? 9 + Math.floor(rng() * 12)
         : Math.min(48, 20 + Math.floor(rng() * 28));
-      this.ngoaiGiao = core();
-      this.voThuat   = core();
-      this.quanLy    = core();
-      this.muuMeo    = core();
-      this.hocVan    = core();
+      this.ngoaiGiao = ngoaiGiao !== undefined ? ngoaiGiao : core();
+      this.voThuat   = voThuat   !== undefined ? voThuat   : core();
+      this.quanLy    = quanLy    !== undefined ? quanLy    : core();
+      this.muuMeo    = muuMeo    !== undefined ? muuMeo    : core();
+      this.hocVan    = hocVan    !== undefined ? hocVan    : core();
       return;
     }
 
