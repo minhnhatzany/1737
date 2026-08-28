@@ -1,6 +1,6 @@
 import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { expireInbox, inboxFull } from "./core/inbox.js";
-import { makeSeat, scopeKey, SeatLegitimacy } from "./core/seats.js";
+import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, syncRankFromSeats } from "./core/seats.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
@@ -552,6 +552,42 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   startVillage.clanIds = clans.map(c => c.id);
   state.village = startVillage;
 
+  // 2.1d: mở rộng seats ra 27 xã phủ Quảng Oai (địa lý viết tay T2.3).
+  // Đọc lyTruong từ map_data; tạo Person(isAI) cho xã có người — chỉ số roll từ
+  // stream RNG riêng (rollLyTruongProfile) nên KHÔNG lệch world-gen; xã Vạn Xuân
+  // occupantId=null (ghế trống cố ý). Hand-data ở đây chạy TRƯỚC 3 ghế state.officials.
+  for (const huyenId of ["bat_bat", "tien_phong", "minh_nghia"]) {
+    const geoQO = getLowerRegions(state, huyenId);
+    for (const tongQO of Object.values(geoQO.tong || {})) {
+      for (const xaQO of Object.values(tongQO.xa || {})) {
+        const seatId = seatIdForXa(xaQO.id);
+        let occupantId = null;
+        if (xaQO.lyTruong) {
+          const pf = rollLyTruongProfile(xaQO.id);
+          const person = new Person({
+            isAI: true, name: xaQO.lyTruong, gender: Gender.NAM, disposition: [],
+            age: pf.age, tien: pf.tien, opinion: pf.opinion,
+            ngoaiGiao: pf.ngoaiGiao, voThuat: pf.voThuat, quanLy: pf.quanLy,
+            muuMeo: pf.muuMeo, hocVan: pf.hocVan,
+            currentRegion: RegionId.SON_TAY, currentPhu: "quang_oai",
+            currentHuyen: huyenId, currentTong: tongQO.id, currentXa: xaQO.id,
+            seatId,
+          });
+          state.npcs.push(person);
+          state.npcById[person.id] = person;
+          occupantId = person.id;
+        }
+        const seat = makeSeat({
+          id: seatId, title: PlayerRank.LY_TRUONG, scope: "xa", scopeId: xaQO.id,
+          occupantId, appointedDay: 1, legitimacy: SeatLegitimacy.THE_TAP,
+        });
+        state.seats[seatId] = seat;
+        state.seatsByScope[scopeKey("xa", xaQO.id)] = seatId;
+        if (occupantId) syncRankFromSeats(state, state.npcById[occupantId]);
+      }
+    }
+  }
+
   // T2.1: dựng 3 ghế từ 3 slot state.officials (officials vẫn sống song song).
   // occupantId trỏ NPC đang giữ (hoặc null). scopeId cấp xã/tổng là id procedural,
   // ổn định trong phiên chơi. Chưa có đường bổ nhiệm/cách chức — bước 2.1c mới đấu nối.
@@ -560,6 +596,8 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     { id: "seat_chanh_tong", title: PlayerRank.CHANH_TONG, scope: "tong",  scopeId: player.homeTong,  occupantId: state.officials.chanhTong },
     { id: "seat_tri_huyen",  title: PlayerRank.TRI_HUYEN,  scope: "huyen", scopeId: player.homeHuyen, occupantId: state.officials.triHuyen  },
   ]) {
+    // Đã có ghế ở scope này (vd xã Quảng Oai vừa dựng ở trên) -> hand-data thắng, bỏ qua.
+    if (state.seatsByScope[scopeKey(spec.scope, spec.scopeId)]) continue;
     const seat = makeSeat({ ...spec, appointedDay: 1, legitimacy: SeatLegitimacy.THE_TAP });
     state.seats[seat.id] = seat;
     state.seatsByScope[scopeKey(seat.scope, seat.scopeId)] = seat.id;
