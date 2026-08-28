@@ -3113,7 +3113,7 @@ window.openNpcModal = npcId => {
       ${clanHtml}
     `;
 
-  const canMarry  = !p.giaDinh?.vo && npc.gender === "female" && npc.opinion >= 40 && p.tien >= 50;
+  const canMarry  = !p.giaDinh?.vo && npc.gender === "nu" && npc.opinion >= 40 && p.tien >= 50;
   const canBribe  = p.tien >= 30;
   const canIntimidate = p.voThuat >= 30 && p.quanSo >= 10;
   const canBroker = !p.giaDinh?.vo && p.tien >= 25;
@@ -3122,7 +3122,7 @@ window.openNpcModal = npcId => {
   const isHighRank = ranks.indexOf(p.rank) >= ranks.indexOf(PlayerRank.TRI_HUYEN);
   const canAppoint = isHighRank && npc.opinion > 50 && npc.rank === PlayerRank.DAN_THUONG && p.tien >= 100;
   const lockBribe = canBribe ? "" : "Cần 30 quan để lót tay.";
-  const lockMarry = canMarry ? "" : (p.giaDinh?.vo ? "Bạn đã có gia thất." : (npc.gender !== "female" ? "Tương tác này hiện chỉ mở cho NPC nữ." : (npc.opinion < 40 ? "Cần cảm tình >= 40." : "Cần 50 quan sính lễ.")));
+  const lockMarry = canMarry ? "" : (p.giaDinh?.vo ? "Bạn đã có gia thất." : (npc.gender !== "nu" ? "Tương tác này hiện chỉ mở cho NPC nữ." : (npc.opinion < 40 ? "Cần cảm tình >= 40." : "Cần 50 quan sính lễ.")));
   const lockIntimidate = canIntimidate ? "" : (p.voThuat < 30 ? "Cần Võ Thuật >= 30." : "Cần ít nhất 10 quân.");
   const lockAlly = (npc.opinion >= 60 && p.tien >= 20) ? "" : (npc.opinion < 60 ? "Cần cảm tình >= 60." : "Cần 20 quan đặt tiệc kết minh.");
   const lockBroker = canBroker ? "" : (p.giaDinh?.vo ? "Bạn đã có gia thất." : "Cần 25 quan phí mai mối.");
