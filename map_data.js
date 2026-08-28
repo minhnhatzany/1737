@@ -163,9 +163,9 @@ export const MapData = {
         id: "quang_oai", name: "Phủ Quảng Oai",
         triPhu: "Đinh Văn Nhân", quanSo: 400, chatLuong: TroopQuality.THUONG,
         huyen: {
-          "my_luong":   { id: "my_luong",  name: "Huyện Mỹ Lương",  triHuyen: "Nguyễn Hữu Khiêm", quanSo: 60, chatLuong: TroopQuality.O_HOP, desc: "Thung lũng hẹp, đất ít người thưa" },
-          "tich_giang": { id: "tich_giang", name: "Huyện Tích Giang", triHuyen: "Phạm Quốc Nhân", quanSo: 45, chatLuong: TroopQuality.THUONG, desc: "Đồi gò, dân làm gỗ và than củi" },
-          "bất_bat":    { id: "bat_bat",    name: "Huyện Bất Bạt",   triHuyen: "Lê Văn Tú", quanSo: 35, chatLuong: TroopQuality.O_HOP, desc: "Biên giới Sơn Tây–Hưng Hóa" },
+          "minh_nghia": { id: "minh_nghia", name: "Huyện Minh Nghĩa", triHuyen: "Nguyễn Hữu Khiêm", quanSo: 60, chatLuong: TroopQuality.O_HOP, desc: "Thung lũng hẹp, đất ít người thưa" },
+          "tien_phong": { id: "tien_phong", name: "Huyện Tiên Phong", triHuyen: "Phạm Quốc Nhân", quanSo: 45, chatLuong: TroopQuality.THUONG, desc: "Đồi gò, dân làm gỗ và than củi" },
+          "bat_bat":    { id: "bat_bat",    name: "Huyện Bất Bạt",   triHuyen: "Lê Văn Tú", quanSo: 35, chatLuong: TroopQuality.O_HOP, desc: "Biên giới Sơn Tây–Hưng Hóa" },
         }
       },
       "tam_doi": {
