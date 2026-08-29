@@ -94,7 +94,14 @@ export function getClanPressurePreset(state) {
   };
 }
 export function localClanIds(state) {
-  // Use current village context as "địa phương" for now.
+  // T3.1b: "địa phương" = xã người chơi ĐANG ĐỨNG (p.currentXa). Xã phủ Quảng Oai
+  // có 2-3 dòng họ sinh riêng (scope="xa", scopeId=xaId). Ngoài QO (huyện procedural,
+  // hoặc xã chưa có họ) rơi về 3 họ toàn cục qua village.clanIds — đường cũ không đổi.
+  const xaId = state.player?.currentXa;
+  if (xaId) {
+    const xaClans = (state.clans || []).filter(c => c.scope === "xa" && c.scopeId === xaId);
+    if (xaClans.length) return xaClans.map(c => c.id);
+  }
   return (state.village?.clanIds || []).slice(0, 6);
 }
 export function tickLocalClansMonthly(state, po) {

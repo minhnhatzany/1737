@@ -9,7 +9,7 @@ import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, act
 import { actionAssumeOfficeHere, actionLocalBribeSuperior, actionLocalCollectTax, actionLocalEmbezzle, actionLocalFund, actionLocalLevy, actionLocalPacify, actionLocalPatrol, actionLocalRecruitMaa, actionPostingBuild, resolveCase } from "./actions/office.js";
 import { actionAcceptMarketContract, actionMarketHaggle, actionTradeItem, ensureMarketSceneState, getMarketSceneBrief, getMerchantProgress, getTradeQuote, rollMonthlyMarketScene } from "./actions/market.js";
 import { actionBuonLauMuoi, actionCauCaSong, actionCayRuong, actionChanNuoiLon, actionChatGo, actionDanhBatVenBien, actionDetVai, actionKhaiThacDacSan, actionLuyenVo, actionMoBinh, actionNauRuou, actionNghiAnCom, collapseFromExhaustion } from "./actions/livelihood.js";
-import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, clanSurname, maybeAddClanRivalryCase, tickClanPressureForCommoner, tickLocalClansMonthly } from "./actions/clan.js";
+import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, clanSurname, localClanIds, maybeAddClanRivalryCase, tickClanPressureForCommoner, tickLocalClansMonthly } from "./actions/clan.js";
 import {
   Person, Clan, Village,
   PlayerRank, Gender, ClanAttitude, Faction, NpcTrait, RegionId, MenAtArmType,
@@ -596,9 +596,9 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
 
   // T3.1a: sinh 2-3 dòng họ cục bộ cho mỗi xã phủ Quảng Oai (nền cho T3.1b/c).
   // Mỗi xã dùng STREAM RNG RIÊNG (rollXaClans, seed = hash "clan:"+xaId) nên KHÔNG
-  // lệch world-gen — đúng khuôn rollLyTruongProfile ở trên và T3.0. Chưa gán clanId
-  // cho ai, chưa đụng gameplay. 3 họ toàn cục (clan_1..3) giữ nguyên làm fallback
-  // cho 41 huyện procedural khác.
+  // lệch world-gen — đúng khuôn rollLyTruongProfile ở trên và T3.0. 3 họ toàn cục
+  // (clan_1..3) giữ nguyên làm fallback cho 41 huyện procedural khác. Gán clanId:
+  // T3.1b ngay bên dưới.
   for (const huyenId of ["bat_bat", "tien_phong", "minh_nghia"]) {
     const geoQO = getLowerRegions(state, huyenId);
     for (const tongQO of Object.values(geoQO.tong || {})) {
@@ -614,6 +614,23 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
           state.clanFavor[clan.id] = 0;
         });
       }
+    }
+  }
+
+  // T3.1b: gán clanId cho lý trưởng đã ngồi ghế cấp xã — thuộc dòng họ mạnh nhất
+  // (quyenLuc cao nhất) trong ĐÚNG xã người đó đứng. Chỉ đụng ghế scope="xa" có
+  // occupant => đúng 26 lý trưởng Quảng Oai (ghế officials lý trưởng đã bị dedupe;
+  // chanh_tong/tri_huyen scope tổng/huyện nên không dính). Không spawn thêm NPC.
+  for (const seatId of Object.keys(state.seats)) {
+    const seat = state.seats[seatId];
+    if (seat.scope !== "xa" || !seat.occupantId) continue;
+    const xaClans = state.clans.filter(c => c.scope === "xa" && c.scopeId === seat.scopeId);
+    if (xaClans.length === 0) continue;
+    const top = xaClans.reduce((a, b) => ((b.quyenLuc || 0) > (a.quyenLuc || 0) ? b : a));
+    const occ = state.npcById[seat.occupantId];
+    if (occ && occ.clanId == null) {
+      occ.clanId = top.id;
+      top.memberIds.push(occ.id);
     }
   }
 
@@ -3871,7 +3888,7 @@ export function checkWantedArrest(state) {
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
 
 
-export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission };
+export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission, localClanIds };
 
 export { addCase, daySerial, scheduleDelayedEffect };
 

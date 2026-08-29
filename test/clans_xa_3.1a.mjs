@@ -30,10 +30,16 @@ check("mỗi xã 2-3 họ", Object.values(bySid).every(arr => arr.length >= 2 &&
 check("id clan xã đúng khuôn clan_xa_<xaId>_<i>",
   Object.entries(bySid).every(([sid, arr]) => arr.every((c, i) => arr.some(x => x.id === clanIdForXa(sid, i)))));
 
-// --- 2. chưa gán clanId cho ai (lý trưởng QO vẫn null, base-clan NPC vẫn clan_1..3) ---
-const qoNpcWithClan = s.npcs.filter(n => n.currentPhu === "quang_oai" && n.clanId != null);
-check("chưa NPC Quảng Oai nào có clanId", qoNpcWithClan.length === 0);
-check("NPC dòng họ cũ vẫn trỏ clan_1..3", s.npcs.filter(n => n.clanId != null).every(n => /^clan_\d+$/.test(n.clanId)));
+// --- 2. generator KHÔNG spawn/xoá NPC: 3 họ toàn cục + 26 lý trưởng QO nguyên vẹn ---
+// (T3.1b mới gán clanId cho 26 lý trưởng QO — kiểm riêng ở clans_local_3.1b.mjs.)
+check("3 họ toàn cục: memberIds khớp đúng số NPC mang clanId clan_<n> (generator không đụng)",
+  (() => {
+    const mem = globalClans.reduce((a, c) => a + c.memberIds.length, 0);
+    const npcN = s.npcs.filter(n => /^clan_\d+$/.test(n.clanId || "")).length;
+    return mem === npcN && mem >= 6 && mem <= 12;
+  })());
+check("26 lý trưởng QO (generator không spawn/xoá NPC trong QO)",
+  s.npcs.filter(n => n.currentPhu === "quang_oai" && n.rank === "ly_truong").length === 26);
 
 // --- 3. RNG không lệch: rngState === rngSeed trên 60 seed liên tiếp ---
 let badRng = 0; const badSeeds = [];

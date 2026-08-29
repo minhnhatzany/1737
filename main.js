@@ -21,6 +21,7 @@ import {
   canPlayerCommandStrategicGarrison,
   isTraveling, startTravel,
   repairGeoCacheFactionFlags,
+  localClanIds,
 } from "./engine.js";
 
 import { rollDailyEvent, resolveEventChoice } from "./events.js";
@@ -1694,7 +1695,10 @@ function renderOfficialsAndClans() {
 
   const clanList = $("clanList");
   if (clanList) {
-    clanList.innerHTML = state.clans.map(c => {
+    // T3.1b: chỉ hiện dòng họ của xã đang đứng (localClanIds theo p.currentXa),
+    // không đổ cả state.clans (~70 clan sau khi sinh họ cho 27 xã Quảng Oai).
+    const localIds = new Set(localClanIds(state));
+    clanList.innerHTML = state.clans.filter(c => localIds.has(c.id)).map(c => {
       const members = c.memberIds.map(id => state.npcById[id]?.name || "?").join(", ");
       const attitude = c.attitude === "hostile" ? "⚔️ Thù vịch" :
                        c.attitude === "friendly" ? "👍 Thân thiện" : "🤝 Trung lập";
@@ -1745,7 +1749,8 @@ function renderPostingPanel() {
     </div>
   ` : "";
   // Local clans: show why they matter
-  const clanIds = (state.village?.clanIds || []).slice(0, 6);
+  // T3.1b: dòng họ của xã đang đứng (khớp panel Xã Hội), không phải 3 họ toàn cục.
+  const clanIds = localClanIds(state);
   const clanLine = (clanIds.length > 0) ? `
     <div class="box-plate mt-2" style="padding:0.7rem;">
       <div style="font-weight:700;color:var(--gold-light);margin-bottom:6px;">🏮 Gia tộc địa phương</div>
