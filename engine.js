@@ -497,6 +497,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     prisoners: [],
     _prisonerSeq: 1,
     _capitalSeq: 1,     // T3.2b: bộ đếm id p.capital[] (khuôn _prisonerSeq, không Date.now())
+    _buildSeq: 1,       // T3.2c-pre: bộ đếm id p.buildQueue[] (thay Date.now() cũ ở actionXayNha)
     activity: null,
     _activityUiPulse: 0,
     lastActivityReport: null,

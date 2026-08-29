@@ -46,8 +46,11 @@ export function actionXayNha(state, propId) {
     if (!p.buildQueue) p.buildQueue = [];
     const baseDays = Math.max(2, Math.min(40, Math.ceil((prop.cost || 0) / 1200)));
     const days = baseDays + (prop.maxLevel >= 3 ? 2 : 0);
+    // Id tất định qua bộ đếm state (khuôn _capitalSeq/_prisonerSeq) — KHÔNG Date.now(),
+    // KHÔNG tiêu rng lượt chơi. job.id chỉ để phân biệt, không nơi nào tra cứu theo nó.
+    state._buildSeq = (state._buildSeq || 1) + 1;
     p.buildQueue.push({
-      id: `bq_${Date.now()}_${Math.floor(rng(state) * 10000)}`,
+      id: `bq_${state._buildSeq}`,
       typeId: propId,
       regionId: p.currentRegion,
       daysLeft: days,
