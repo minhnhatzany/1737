@@ -187,7 +187,7 @@ export const MapData = {
                   { name: "Duyệt Ngoại", pop: 400 },
                   { name: "Điếm Canh", pop: 300 },
                 ] },
-                { name: "Hoà Thạch", tenNom: "Làng Đá", lyTruong: "Đinh Văn Lự", lang: [
+                { name: "Hoà Thạch", tenNom: "Làng Đá", lyTruong: "Đinh Văn Lự", cuaHangSeed: ["xuong_da"], lang: [
                   { name: "Thạch Thượng", pop: 500 },
                   { name: "Bãi Đá", pop: 400 },
                 ] },
@@ -227,13 +227,13 @@ export const MapData = {
                   { name: "Trạch Hạ", pop: 700 },
                   { name: "Văn Chỉ", pop: 600 },
                 ] },
-                { name: "Phúc Hoà", tenNom: "Làng Vôi", lyTruong: "Vũ Đình Xán", lang: [
+                { name: "Phúc Hoà", tenNom: "Làng Vôi", lyTruong: "Vũ Đình Xán", cuaHangSeed: ["lo_voi"], lang: [
                   { name: "Hoà Thôn", pop: 750 },
                   { name: "Lò Vôi", pop: 650 },
                 ] },
               ] },
               { name: "Tổng Hạ Bằng", xa: [
-                { name: "Hạ Bằng", tenNom: "Kẻ Hạ", lyTruong: "Trịnh Văn Cẩn", lang: [
+                { name: "Hạ Bằng", tenNom: "Kẻ Hạ", lyTruong: "Trịnh Văn Cẩn", cuaHangSeed: ["phuong_than"], lang: [
                   { name: "Bằng Thượng", pop: 700 },
                   { name: "Bằng Hạ", pop: 600 },
                   { name: "Lò Than", pop: 500 },
@@ -248,12 +248,12 @@ export const MapData = {
                 ] },
               ] },
               { name: "Tổng Cần Kiệm", xa: [
-                { name: "Cần Kiệm", tenNom: "Kẻ Cần", lyTruong: "Lê Đình Đót", lang: [
+                { name: "Cần Kiệm", tenNom: "Kẻ Cần", lyTruong: "Lê Đình Đót", cuaHangSeed: ["ben_be"], lang: [
                   { name: "Cần Nội", pop: 700 },
                   { name: "Bến Bè", pop: 550 },
                   { name: "Vạn Chài", pop: 350 },
                 ] },
-                { name: "Tuy Lai", tenNom: "Làng Gỗ", lyTruong: "Hoàng Văn Nghiên", lang: [
+                { name: "Tuy Lai", tenNom: "Làng Gỗ", lyTruong: "Hoàng Văn Nghiên", cuaHangSeed: ["xuong_cua"], lang: [
                   { name: "Lai Xá", pop: 700 },
                   { name: "Xưởng Cưa", pop: 600 },
                 ] },
@@ -273,7 +273,7 @@ export const MapData = {
                   { name: "Đô Hạ", pop: 700 },
                   { name: "Kẻ Chài", pop: 500 },
                 ] },
-                { name: "Phú Cường", tenNom: "Kẻ Cường", lyTruong: "Trần Văn Bảng", lang: [
+                { name: "Phú Cường", tenNom: "Kẻ Cường", lyTruong: "Trần Văn Bảng", cuaHangSeed: ["ben_do"], lang: [
                   { name: "Cường Xá", pop: 900 },
                   { name: "Bến Nứa", pop: 450 },
                 ] },
@@ -283,7 +283,7 @@ export const MapData = {
                 ] },
               ] },
               { name: "Tổng Vân Sa", xa: [
-                { name: "Vân Sa", tenNom: "Kẻ Sa", lyTruong: "Phạm Công Đĩnh", lang: [
+                { name: "Vân Sa", tenNom: "Kẻ Sa", lyTruong: "Phạm Công Đĩnh", cuaHangSeed: ["xuong_det"], lang: [
                   { name: "Sa Đông", pop: 700 },
                   { name: "Sa Đoài", pop: 650 },
                   { name: "Tằm Xá", pop: 550 },
@@ -973,6 +973,7 @@ function findHandGeoTong(huyenId) {
  * id theo schema vi tri `<huyenId>_t<i>_x<j>_l<k>` (khop dinh dang procedural, on dinh).
  * Field them cho seats/nhan dien: xa co tenNom + lyTruong; lang co tenNom.
  * lyTruong === null: ghe ly truong bo trong (vd xa Van Xuan).
+ * T3.2a: xa co the co cuaHangSeed[] (loai co ngoi viet tay nhom A) -> core/shops.js.
  * pop chi ghi tay o cap lang; xa/tong/huyen deu la tong cong (giong procedural).
  */
 function normalizeHandGeo(huyenId, tongArr) {
@@ -986,6 +987,7 @@ function normalizeHandGeo(huyenId, tongArr) {
             const xa = {
                 id: xId, name: xSrc.name, tenNom: xSrc.tenNom || null,
                 lyTruong: xSrc.lyTruong === undefined ? null : xSrc.lyTruong,
+                cuaHangSeed: Array.isArray(xSrc.cuaHangSeed) ? xSrc.cuaHangSeed : null,
                 lang: {}, pop: 0, suatDinh: 0, control: "trieu_dinh",
             };
             (xSrc.lang || []).forEach((lSrc, li) => {

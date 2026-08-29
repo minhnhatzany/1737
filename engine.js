@@ -2,6 +2,7 @@ import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from ".
 import { expireInbox, inboxFull } from "./core/inbox.js";
 import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, syncRankFromSeats } from "./core/seats.js";
 import { rollXaClans, clanIdForXa } from "./core/clans.js";
+import { rollXaShops } from "./core/shops.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
@@ -469,6 +470,8 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     },
     seats: {},
     seatsByScope: {},
+    shops: {},          // T3.2a: cửa hàng/cơ ngơi — { [shopId]: shop }
+    shopsByXa: {},      // T3.2a: index tra ngược — { [xaId]: [shopId, ...] }
     log: [],
     logDirty: false,
     thueDinh: 8, suuDich: 4, trieuThangNop: 15,
@@ -638,6 +641,64 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   // Ghế trống (Vạn Xuân) cũng điền -> pickXaSeatSuccessorClan dùng được ngay để test.
   for (const seatId of Object.keys(state.seats)) {
     if (state.seats[seatId].scope === "xa") syncSeatContestants(state, seatId);
+  }
+
+  // T3.2a: seed cửa hàng / cơ ngơi cho 27 xã phủ Quảng Oai (schema + generator, CHƯA
+  // action nào đọc). Mỗi xã: slot generic "quán trọ" theo dân số (bỏ trống) + cơ ngơi
+  // viết tay nhóm A (xa.cuaHangSeed) có CHỦ AI thuộc dòng họ quyền lực nhất xã. Generator
+  // dùng STREAM RNG RIÊNG (rollXaShops, seed = hash "shop:"+xaId) -> KHÔNG lệch world-gen,
+  // đúng khuôn rollXaClans / rollLyTruongProfile ở trên. shop.occupantId trỏ Person BẤT KỲ
+  // như ghế. Mua/mở/giữ/mất cửa hàng: T3.2c. 41 huyện procedural khác chưa có cửa hàng.
+  for (const huyenId of ["bat_bat", "tien_phong", "minh_nghia"]) {
+    const geoQO = getLowerRegions(state, huyenId);
+    for (const tongQO of Object.values(geoQO.tong || {})) {
+      for (const xaQO of Object.values(tongQO.xa || {})) {
+        const xaClansHere = state.clans.filter(c => c.scope === "xa" && c.scopeId === xaQO.id);
+        const ownerClan = xaClansHere.length
+          ? xaClansHere.reduce((a, b) => ((b.quyenLuc || 0) > (a.quyenLuc || 0) ? b : a))
+          : null;
+        const contestingClanIds = xaClansHere.slice()
+          .sort((a, b) => (b.status ?? 0) - (a.status ?? 0))
+          .map(c => c.id);
+        const specs = rollXaShops(xaQO.id, { pop: xaQO.pop, cuaHangSeed: xaQO.cuaHangSeed });
+        const ids = [];
+        for (const spec of specs) {
+          const shop = {
+            id: spec.id, loai: spec.loai, xaId: xaQO.id, scope: "xa",
+            seeded: true, level: spec.level,
+            occupantId: null, ownerClanId: null,
+            incomeBase: spec.incomeBase,
+            capitalIds: [],                              // T3.2b
+            workerIds: [],                              // T3.2d
+            contestingClanIds: contestingClanIds.slice(),
+            lastPaidYm: null,                           // T3.2c
+            foundedDay: 1,
+          };
+          if (spec.wantsOwner && ownerClan) {
+            const pf = spec.ownerProfile;
+            const person = new Person({
+              isAI: true, name: clanSurname(ownerClan.name) + " " + spec.ownerGivenName,
+              gender: Gender.NAM, disposition: [],
+              age: pf.age, tien: pf.tien, opinion: pf.opinion,
+              ngoaiGiao: pf.ngoaiGiao, voThuat: pf.voThuat, quanLy: pf.quanLy,
+              muuMeo: pf.muuMeo, hocVan: pf.hocVan,
+              clanId: ownerClan.id,
+              currentRegion: RegionId.SON_TAY, currentPhu: "quang_oai",
+              currentHuyen: huyenId, currentTong: tongQO.id, currentXa: xaQO.id,
+              shopId: shop.id,
+            });
+            state.npcs.push(person);
+            state.npcById[person.id] = person;
+            ownerClan.memberIds.push(person.id);
+            shop.occupantId = person.id;
+            shop.ownerClanId = ownerClan.id;
+          }
+          state.shops[shop.id] = shop;
+          ids.push(shop.id);
+        }
+        state.shopsByXa[xaQO.id] = ids;
+      }
+    }
   }
 
   // T2.1: dựng 3 ghế từ 3 slot state.officials (officials vẫn sống song song).

@@ -196,6 +196,7 @@ export class Person {
         currentXa = null,
         currentLang = null,
         seatId = null,
+        shopId = null,
         ngoaiGiao,
         voThuat,
         quanLy,
@@ -206,6 +207,7 @@ export class Person {
       this.name = name;
       this.isAI = true;
       this.seatId = seatId;
+      this.shopId = shopId;
       this.age = age;
       this.gender = gender;
       this.intelligence = intelligence;
@@ -270,11 +272,13 @@ export class Person {
       muuMeo = 5,
       hocVan = 5,
       seatId = null,
+      shopId = null,
       wantedLevel = 0,
     } = opts;
     this.name = name;
     this.isAI = false;
     this.seatId = seatId;
+    this.shopId = shopId;
     this.tien = tien;
     this.thocCaNhan = thocCaNhan;
     this.uyTinCong = uyTinCong;

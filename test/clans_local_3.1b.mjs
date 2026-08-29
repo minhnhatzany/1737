@@ -58,8 +58,8 @@ for (const [seed, n] of [[999, 11], [4242, 10]]) {
 }
 const s2 = createInitialState("T", 55);
 check("NPC ngoài QO vẫn trỏ clan_1..3", s2.npcs.filter(n => n.currentPhu !== "quang_oai" && n.clanId).every(n => /^clan_\d+$/.test(n.clanId)));
-check("chỉ lý trưởng QO có clanId trong QO (không NPC QO nào khác)",
-  s2.npcs.filter(n => n.currentPhu === "quang_oai" && n.clanId != null).every(n => n.rank === "ly_truong"));
+check("QO NPC có clanId = lý trưởng HOẶC chủ cửa hàng seed (T3.2a); không dân thường nào khác",
+  s2.npcs.filter(n => n.currentPhu === "quang_oai" && n.clanId != null).every(n => n.rank === "ly_truong" || n.shopId != null));
 
 // --- 6. _patronClanId vẫn chạy: chọn 1 clan xã làm patron, logic patron đọc được ---
 const pt = createInitialState("T", 9);
