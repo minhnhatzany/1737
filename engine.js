@@ -5,6 +5,8 @@ import { rollXaClans, clanIdForXa } from "./core/clans.js";
 import { rollXaShops } from "./core/shops.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
+import { actionMuaCongCu } from "./actions/capital.js";
+import { CAPITAL_WEAR_PER_MONTH } from "./core/capital.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
 import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRaidSupply, actionRebelRecruitLocal, actionRebelTrain, addPrisoner } from "./actions/rebel.js";
 import { actionAssumeOfficeHere, actionLocalBribeSuperior, actionLocalCollectTax, actionLocalEmbezzle, actionLocalFund, actionLocalLevy, actionLocalPacify, actionLocalPatrol, actionLocalRecruitMaa, actionPostingBuild, resolveCase } from "./actions/office.js";
@@ -494,6 +496,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     tutorial: { completed: false, track: null, step: 0 },
     prisoners: [],
     _prisonerSeq: 1,
+    _capitalSeq: 1,     // T3.2b: bộ đếm id p.capital[] (khuôn _prisonerSeq, không Date.now())
     activity: null,
     _activityUiPulse: 0,
     lastActivityReport: null,
@@ -3002,6 +3005,7 @@ export function gameTick(state) {
     updateEconomy(state);
     updateNPCs(state);
     processMonthlyPropertyAndArmy(state);
+    processMonthlyCapitalWear(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -3570,6 +3574,17 @@ function processMonthlyPropertyAndArmy(state) {
   }
 }
 
+// T3.2b: hao mòn vốn/công cụ cá nhân — mỗi tháng cond -CAPITAL_WEAR_PER_MONTH, sàn 0.
+// Món hỏng (cond 0) nằm im trong p.capital[], KHÔNG xoá, KHÔNG log (chưa nghề nào đọc).
+// Tách riêng khỏi processMonthlyPropertyAndArmy (hàm đó chứa logic thu nhập BĐS).
+function processMonthlyCapitalWear(state) {
+  const cap = state.player?.capital;
+  if (!Array.isArray(cap) || cap.length === 0) return;
+  for (const it of cap) {
+    it.cond = Math.max(0, (it.cond ?? 100) - CAPITAL_WEAR_PER_MONTH);
+  }
+}
+
 export function actionJoinBattle(state, battleId, side = "def") {
   const p = state.player;
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
@@ -3987,5 +4002,6 @@ export { ensureRebel, isControlledByRebelsHere, nextPrisonerId };
 export { initQuestsIfNeeded, refreshQuestsYearly, tickQuests };
 
 export { actionXayNha, actionRecruitMaa, actionDemolishNha };
+export { actionMuaCongCu };
 
 export { hasPerk };

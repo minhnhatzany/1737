@@ -326,6 +326,7 @@ export class Person {
 
     this.giaDinh = { vo: "", con: 0 };
     this.holdings = [];
+    this.capital = [];   // T3.2b: vốn/công cụ cá nhân — trâu, khung cửi, nồi rượu... (core/capital.js)
     this.armies = [];
     this.maa = [];
     this.inventory = {
