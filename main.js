@@ -14,6 +14,7 @@ import {
   resolveCase,
   actionPostingBuild,
   actionXayNha, actionDemolishNha, actionTradeItem,
+  actionMuaCongCu, actionMoCuaHang,
   actionTangRuouNPC, actionRecruitMaa, actionJoinBattle, actionAttackVillage, setWanted, checkWantedArrest, MaaDb,
   PropertyDb, PropertyCategories, RegionsDb, ItemsDb, RegionId,
   initQuestsIfNeeded, tickQuests,
@@ -26,6 +27,8 @@ import {
 
 import { rollDailyEvent, resolveEventChoice } from "./events.js";
 import { drainPendingToInbox } from "./core/inbox.js";
+import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
+import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -1014,6 +1017,7 @@ function render() {
 
   // Properties
   renderProperties();
+  renderCoNghiep();
 
   // Officials + clans
   renderOfficialsAndClans();
@@ -1670,6 +1674,99 @@ function renderProperties() {
       </div>
     `;
   }).join("") || "<p class='muted text-center'>Không có kiến trúc nào ở danh mục này.</p>";
+}
+
+// ── T3.2c-3: Cơ Nghiệp — vốn cá nhân (T3.2b) + cửa hàng (T3.2c-1) ──────────
+function qoXaGeoList() {
+  const out = [];
+  for (const h of ["bat_bat", "tien_phong", "minh_nghia"]) {
+    const geo = getLowerRegions(state, h);
+    for (const tong of Object.values(geo?.tong || {})) {
+      for (const xa of Object.values(tong.xa || {})) out.push({ id: xa.id, name: xa.name });
+    }
+  }
+  return out;
+}
+function qoXaName(xaId) {
+  return qoXaGeoList().find(x => x.id === xaId)?.name || xaId;
+}
+function qoXaFreeQuanTro() {
+  return qoXaGeoList().filter(x => (state.shopsByXa?.[x.id] || []).some(id => {
+    const s = state.shops[id];
+    return s && s.loai === ShopType.QUAN_TRO && !s.occupantId && !s.foundingById && s.vacantSinceDay == null;
+  }));
+}
+
+function renderCoNghiep() {
+  const box = $("coNghiepBody");
+  if (!box || !state) return;
+  const p = state.player;
+  const esc = escapeHtml;
+
+  // Vốn cá nhân
+  const cap = p.capital || [];
+  const capRows = cap.length
+    ? cap.map(it => {
+        const label = CAPITAL_LABEL[it.kind] || it.kind;
+        const broke = (it.cond | 0) <= 0;
+        const condTxt = broke
+          ? `<span style="color:var(--danger-light);">Độ bền 0% — hỏng</span>`
+          : `Độ bền ${it.cond | 0}%`;
+        return `<div class="prop-card" style="padding:6px 8px;">
+          <div class="prop-card-header"><span class="prop-name">${esc(label)}</span>
+          <span class="prop-level">${condTxt}</span></div></div>`;
+      }).join("")
+    : `<p class="muted" style="font-size:0.82rem;">Chưa có công cụ nào.</p>`;
+
+  const buyBtns = Object.values(CapitalKind).map(k => {
+    const price = CAPITAL_PRICE[k];
+    const afford = p.tien >= price;
+    return `<button class="action-btn ${afford ? "highlight-gold" : "soft-locked"}"
+      style="font-size:0.74rem;padding:3px 7px;" onclick="window.doMuaCongCu('${k}')" ${afford ? "" : "disabled"}>
+      ${esc(CAPITAL_LABEL[k])} (${price}Q)</button>`;
+  }).join("");
+
+  // Cửa hàng
+  const allShops = Object.values(state.shops || {});
+  const founding = allShops.find(s => s.foundingById === p.id);
+  const owned = allShops.find(s => s.occupantId === p.id);
+  let shopHtml;
+  if (founding) {
+    shopHtml = `<div class="prop-card prop-unowned" style="padding:6px 8px;">
+      <div class="prop-card-header"><span class="prop-name">Đang dựng ${esc(SHOP_LABEL[founding.loai] || "quán")}</span>
+      <span class="prop-level">còn ${founding.foundDaysLeft | 0} ngày</span></div>
+      <div class="prop-desc">${esc(qoXaName(founding.xaId))}</div></div>`;
+  } else if (owned) {
+    const present = p.currentXa === owned.xaId;
+    const gain = present ? (owned.incomeBase | 0) : Math.floor((owned.incomeBase | 0) / 2);
+    shopHtml = `<div class="prop-card prop-owned" style="padding:6px 8px;">
+      <div class="prop-card-header"><span class="prop-name">${esc(SHOP_LABEL[owned.loai] || "Quán")} — ${esc(qoXaName(owned.xaId))}</span>
+      <span class="prop-level">Cơ nghiệp của ngươi</span></div>
+      <div class="prop-effect">Tô tháng: +${gain} Quan ${present ? "(đang có mặt)" : "(vắng mặt — thu nửa)"}</div></div>`;
+  } else {
+    const opts = qoXaFreeQuanTro();
+    if (opts.length === 0) {
+      shopHtml = `<p class="muted" style="font-size:0.82rem;">Cả phủ hết suất quán trọ trống.</p>`;
+    } else {
+      const cur = opts.some(o => o.id === p.currentXa) ? p.currentXa : opts[0].id;
+      const sel = opts.map(o => `<option value="${o.id}"${o.id === cur ? " selected" : ""}>${esc(o.name)}</option>`).join("");
+      const cost = SHOP_OPEN_COST[ShopType.QUAN_TRO];
+      const afford = p.tien >= cost;
+      shopHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <select id="moCuaHangXa" style="font-size:0.8rem;padding:3px;">${sel}</select>
+        <button class="action-btn ${afford ? "highlight-gold" : "soft-locked"}"
+          style="font-size:0.78rem;padding:4px 8px;" onclick="window.doMoCuaHang()" ${afford ? "" : "disabled"}>
+          ⚒ Mở quán trọ (${cost}Q · 7 ngày)</button></div>
+      <p class="muted" style="font-size:0.76rem;margin-top:4px;">Mỗi người giữ được 1 cơ nghiệp. Có mặt tại xã thì thu tô đủ, vắng thì nửa.</p>`;
+    }
+  }
+
+  box.innerHTML = `
+    <div style="font-weight:600;margin-bottom:4px;">Vốn cá nhân</div>
+    <div style="display:flex;flex-direction:column;gap:4px;">${capRows}</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${buyBtns}</div>
+    <div style="font-weight:600;margin:10px 0 4px;">Cửa hàng</div>
+    ${shopHtml}`;
 }
 
 function renderOfficialsAndClans() {
@@ -2690,6 +2787,11 @@ window.setPropCat   = cat => {
 };
 window.doBuild      = id => doAction(actionXayNha, [id]);
 window.doDemo       = id => doAction(actionDemolishNha, [id]);
+window.doMuaCongCu  = kind => doAction(actionMuaCongCu, [kind]);
+window.doMoCuaHang  = () => {
+  const xaId = $("moCuaHangXa")?.value || state.player.currentXa;
+  doAction(actionMoCuaHang, [xaId, "quan_tro"]);
+};
 window.doLuyenVo    = ()  => doAction(actionLuyenVo);
 window.doDiHoc      = ()  => doAction(actionDiHoc);
 window.doThiHuong   = ()  => window.openActivityPlanner("thi_huong");
