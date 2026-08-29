@@ -355,6 +355,12 @@ export class Clan {
     trungThanh = 50,
     attitude = ClanAttitude.TRUNG_LAP,
     memberIds = [],
+    // T3.1a: dòng họ cục bộ theo xã. Mặc định null = họ toàn cục (3 họ cũ,
+    // đường fallback không đổi). scope="xa" + scopeId=xaId cho họ sinh per-xã.
+    scope = null,
+    scopeId = null,
+    status = 50,              // 0..100 vị thế cục bộ, thay đổi được (T3.1c dùng)
+    dominantSeatIds = [],     // ghế họ đang nắm (T3.1c đấu nối)
   }) {
     this.id = id;
     this.name = name;
@@ -363,6 +369,10 @@ export class Clan {
     this.trungThanh = trungThanh;
     this.attitude = attitude;
     this.memberIds = memberIds.slice();
+    this.scope = scope;
+    this.scopeId = scopeId;
+    this.status = status;
+    this.dominantSeatIds = dominantSeatIds.slice();
   }
 }
 

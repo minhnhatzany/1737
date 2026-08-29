@@ -1,6 +1,7 @@
 import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { expireInbox, inboxFull } from "./core/inbox.js";
 import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, syncRankFromSeats } from "./core/seats.js";
+import { rollXaClans, clanIdForXa } from "./core/clans.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { completeQuest, ensureQuestState, initQuestsIfNeeded, makeQuestStarterPack, questProgressText, refreshQuestsYearly, tickQuests } from "./quests.js";
@@ -589,6 +590,29 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
         state.seats[seatId] = seat;
         state.seatsByScope[scopeKey("xa", xaQO.id)] = seatId;
         if (occupantId) syncRankFromSeats(state, state.npcById[occupantId]);
+      }
+    }
+  }
+
+  // T3.1a: sinh 2-3 dòng họ cục bộ cho mỗi xã phủ Quảng Oai (nền cho T3.1b/c).
+  // Mỗi xã dùng STREAM RNG RIÊNG (rollXaClans, seed = hash "clan:"+xaId) nên KHÔNG
+  // lệch world-gen — đúng khuôn rollLyTruongProfile ở trên và T3.0. Chưa gán clanId
+  // cho ai, chưa đụng gameplay. 3 họ toàn cục (clan_1..3) giữ nguyên làm fallback
+  // cho 41 huyện procedural khác.
+  for (const huyenId of ["bat_bat", "tien_phong", "minh_nghia"]) {
+    const geoQO = getLowerRegions(state, huyenId);
+    for (const tongQO of Object.values(geoQO.tong || {})) {
+      for (const xaQO of Object.values(tongQO.xa || {})) {
+        rollXaClans(xaQO.id).forEach((c, i) => {
+          const clan = new Clan({
+            id: clanIdForXa(xaQO.id, i), name: c.name,
+            quyenLuc: c.quyenLuc, ruongDat: c.ruongDat, trungThanh: c.trungThanh,
+            scope: "xa", scopeId: xaQO.id, status: c.status,
+          });
+          state.clans.push(clan);
+          state.clanById[clan.id] = clan;
+          state.clanFavor[clan.id] = 0;
+        });
       }
     }
   }
