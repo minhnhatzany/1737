@@ -420,12 +420,17 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   });
 
   const player = new Person({ name: playerName, isAI: false, id: "player" });
-  const allRegions = getAllRegions();
-  const spawnRegion = allRegions[randInt(0, allRegions.length - 1)];
-  const spawnPhuList = Object.values(spawnRegion?.phu || {});
-  const spawnPhu = spawnPhuList[randInt(0, Math.max(0, spawnPhuList.length - 1))];
-  const spawnHuyenList = Object.values(spawnPhu?.huyen || {});
-  const spawnHuyen = spawnHuyenList[randInt(0, Math.max(0, spawnHuyenList.length - 1))];
+  // T3.0: khoá spawn về phủ Quảng Oai (trấn Sơn Tây) — 3 huyện viết tay.
+  // Chọn huyện khởi điểm bằng STREAM RNG RIÊNG (seed = hash "spawn:<rngSeed>"),
+  // không tiêu draw của state.rngState / fallback chính -> việc CHỌN huyện không
+  // làm lệch world-gen. Dữ liệu 41 huyện khác trong map_data giữ nguyên, chỉ giới
+  // hạn nguồn random ở đây.
+  const QUANG_OAI_HUYEN = ["bat_bat", "tien_phong", "minh_nghia"];
+  const spawnRngState = { rngState: initSeed("spawn:" + rngSeed) };
+  const spawnRegion = getRegion(RegionId.SON_TAY);
+  const spawnPhu = spawnRegion?.phu?.quang_oai;
+  const spawnHuyenId = QUANG_OAI_HUYEN[rngInt(spawnRngState, 0, QUANG_OAI_HUYEN.length - 1)];
+  const spawnHuyen = spawnPhu?.huyen?.[spawnHuyenId];
   if (spawnRegion?.id && spawnPhu?.id && spawnHuyen?.id) {
     player.homeRegion = spawnRegion.id;
     player.homePhu = spawnPhu.id;

@@ -8,10 +8,11 @@ let pass = true;
 const check = (name, cond) => { console.log((cond ? "  ok  " : " FAIL ") + name); if (!cond) pass = false; };
 
 // --- 1. huyện KHÔNG có `tong` -> vẫn procedural (không rẽ nhánh) ---
-const st = createInitialState("T", 999); // seed 999 spawn Lạng Sơn, procedural
-const homeGeo = st._geoCache[st.player.homeHuyen];
-check("huyện procedural vẫn sinh tong object", homeGeo && Object.keys(homeGeo.tong).length >= 5);
-check("id tổng procedural đúng format <huyenId>_t<i>", Object.keys(homeGeo.tong)[0].startsWith(st.player.homeHuyen + "_t"));
+// T3.0 khoá spawn về Quảng Oai nên player không còn ra huyện procedural; gọi
+// getLowerRegions trực tiếp với huyện ngoài QO để kiểm generator còn sống.
+const procGeo = getLowerRegions({ _geoCache: {} }, "van_lang_ls"); // Lạng Sơn, procedural
+check("huyện procedural vẫn sinh tong object", procGeo && Object.keys(procGeo.tong).length >= 5);
+check("id tổng procedural đúng format <huyenId>_t<i>", Object.keys(procGeo.tong)[0].startsWith("van_lang_ls_t"));
 
 // --- 2. bơm dữ liệu tay vào huyện bat_bat, gọi lại getLowerRegions ---
 const bb = getHuyen("son_tay", "quang_oai", "bat_bat");

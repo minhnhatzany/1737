@@ -86,10 +86,11 @@ for (let seed = 1; seed <= 600; seed++) {
 }
 check(`spawn Quảng Oai (${qoSpawn} lần/600 seed): village name luôn từ dữ liệu tay`, qoSpawn > 0 && qoNameOk === qoSpawn);
 
-// huyện ngoài Quảng Oai vẫn procedural
-const s999 = createInitialState("T", 999);
-check("huyện ngoài Quảng Oai vẫn procedural (seed 999 -> Lạng Sơn)",
-  s999.player.homePhu !== "quang_oai" && Object.keys(s999._geoCache[s999.player.homeHuyen].tong).length >= 5);
+// huyện ngoài Quảng Oai vẫn procedural — T3.0 khoá spawn về QO nên gọi trực tiếp
+// getLowerRegions với huyện ngoài QO (tách "generator còn sống" khỏi "đường spawn").
+const procGeo = getLowerRegions({ _geoCache: {} }, "van_lang_ls"); // Lạng Sơn
+check("huyện ngoài Quảng Oai vẫn procedural (getLowerRegions trực tiếp)",
+  Object.keys(procGeo.tong).length >= 5 && Object.keys(procGeo.tong)[0].startsWith("van_lang_ls_t"));
 
 console.log(pass ? `PASS - T2.3c: Quảng Oai 9 tổng / 27 xã / ${nLang} làng / ${popTotal} dân, hand-data đúng` : "FAIL - T2.3c");
 process.exit(pass ? 0 : 1);
