@@ -1,4 +1,5 @@
 import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
+import { scopeKey } from "../core/seats.js";
 import { addCase, clamp, daySerial, getPosting, randInt, scheduleDelayedEffect } from "../engine.js";
 import { ClanAttitude, Faction, PlayerRank } from "../models.js";
 import { logLine } from "../log.js";
@@ -97,12 +98,112 @@ export function localClanIds(state) {
   // T3.1b: "địa phương" = xã người chơi ĐANG ĐỨNG (p.currentXa). Xã phủ Quảng Oai
   // có 2-3 dòng họ sinh riêng (scope="xa", scopeId=xaId). Ngoài QO (huyện procedural,
   // hoặc xã chưa có họ) rơi về 3 họ toàn cục qua village.clanIds — đường cũ không đổi.
-  const xaId = state.player?.currentXa;
-  if (xaId) {
-    const xaClans = (state.clans || []).filter(c => c.scope === "xa" && c.scopeId === xaId);
-    if (xaClans.length) return xaClans.map(c => c.id);
-  }
+  return xaClanIds(state, state.player?.currentXa) || fallbackGlobalClanIds(state);
+}
+/** T3.1c: id dòng họ cấp xã của MỘT xã bất kỳ (không phụ thuộc vị trí player). */
+export function xaClanIds(state, xaId) {
+  if (!xaId) return null;
+  const ids = (state.clans || []).filter(c => c.scope === "xa" && c.scopeId === xaId).map(c => c.id);
+  return ids.length ? ids : null;
+}
+function fallbackGlobalClanIds(state) {
   return (state.village?.clanIds || []).slice(0, 6);
+}
+/** T3.1c: đổi vị thế (status 0..100) một dòng họ, clamp. */
+export function adjustClanStatus(state, clanId, delta) {
+  const clan = state.clans?.find(c => c.id === clanId);
+  if (!clan || !Number.isFinite(delta)) return;
+  clan.status = clamp((clan.status ?? 50) + delta, 0, 100);
+}
+/**
+ * T3.1c: đồng bộ seat.contestingClanIds cho MỘT ghế cấp xã = các dòng họ trong
+ * đúng xã đó, xếp theo status giảm dần. Ghế trống hay có chủ đều điền.
+ */
+export function syncSeatContestants(state, seatId) {
+  const seat = state.seats?.[seatId];
+  if (!seat || seat.scope !== "xa") return;
+  const ids = (xaClanIds(state, seat.scopeId) || []).slice();
+  ids.sort((a, b) => (state.clanById?.[b]?.status ?? 0) - (state.clanById?.[a]?.status ?? 0));
+  seat.contestingClanIds = ids;
+}
+/**
+ * T3.1c: dòng họ sẽ lên nắm ghế lý trưởng nếu ghế trống / đổi chủ — status CAO NHẤT
+ * trong xã, KHÔNG random đều. Tie: giữ thứ tự contestingClanIds (đã sort theo status).
+ */
+export function pickXaSeatSuccessorClan(state, seatId) {
+  const seat = state.seats?.[seatId];
+  if (!seat || seat.scope !== "xa") return null;
+  const ids = seat.contestingClanIds?.length ? seat.contestingClanIds : (xaClanIds(state, seat.scopeId) || []);
+  let best = null, bestStatus = -Infinity;
+  for (const id of ids) {
+    const st = state.clanById?.[id]?.status ?? -Infinity;
+    if (st > bestStatus) { bestStatus = st; best = id; }
+  }
+  return best;
+}
+/**
+ * T3.1c: tick tháng — tuyệt tự (không NPC nào còn mang clanId đó, không thành viên,
+ * player cũng không nương) -> status lụi dần; rồi đồng bộ contestingClanIds mọi ghế xã.
+ * KHÔNG dùng rng(state) -> không xê dịch chuỗi RNG lượt chơi.
+ */
+export function tickXaClanStatusMonthly(state) {
+  const xaClans = (state.clans || []).filter(c => c.scope === "xa");
+  if (xaClans.length === 0) return;
+  const alive = new Set((state.npcs || []).map(n => n.clanId).filter(Boolean));
+  if (state.player?._patronClanId) alive.add(state.player._patronClanId);
+  for (const c of xaClans) {
+    if (!alive.has(c.id) && (c.memberIds || []).length === 0) {
+      c.status = clamp((c.status ?? 50) - 3, 0, 100);
+    }
+  }
+  for (const seatId of Object.keys(state.seats || {})) {
+    if (state.seats[seatId].scope === "xa") syncSeatContestants(state, seatId);
+  }
+}
+/**
+ * T3.1c: sinh 1 vụ "tranh ghế lý trưởng" cho ghế xã TRỐNG nơi player đứng, xã có
+ * >=2 dòng họ. Lựa chọn THIÊN VỀ dòng họ status cao nhất (không chọn ngẫu nhiên đều).
+ */
+export function maybeAddSeatContestCase(state, po) {
+  const xaId = state.player?.currentXa;
+  const seatId = xaId ? state.seatsByScope?.[scopeKey("xa", xaId)] : null;
+  const seat = seatId ? state.seats[seatId] : null;
+  if (!seat || seat.scope !== "xa" || seat.occupantId) return;
+  syncSeatContestants(state, seatId);
+  const ids = seat.contestingClanIds || [];
+  if (ids.length < 2) return;
+  if (rng(state) > 0.5) return;
+  const favClan = state.clans.find(c => c.id === pickXaSeatSuccessorClan(state, seatId));
+  const other = state.clans.find(c => c.id === ids.find(id => id !== favClan?.id));
+  if (!favClan || !other) return;
+  addCase(po, {
+    type: "seat_contest",
+    severity: "vừa",
+    title: `Tranh ghế lý trưởng: ${favClan.name} vs ${other.name}`,
+    desc: `Ghế lý trưởng xã đang trống. ${favClan.name} (vị thế ${Math.round(favClan.status)}) và ${other.name} (${Math.round(other.status)}) cùng giành. Ngả về ai?`,
+    due: `trong tháng ${state.monthIndex}`,
+    choices: [
+      { label: `Thuận theo ${favClan.name} (vị thế cao)`, apply(s){
+        adjustClanStatus(s, favClan.id, +10);
+        adjustClanStatus(s, other.id, -4);
+        s.player.uyTinCong += 4;
+        logLine(s, `Ghế lý trưởng về tay ${favClan.name}. Thuận lòng số đông, yên chuyện.`, true);
+      }},
+      { label: `Ép ${other.name} lên (nghịch vị thế)`, apply(s){
+        adjustClanStatus(s, other.id, +12);
+        adjustClanStatus(s, favClan.id, -10);
+        s.village.unrest = clamp((s.village.unrest || 0) + 8, 0, 100);
+        logLine(s, `Ép ${other.name} lên ghế. ${favClan.name} bất phục, xã dậy sóng.`, true);
+      }},
+      { label: "Ăn tiền cả hai, hoãn lại (tham)", apply(s){
+        const po2 = getPosting(s); if (po2) po2.corruption = clamp((po2.corruption || 0) + 8, 0, 100);
+        s.player.tien += 90;
+        adjustClanStatus(s, favClan.id, -3);
+        adjustClanStatus(s, other.id, -3);
+        logLine(s, "Nhận lót tay cả hai, ghế vẫn trống. Tiếng xấu lan.", true);
+      }},
+    ],
+  });
 }
 export function tickLocalClansMonthly(state, po) {
   const p = state.player;
@@ -176,6 +277,7 @@ export function maybeAddClanRivalryCase(state, po) {
       { label: `Bênh ${clanA.name} (có hậu thuẫn)`, apply(s){
         adjustClanMembersOpinion(s, a, +18);
         adjustClanMembersOpinion(s, b, -18);
+        adjustClanStatus(s, a, +6); adjustClanStatus(s, b, -8); // T3.1c: thắng/thua kiện -> vị thế
         const po = getPosting(s); if (po) po.treasury = (po.treasury || 0) + 60;
         s.village.unrest = clamp((s.village.unrest || 0) + 6, 0, 100);
         logLine(s, `Ngả về ${clanA.name}. Có người chống lưng, nhưng phe kia oán hận.`, true);
@@ -183,6 +285,7 @@ export function maybeAddClanRivalryCase(state, po) {
       { label: `Bênh ${clanB.name} (có hậu thuẫn)`, apply(s){
         adjustClanMembersOpinion(s, b, +18);
         adjustClanMembersOpinion(s, a, -18);
+        adjustClanStatus(s, b, +6); adjustClanStatus(s, a, -8); // T3.1c: thắng/thua kiện -> vị thế
         const po = getPosting(s); if (po) po.treasury = (po.treasury || 0) + 60;
         s.village.unrest = clamp((s.village.unrest || 0) + 6, 0, 100);
         logLine(s, `Ngả về ${clanB.name}. Có người chống lưng, nhưng phe kia oán hận.`, true);
@@ -342,7 +445,7 @@ export function actionClanMischief(state, clanId, type) {
   const patron = state.clans?.find(c => c.id === clanId);
   if (!patron) return { ok: false, msg: "Không tìm thấy dòng họ giao việc." };
 
-  const localIds = (state.village?.clanIds || []).filter(id => id !== clanId);
+  const localIds = (localClanIds(state) || []).filter(id => id !== clanId); // T3.1c: theo xã đang đứng
   const rivals = localIds
     .map(id => state.clans?.find(c => c.id === id))
     .filter(Boolean);
@@ -438,7 +541,7 @@ export function actionBeginClanMission(state, clanId, type) {
 
   const patron = state.clans?.find(c => c.id === clanId);
   if (!patron) return { ok: false, msg: "Không tìm thấy dòng họ giao việc." };
-  const localIds = (state.village?.clanIds || []).filter(id => id !== clanId);
+  const localIds = (localClanIds(state) || []).filter(id => id !== clanId); // T3.1c: theo xã đang đứng
   const rivals = localIds.map(id => state.clans?.find(c => c.id === id)).filter(Boolean);
   if (rivals.length === 0) return { ok: false, msg: "Không có dòng họ đối nghịch để ra tay." };
   rivals.sort((a, b) => clanAvgOpinionToPlayer(state, a.id) - clanAvgOpinionToPlayer(state, b.id));

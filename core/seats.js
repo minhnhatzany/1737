@@ -54,6 +54,9 @@ export function makeSeat({
     legitimacy,
     subSeatIds: [],
     lastActiveDay: appointedDay,
+    // T3.1c: các dòng họ (cấp xã) đang tranh ghế này, xếp theo vị thế giảm dần.
+    // Chỉ ghế scope="xa" mới được điền (syncSeatContestants); ghế khác để rỗng.
+    contestingClanIds: [],
   };
 }
 

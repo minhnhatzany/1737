@@ -3306,7 +3306,7 @@ window.openClanModal = clanId => {
   const p = state.player;
   const patroningThis = p._patronClanId === clanId;
   const canPatron = (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO);
-  const localOthers = (state.village?.clanIds || []).filter(id => id !== clanId);
+  const localOthers = (localClanIds(state) || []).filter(id => id !== clanId); // T3.1c: theo xã đang đứng
   let rivalId = localOthers[0] || null;
   if (localOthers.length > 1) {
     localOthers.sort((a, b) => {

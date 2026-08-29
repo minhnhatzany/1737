@@ -9,7 +9,7 @@ import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, act
 import { actionAssumeOfficeHere, actionLocalBribeSuperior, actionLocalCollectTax, actionLocalEmbezzle, actionLocalFund, actionLocalLevy, actionLocalPacify, actionLocalPatrol, actionLocalRecruitMaa, actionPostingBuild, resolveCase } from "./actions/office.js";
 import { actionAcceptMarketContract, actionMarketHaggle, actionTradeItem, ensureMarketSceneState, getMarketSceneBrief, getMerchantProgress, getTradeQuote, rollMonthlyMarketScene } from "./actions/market.js";
 import { actionBuonLauMuoi, actionCauCaSong, actionCayRuong, actionChanNuoiLon, actionChatGo, actionDanhBatVenBien, actionDetVai, actionKhaiThacDacSan, actionLuyenVo, actionMoBinh, actionNauRuou, actionNghiAnCom, collapseFromExhaustion } from "./actions/livelihood.js";
-import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, clanSurname, localClanIds, maybeAddClanRivalryCase, tickClanPressureForCommoner, tickLocalClansMonthly } from "./actions/clan.js";
+import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, adjustClanStatus, clanSurname, localClanIds, maybeAddClanRivalryCase, maybeAddSeatContestCase, pickXaSeatSuccessorClan, syncSeatContestants, tickClanPressureForCommoner, tickLocalClansMonthly, tickXaClanStatusMonthly, xaClanIds } from "./actions/clan.js";
 import {
   Person, Clan, Village,
   PlayerRank, Gender, ClanAttitude, Faction, NpcTrait, RegionId, MenAtArmType,
@@ -632,6 +632,12 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
       occ.clanId = top.id;
       top.memberIds.push(occ.id);
     }
+  }
+
+  // T3.1c: điền seat.contestingClanIds cho MỌI ghế xã = dòng họ trong xã đó (status desc).
+  // Ghế trống (Vạn Xuân) cũng điền -> pickXaSeatSuccessorClan dùng được ngay để test.
+  for (const seatId of Object.keys(state.seats)) {
+    if (state.seats[seatId].scope === "xa") syncSeatContestants(state, seatId);
   }
 
   // T2.1: dựng 3 ghế từ 3 slot state.officials (officials vẫn sống song song).
@@ -1462,6 +1468,8 @@ function generateMonthlyCases(state, po) {
       });
     }
   }
+  // T3.1c: xã player đứng có ghế lý trưởng TRỐNG + >=2 dòng họ -> có thể sinh vụ tranh ghế.
+  maybeAddSeatContestCase(state, po);
 }
 
 function postingHere(state) {
@@ -1872,6 +1880,14 @@ function tickActivity(state) {
         pushCelebration(state, "VINH QUY", `Bạn đỗ <strong>${title}</strong>${myPos ? ` · xếp hạng <strong>#${myPos}</strong>` : ""}!<br><br>Thưởng: +Uy Tín · +Danh Vọng · +1000Q · Bổ nhiệm Tri Huyện.`, "battle");
       }
       else { p.uyTinCong = Math.max(0, p.uyTinCong - 20); logLine(state, "Phạm húy nơi điện thí, bị đuổi!", true); }
+    }
+    // T3.1c: đỗ đạt -> dòng họ bảo trợ (nếu là họ cấp xã) nở mày nở mặt, vị thế tăng.
+    if (passed && p._patronClanId) {
+      const pc = state.clanById?.[p._patronClanId];
+      if (pc && pc.scope === "xa") {
+        adjustClanStatus(state, pc.id, a.kind === "thi_dinh" ? 12 : a.kind === "thi_hoi" ? 8 : 5);
+        logLine(state, `🏮 ${pc.name} vẻ vang lây: người mình bảo trợ đỗ đạt, vị thế trong xã tăng.`, false);
+      }
     }
     let rankTitle = null;
     if (a.kind === "thi_dinh" && passed && myPos > 0) {
@@ -2960,6 +2976,7 @@ export function gameTick(state) {
       generateMonthlyCases(state, po);
     }
     try { tickClanPressureForCommoner(state); } catch {}
+    try { tickXaClanStatusMonthly(state); } catch {}
     // Imperial transfers / posting orders
     tryGenerateTransferEdict(state);
 
@@ -3888,7 +3905,7 @@ export function checkWantedArrest(state) {
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
 
 
-export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission, localClanIds };
+export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission, localClanIds, xaClanIds, pickXaSeatSuccessorClan, adjustClanStatus, syncSeatContestants, tickXaClanStatusMonthly };
 
 export { addCase, daySerial, scheduleDelayedEffect };
 

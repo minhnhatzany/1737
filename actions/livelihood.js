@@ -1,5 +1,5 @@
 import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
-import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile } from "./clan.js";
+import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile, localClanIds } from "./clan.js";
 import { randInt } from "../engine.js";
 import { Faction, PlayerRank, RegionId, totalPops } from "../models.js";
 import { Weather, rollPersonalHarvestThoc } from "../weather.js";
@@ -26,7 +26,7 @@ export function actionCayRuong(state) {
     const preset = getClanPressurePreset(state);
     const patron = state.clans?.find(c => c.id === p._patronClanId);
     if (patron) thoc = Math.floor(thoc * preset.patronHarvestBoost);
-    const localHostile = (state.village?.clanIds || []).some(cid => {
+    const localHostile = (localClanIds(state) || []).some(cid => { // T3.1c: theo xã đang đứng
       if (cid === p._patronClanId) return false;
       const c = state.clans?.find(x => x.id === cid);
       return c && (isClanHostile(c) || clanAvgOpinionToPlayer(state, cid) < -20);
