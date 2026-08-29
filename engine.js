@@ -2,7 +2,8 @@ import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from ".
 import { expireInbox, inboxFull } from "./core/inbox.js";
 import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, syncRankFromSeats } from "./core/seats.js";
 import { rollXaClans, clanIdForXa } from "./core/clans.js";
-import { rollXaShops } from "./core/shops.js";
+import { rollXaShops, SHOP_LABEL } from "./core/shops.js";
+import { actionMoCuaHang } from "./actions/shops.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { actionMuaCongCu } from "./actions/capital.js";
@@ -675,8 +676,12 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
             capitalIds: [],                              // T3.2b
             workerIds: [],                              // T3.2d
             contestingClanIds: contestingClanIds.slice(),
-            lastPaidYm: null,                           // T3.2c
+            lastPaidYm: null,                           // T3.2c-1: kỳ trả tô gần nhất
             foundedDay: 1,
+            foundingById: null,                        // T3.2c-1: player đang dựng slot này
+            foundDaysLeft: 0,                          // T3.2c-1: ngày dựng còn lại
+            foundStartedDay: null,
+            vacantSinceDay: null,                      // T3.2c-2: mốc bỏ trống (AI lấp)
           };
           if (spec.wantsOwner && ownerClan) {
             const pf = spec.ownerProfile;
@@ -3007,6 +3012,7 @@ export function gameTick(state) {
     updateNPCs(state);
     processMonthlyPropertyAndArmy(state);
     processMonthlyCapitalWear(state);
+    processMonthlyShopIncome(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -3091,6 +3097,23 @@ export function gameTick(state) {
           }
         }
         p.buildQueue = p.buildQueue.filter(j => (j?.daysLeft | 0) > 0);
+      }
+    }
+  }
+
+  // T3.2c-1: dựng cửa hàng (daily) — countdown sống trên shop entity, không p.buildQueue.
+  {
+    for (const shop of Object.values(state.shops || {})) {
+      if (!shop || (shop.foundDaysLeft | 0) <= 0 || !shop.foundingById) continue;
+      shop.foundDaysLeft = (shop.foundDaysLeft | 0) - 1;
+      if ((shop.foundDaysLeft | 0) <= 0) {
+        shop.occupantId = shop.foundingById;
+        shop.foundingById = null;
+        shop.foundStartedDay = null;
+        shop.foundDaysLeft = 0;
+        shop.foundedDay = totalDaysAbs(state);
+        const mine = shop.occupantId === state.player?.id;
+        if (mine) logLine(state, `✅ ${SHOP_LABEL[shop.loai] || "cửa hàng"} đã dựng xong — nay là cơ nghiệp của ngươi.`, true);
       }
     }
   }
@@ -3586,6 +3609,32 @@ function processMonthlyCapitalWear(state) {
   }
 }
 
+// T3.2c-1: tô cửa hàng hàng tháng — chảy vào tien của occupant (player HOẶC AI, như
+// ruộng lộc). Đủ khi occupant CÓ MẶT ở xã cửa hàng HOẶC có người làm; thiếu cả hai -> nửa.
+// occupant AI luôn coi như có mặt. workerIds luôn [] ở T3.2c-1 -> nhánh "có người làm"
+// là STUB, T3.2d nối dây thật. Tách riêng khỏi processMonthlyPropertyAndArmy.
+function processMonthlyShopIncome(state) {
+  const ym = ymKey(state);
+  const player = state.player;
+  for (const shop of Object.values(state.shops || {})) {
+    if (!shop || !shop.occupantId) continue;
+    if (shop.lastPaidYm === ym) continue;
+    const isPlayer = shop.occupantId === player?.id;
+    const occ = isPlayer ? player : state.npcById?.[shop.occupantId];
+    if (!occ) continue;
+    const present = isPlayer ? (player.currentXa === shop.xaId) : true;
+    const hasWorkers = (shop.workerIds?.length || 0) > 0; // STUB T3.2c-1 (luôn false) — T3.2d
+    const gain = (present || hasWorkers)
+      ? (shop.incomeBase | 0)
+      : Math.floor((shop.incomeBase | 0) / 2);
+    occ.tien = (occ.tien || 0) + gain;
+    shop.lastPaidYm = ym;
+    if (isPlayer && gain > 0) {
+      logLine(state, `Tô ${SHOP_LABEL[shop.loai] || "cửa hàng"}: +${gain} Quan${present ? "" : " (vắng mặt, thu nửa)"}.`);
+    }
+  }
+}
+
 export function actionJoinBattle(state, battleId, side = "def") {
   const p = state.player;
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
@@ -3980,6 +4029,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
+export { processMonthlyShopIncome }; // T3.2c-1: export riêng để test cô lập (player.tien bị nhiều hàm tháng khác đụng)
 
 
 export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission, localClanIds, xaClanIds, pickXaSeatSuccessorClan, adjustClanStatus, syncSeatContestants, tickXaClanStatusMonthly };
@@ -4004,5 +4054,6 @@ export { initQuestsIfNeeded, refreshQuestsYearly, tickQuests };
 
 export { actionXayNha, actionRecruitMaa, actionDemolishNha };
 export { actionMuaCongCu };
+export { actionMoCuaHang };
 
 export { hasPerk };

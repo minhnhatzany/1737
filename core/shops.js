@@ -52,6 +52,33 @@ export const SHOP_INCOME_BASE = Object.freeze({
   [ShopType.QUAN_TRO]:    15,
 });
 
+/** Nhãn hiển thị / log theo loại. */
+export const SHOP_LABEL = Object.freeze({
+  [ShopType.BEN_DO]:      "bến đò",
+  [ShopType.BEN_BE]:      "bến bè",
+  [ShopType.LO_VOI]:      "lò vôi",
+  [ShopType.XUONG_CUA]:   "xưởng cưa",
+  [ShopType.PHUONG_THAN]: "phường than",
+  [ShopType.XUONG_DA]:    "xưởng đá",
+  [ShopType.XUONG_DET]:   "xưởng dệt",
+  [ShopType.QUAN_TRO]:    "quán trọ",
+});
+
+/**
+ * T3.2c: chi phí mở + số ngày dựng, theo loại. CHỈ quan_tro mở mới được ở T3.2c —
+ * 7 loại cơ ngơi nhóm A phải GIÀNH từ chủ hiện tại (track "tranh cửa hàng" sau này),
+ * nên không có entry ở đây. Số hạt giống, chỉnh 1 dòng nếu chơi thử thấy lệch.
+ */
+export const SHOP_OPEN_COST = Object.freeze({
+  [ShopType.QUAN_TRO]: 300,
+});
+export const SHOP_FOUND_DAYS = Object.freeze({
+  [ShopType.QUAN_TRO]: 7,
+});
+
+/** T3.2c: mỗi người chơi chỉ giữ 1 cơ nghiệp (chưa thuê được người làm — T3.2d nới). */
+export const SHOP_MAX_PER_PLAYER = 1;
+
 // Tên đệm + tên cho chủ cửa hàng AI (nam). Bốc từ stream riêng — KHÔNG dùng bảng tên
 // toàn cục trong engine.js (tránh tiêu draw fallback -> lệch world-gen). Họ lấy theo
 // dòng họ sở hữu, nơi gọi tự ghép.
