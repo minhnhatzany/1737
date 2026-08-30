@@ -7,7 +7,7 @@ import { actionMoCuaHang } from "./actions/shops.js";
 import { detachJob } from "./core/employment.js";
 import { actionThueNguoi, actionSaThai } from "./actions/employment.js";
 import { LOC_PLOTS_BY_TITLE } from "./core/farm.js";
-import { actionXinCongDien, actionMuaRuongTu } from "./actions/farm.js";
+import { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec } from "./actions/farm.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { actionMuaCongCu } from "./actions/capital.js";
@@ -4238,6 +4238,6 @@ export { actionXayNha, actionRecruitMaa, actionDemolishNha };
 export { actionMuaCongCu };
 export { actionMoCuaHang };
 export { actionThueNguoi, actionSaThai };
-export { actionXinCongDien, actionMuaRuongTu };
+export { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec };
 
 export { hasPerk };

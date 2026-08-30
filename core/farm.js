@@ -37,6 +37,14 @@ export const CONG_DIEN_RATIO = 0.6;
 /** Giá mua 1 thửa ruộng tư (Quan) — giữa trâu (120) và quán trọ (300). SỐ HẠT GIỐNG. */
 export const RUONG_TU_GIA = 200;
 
+/**
+ * Cấy rẽ: phần hoa lợi landlord lấy (người cấy giữ 1 - reShare). = 0.5 — đúng nghĩa
+ * đen "cấy rẽ" (rẽ = chia đôi) và đúng mức phát canh thu tô phổ biến ở Đàng Ngoài
+ * (chủ ruộng lấy một nửa). Cao hơn tô ruộng công (T3.3-4, "an toàn trần thấp"),
+ * thấp hơn ruộng tư giữ hết. Thửa trơ ở 2b — số này chỉ được đọc ở T3.3-4.
+ */
+export const RE_SHARE_TO_LANDLORD = 0.5;
+
 export function congDienSlots(xaSuatDinh) {
   return Math.max(0, Math.floor((xaSuatDinh || 0) * CONG_DIEN_RATIO));
 }

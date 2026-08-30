@@ -16,6 +16,7 @@ import {
   actionXayNha, actionDemolishNha, actionTradeItem,
   actionMuaCongCu, actionMoCuaHang, actionThueNguoi, actionSaThai,
   actionXinCongDien, actionMuaRuongTu, locPlotsForPlayer,
+  actionCayThue, actionCayRe, actionNghiViec,
   actionTangRuouNPC, actionRecruitMaa, actionJoinBattle, actionAttackVillage, setWanted, checkWantedArrest, MaaDb,
   PropertyDb, PropertyCategories, RegionsDb, ItemsDb, RegionId,
   initQuestsIfNeeded, tickQuests,
@@ -31,7 +32,7 @@ import { drainPendingToInbox } from "./core/inbox.js";
 import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
 import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
 import { JobKind, JOB_WAGE_BASE, SHOP_WORKER_CAP } from "./core/employment.js";
-import { FarmTenure, congDienSlots, RUONG_TU_GIA } from "./core/farm.js";
+import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD } from "./core/farm.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -1818,9 +1819,29 @@ function renderCoNghiep() {
   const v = state.village;
   const slots = v?.suatDinh ? congDienSlots(v.suatDinh) : 0;
   const hasCongHere = plots.some(f => f.tenure === FarmTenure.CONG && f.xaId === v?.xaId);
+  const hasReHere = plots.some(f => f.tenure === FarmTenure.RE && f.xaId === v?.xaId);
   const congFree = slots - (v?.congDienTaken || 0);
   const canCong = !!v?.xaId && !hasCongHere && congFree > 0;
   const canTu = p.tien >= RUONG_TU_GIA;
+
+  // Làm thuê nông nghiệp: cày thuê (job) / cấy rẽ. Landlord = lý trưởng xã.
+  const farmJob = (p._jobs || []).find(j => j.kind === JobKind.FARM);
+  const lyId = state.seatsByScope?.[`xa:${v?.xaId}`] ? state.seats[state.seatsByScope[`xa:${v.xaId}`]]?.occupantId : null;
+  const lyName = lyId ? (state.npcById?.[lyId]?.name || "lý trưởng") : null;
+  const canThue = !!lyId && lyId !== p.id && !farmJob && !hasReHere;
+  const canRe = !!lyId && lyId !== p.id && !farmJob && !hasReHere;
+  const laborHtml = farmJob
+    ? `<div class="prop-card prop-owned" style="padding:5px 8px;"><div class="prop-card-header">
+        <span class="prop-name">Cày thuê cho ${esc(state.npcById?.[farmJob.employerId]?.name || "lý trưởng")}</span>
+        <span class="prop-level">${farmJob.wagePerMonth}Q/tháng</span></div>
+        <button class="action-btn danger" style="font-size:0.68rem;padding:2px 6px;margin-top:3px;" onclick="window.doNghiViec()">Nghỉ việc</button></div>`
+    : `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="action-btn ${canThue ? "highlight-gold" : "soft-locked"}" style="font-size:0.74rem;padding:3px 7px;"
+          onclick="window.doCayThue()" ${canThue ? "" : "disabled"}>Cày thuê cho lý trưởng${lyName ? ` (${esc(lyName)})` : ""}</button>
+        <button class="action-btn ${canRe ? "highlight-gold" : "soft-locked"}" style="font-size:0.74rem;padding:3px 7px;"
+          onclick="window.doCayRe()" ${canRe ? "" : "disabled"}>Cấy rẽ ruộng lý trưởng (chia ${Math.round(RE_SHARE_TO_LANDLORD * 100)}%)</button>
+      </div>${!lyId ? `<p class="muted" style="font-size:0.72rem;margin-top:2px;">Xã này chưa có lý trưởng — không có ai để cày thuê / cấy rẽ.</p>` : ""}`;
+
   const farmHtml = `
     <div style="display:flex;flex-direction:column;gap:4px;">${plotRows || `<p class="muted" style="font-size:0.82rem;">Chưa có thửa ruộng nào.</p>`}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
@@ -1829,6 +1850,7 @@ function renderCoNghiep() {
       <button class="action-btn ${canTu ? "highlight-gold" : "soft-locked"}" style="font-size:0.74rem;padding:3px 7px;"
         onclick="window.doMuaRuongTu()" ${canTu ? "" : "disabled"}>Mua ruộng tư (${RUONG_TU_GIA}Q)</button>
     </div>
+    <div style="margin-top:6px;">${laborHtml}</div>
     <p class="muted" style="font-size:0.74rem;margin-top:4px;">Thửa ruộng chưa sinh sản lượng — vụ mùa & thu tô ở bước sau.</p>`;
 
   box.innerHTML = `
@@ -2871,6 +2893,9 @@ window.doThueNguoi  = () => {
 window.doSaThai     = id => doAction(actionSaThai, [id]);
 window.doXinCongDien = () => doAction(actionXinCongDien);
 window.doMuaRuongTu  = () => doAction(actionMuaRuongTu);
+window.doCayThue     = () => doAction(actionCayThue);
+window.doCayRe       = () => doAction(actionCayRe);
+window.doNghiViec    = () => doAction(actionNghiViec);
 window.doLuyenVo    = ()  => doAction(actionLuyenVo);
 window.doDiHoc      = ()  => doAction(actionDiHoc);
 window.doThiHuong   = ()  => window.openActivityPlanner("thi_huong");

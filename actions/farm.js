@@ -1,6 +1,15 @@
-import { FarmTenure, congDienSlots, RUONG_TU_GIA, makeFarmPlot } from "../core/farm.js";
+import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, makeFarmPlot } from "../core/farm.js";
+import { JobKind, JOB_WAGE_BASE, attachJob, detachJob } from "../core/employment.js";
+import { seatIdForXa } from "../core/seats.js";
 import { totalDaysAbs } from "../engine.js";
 import { logLine } from "../log.js";
+
+/** Lý trưởng xã đang đứng = "địa chủ" cho cày thuê/cấy rẽ. null nếu ghế trống (Vạn Xuân
+ *  cố ý không có lý trưởng — thiết kế Quảng Oai; đây KHÔNG phải lỗ hổng cần vá). */
+function xaLandlordId(state, xaId) {
+  const seat = state.seats?.[seatIdForXa(xaId)];
+  return seat?.occupantId || null;
+}
 
 /**
  * T3.3-2a — xin một phần ruộng công của làng (xã đang đứng). KHAN HIẾM: xã chỉ có
@@ -47,4 +56,73 @@ export function actionMuaRuongTu(state) {
     feedback: [{ text: `+1 thửa ruộng tư · ${v.name}`, tone: "good" }, { text: `-${RUONG_TU_GIA} Quan`, tone: "bad" }],
     sfx: "coin",
   };
+}
+
+/**
+ * T3.3-2b — làm thuê cày ruộng cho lý trưởng xã (cơ chế lao động chung T3.3-1,
+ * kind="farm"). Ăn công cố định JOB_WAGE_BASE.farm/tháng, an toàn, trần thấp.
+ * Xã không có lý trưởng (Vạn Xuân) -> từ chối: đúng câu chuyện ghế trống, KHÔNG lỗi.
+ */
+export function actionCayThue(state) {
+  const p = state.player;
+  const v = state.village;
+  if (!v || !v.xaId) return { ok: false, msg: "Nơi này không có ruộng để cày thuê." };
+  const landlordId = xaLandlordId(state, v.xaId);
+  if (!landlordId) return { ok: false, msg: `Xã ${v.name} chưa có ai đứng đầu để nhận người làm thuê.` };
+  if (landlordId === p.id) return { ok: false, msg: "Ngươi là lý trưởng xã này — không đi cày thuê cho chính mình." };
+  if (Array.isArray(p._jobs) && p._jobs.length > 0) {
+    return { ok: false, msg: "Ngươi đang có việc làm rồi. Nghỉ việc cũ trước đã." };
+  }
+  if (Array.isArray(p.farmPlots) && p.farmPlots.some(f => f.tenure === FarmTenure.RE && f.xaId === v.xaId)) {
+    return { ok: false, msg: "Ngươi đang cấy rẽ ở xã này, không nhận thêm việc cày thuê." };
+  }
+  const wage = JOB_WAGE_BASE[JobKind.FARM];
+  attachJob(p, { employerId: landlordId, kind: JobKind.FARM, ref: landlordId, wagePerMonth: wage, day: totalDaysAbs(state) });
+  const boss = state.npcById?.[landlordId];
+  logLine(state, `Xin vào cày thuê cho ${boss?.name || "lý trưởng"} xã ${v.name} (công ${wage} Quan/tháng).`, true);
+  return { ok: true, feedback: [{ text: `Cày thuê · ${v.name}`, tone: "good" }, { text: `${wage} Quan/tháng`, tone: "bad" }], sfx: "coin" };
+}
+
+/**
+ * T3.3-2b — cấy rẽ: mượn ruộng lý trưởng xã, thu hoạch chia landlord RE_SHARE_TO_LANDLORD.
+ * Tạo farmPlot tenure="re" + landlordId + reShare. Rủi ro hơn cày thuê (T3.3-3/4),
+ * trần cao hơn nếu được mùa. Vạn Xuân: cùng bị chặn như actionCayThue.
+ */
+export function actionCayRe(state) {
+  const p = state.player;
+  const v = state.village;
+  if (!v || !v.xaId) return { ok: false, msg: "Nơi này không có ruộng để cấy rẽ." };
+  const landlordId = xaLandlordId(state, v.xaId);
+  if (!landlordId) return { ok: false, msg: `Xã ${v.name} chưa có ai đứng đầu để cho cấy rẽ.` };
+  if (landlordId === p.id) return { ok: false, msg: "Ngươi là lý trưởng xã này — ruộng lộc đã có phần, không cấy rẽ." };
+  if (Array.isArray(p._jobs) && p._jobs.some(j => j.kind === JobKind.FARM)) {
+    return { ok: false, msg: "Ngươi đang cày thuê rồi. Cày thuê và cấy rẽ không làm cùng lúc." };
+  }
+  if (!Array.isArray(p.farmPlots)) p.farmPlots = [];
+  if (p.farmPlots.some(f => f.tenure === FarmTenure.RE && f.xaId === v.xaId)) {
+    return { ok: false, msg: "Ngươi đã cấy rẽ một thửa ở xã này rồi." };
+  }
+  state._plotSeq = (state._plotSeq || 1) + 1;
+  p.farmPlots.push(makeFarmPlot({
+    seq: state._plotSeq, xaId: v.xaId, tenure: FarmTenure.RE,
+    landlordId, reShare: RE_SHARE_TO_LANDLORD, day: totalDaysAbs(state),
+  }));
+  const boss = state.npcById?.[landlordId];
+  logLine(state, `Nhận cấy rẽ một thửa của ${boss?.name || "lý trưởng"} xã ${v.name} (chia ${Math.round(RE_SHARE_TO_LANDLORD * 100)}% hoa lợi).`, true);
+  return { ok: true, feedback: [{ text: `+1 thửa cấy rẽ · ${v.name}`, tone: "good" }, { text: `chia ${Math.round(RE_SHARE_TO_LANDLORD * 100)}%`, tone: "bad" }], sfx: "coin" };
+}
+
+/** T3.3-2b — người chơi tự nghỉ việc làm thuê đang giữ (nông hoặc cửa hàng). */
+export function actionNghiViec(state) {
+  const p = state.player;
+  if (!Array.isArray(p._jobs) || p._jobs.length === 0) return { ok: false, msg: "Ngươi không có việc làm thuê nào." };
+  for (const job of p._jobs.slice()) {
+    detachJob(p, job.ref);
+    if (job.kind === "shop") {
+      const shop = state.shops?.[job.ref];
+      if (shop && Array.isArray(shop.workerIds)) shop.workerIds = shop.workerIds.filter(id => id !== p.id);
+    }
+  }
+  logLine(state, "Xin nghỉ việc làm thuê.", true);
+  return { ok: true, feedback: [{ text: "Đã nghỉ việc", tone: "bad" }], sfx: "murmur" };
 }
