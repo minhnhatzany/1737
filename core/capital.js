@@ -35,11 +35,11 @@ export const CAPITAL_PRICE = Object.freeze({
 
 // Nhãn hiển thị / log.
 export const CAPITAL_LABEL = Object.freeze({
-  [CapitalKind.TRAU]:       "con trâu cày",
-  [CapitalKind.THUYEN_NAN]: "chiếc thuyền nan",
+  [CapitalKind.TRAU]:       "trâu",
+  [CapitalKind.THUYEN_NAN]: "thuyền nan",
   [CapitalKind.KHUNG_CUI]:  "khung cửi",
-  [CapitalKind.NOI_RUOU]:   "nồi nấu rượu",
-  [CapitalKind.CAY_BUA]:    "bộ cày bừa",
+  [CapitalKind.NOI_RUOU]:   "nồi cất rượu",
+  [CapitalKind.CAY_BUA]:    "cày bừa",
 });
 
 // Hao mòn mỗi tháng (điểm cond). cond 100 -> 0 trong ~50 tháng nếu không sửa.
