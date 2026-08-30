@@ -259,6 +259,93 @@ hoá cờ chết"), giờ quan trọng hơn hẳn, đừng để rơi khỏi ph�
 
 ---
 
+## Bổ sung 30/8 — kiến trúc kỹ năng, chốt sau khi bàn kỹ (dừng hẳn code để bàn)
+
+Ha chỉ ra: 5 chỉ số hiện tại (`ngoaiGiao/voThuat/quanLy/muuMeo/hocVan`) là
+khối chỉ số kiểu CK3 (rộng, tăng qua nút bấm riêng biệt), trong khi hướng
+muốn là kiểu KDC — tra thật thì đúng: KDC có nhiều kỹ năng **hẹp**, mỗi cái
+chỉ tăng qua đúng một loại hành động, và ở mốc nhất định thì mở khoá **một
+năng lực mới cụ thể** (không phải chỉ +số) — vd Lén Lút đủ mức mở "Giết Lén",
+Ăn Nói đủ mức mở "Lời Đề Nghị Cuối", và một perk khớp gần nguyên văn ví dụ
+Ha đưa: nhánh Ăn Nói ở mức cao giảm hẳn khả năng bị phát hiện khi bán đồ ăn
+trộm. Quy mô thật của KDC: ~180 perk trên ~15 nhánh, một studio làm nhiều
+năm — không nên nhắm 1:1, chỉ lấy nguyên tắc cấu trúc.
+
+**Đếm thử (bản gốc trước GĐ0, số current cần đếm lại khi thật sự làm):**
+`muuMeo` 31 lần + `ngoaiGiao` 33 lần chỉ riêng trong `events.js` — cao ngang
+hoặc hơn `hocVan`/`voThuat`. Hai chỉ số này KHÔNG phải ít dùng như cảm giác
+ban đầu — chúng là cổng kiểm tra dày đặc cho sự kiện. Sửa/định nghĩa lại
+chúng sẽ là việc lớn, không tương xứng lợi ích.
+
+**Quyết định:** KHÔNG sửa 5 chỉ số hiện có, dù chỉ số nào. Giữ nguyên làm
+tầng dưới, tiếp tục phục vụ mọi công thức đang đọc chúng (sự kiện, thi cử,
+ghế). Thêm một **tầng kỹ năng hẹp mới, thuần cộng dồn** — không xoá, không
+định nghĩa lại gì ở tầng dưới. Công thức cũ đọc `muuMeo` thì vẫn đọc `muuMeo`
+y nguyên; kỹ năng hẹp mới muốn ảnh hưởng cùng hành động thì CỘNG THÊM một số
+hạng vào công thức, không THAY.
+
+**Neo thật đã có sẵn, không phải bịa trên giấy trắng:**
+- Mặc cả → `actionMarketHaggle` (đã có)
+- Lén lút → `actionBuonLauMuoi` — **đã có sẵn `catchRate` giảm theo `muuMeo`**,
+  đúng tinh thần "trộm nhiều thì ít bị phát hiện". Kỹ năng hẹp mới chỉ cộng
+  thêm một số hạng vào công thức catchRate có sẵn, không viết lại.
+- Võ nghệ → `actionLuyenVo` (đã đúng khuôn tích luỹ từ trước, là chỉ số duy
+  nhất trong 5 cái đang tăng qua hành động thật)
+- Cai quản → giữ ghế (T2.1) **hoặc** giữ cửa hàng (T3.2, xong 30/8) — cả hai
+  chỗ neo đều mới xuất hiện trong 2 ngày qua
+- Học vấn → `actionDiHoc` viết lại (đã có trong kế hoạch T3.5 từ đầu)
+- Nông tang → chờ T3.3 dựng xong mới có chỗ neo
+
+**Quy mô đề xuất:** 5-6 domain, mỗi domain 2-3 mốc mở khoá — không phải 180
+perk. Vì là tầng cộng dồn thuần tuý (không đụng tầng dưới), rủi ro sửa thấp
+hơn hẳn so với hình dung ban đầu ("sửa 5 chỉ số cũ").
+
+T3.5 vẫn xếp cuối track T3 — giờ có lý do rõ hơn: chỗ neo "cai quản" (ghế +
+cửa hàng) chỉ vừa đủ hai cái hôm nay, và "nông tang" còn chờ T3.3.
+
+---
+
+## Bổ sung 30/8 (2) — chức tước phải phản chiếu ghế thật, không phải cache tự xưng
+
+Ha đưa ví dụ: dân đen có tiền, xây được nhà kiểu "nhà đại quan" (`actionXayNha`
+chỉ kiểm `minRank`/tiền) — mà `p.rank` lại lên được tới "Tri Huyện" hoàn toàn
+qua `court.js` (`actionThangTienVo`/`actionXinChucBoNhiem`/
+`actionLuanChuyenKhaoKhoa` ghi thẳng vào `rank`), **không cần chạm ghế thật
+(`state.seats`) lần nào**. Vậy "quan" đó thu tô của ai, dựa thẩm quyền gì?
+
+**Chẩn đoán:** ba quyết định đúng-lý-lúc-đó, giờ cộng lại thành một lỗ:
+- T2.1c: đồng bộ **một chiều** (seat→rank), 24 chỗ ghi rank cũ không đụng — cố
+  tình, để tránh sửa 24 chỗ cùng lúc với việc dựng schema ghế.
+- T2.1: không siết khan hiếm ở `actionAssumeOfficeHere` — cố tình, vì lúc đó
+  chưa có AI thật ngồi ghế để mà chặn.
+- `PropertyDb`: có từ trước khi ghế tồn tại, viết `minRank` vì lúc đó chưa có
+  ghế để kiểm — chưa ai quay lại nối.
+
+→ `p.rank` hiện là **cache tự xưng**, có thể đổi độc lập với ghế thật. Không
+phải lỗi một chỗ, là thiếu một luật chung: *cái gì ngụ ý quyền lực hành chính
+thật phải phản chiếu một quan hệ kiểm tra được (ghế), không được là số đứng
+riêng.* Kỹ năng cá nhân (mặc cả, lén lút, võ nghệ — mục trên) thì ngược lại,
+được phép là số trừu tượng vì không tuyên bố quan hệ với ai.
+
+**Quyết định thứ tự (Ha giao chủ động, chốt theo hướng "giả lập 1737 y thật"):**
+- **KHÔNG chen vào giữa track T3.2 đang chạy.** T3.2c-2 xong trước.
+- **Sau khi T3.2 đóng hẳn** — sửa nhỏ, cô lập: `actionXayNha`, nhà nào ngụ ý
+  cấp quan thì đổi gate từ `minRank` sang kiểm `state.seats[...].occupantId
+  === player.id` (ghế thật). Không đụng `court.js`.
+- **Việc lớn (viết lại 3 hàm `court.js` đi qua tiến cử/bổ nhiệm thật, không
+  tự ghi rank) để đúng chỗ đã có tên sẵn: "AI dùng ghế thật", SAU khi cả track
+  T3 (3.2→3.5) đóng.** Lý do để sau: sửa bây giờ là sửa trên nền chưa đủ dữ
+  liệu (T3.3/T3.4/T3.5 chưa tồn tại) — dễ phải sửa lại lần hai khi các track
+  đó lộ thêm cách rank bị dùng.
+
+**Luật đứng, áp dụng ngay từ T3.3 dù việc lớn chưa sửa:** mọi gate mới ngụ ý
+"đang thật sự nắm quyền hành chính" phải kiểm ghế thật (`occupantId`), không
+được kiểm `rank` cache. Ruộng lộc (T3.3) vốn đã thiết kế đúng hướng này từ
+đầu — chỉ cần đảm bảo lúc code thật sự kiểm ghế, không lỡ kiểm rank cho tiện.
+Giữ luật này thì lỗ không phình to thêm trong lúc chờ sửa gốc.
+
+---
+
 ## Nguyên tắc, không phải việc — nhớ khi thiết kế mọi thứ sau này
 
 **Mọi hành động mới, tự hỏi: ai sẽ biết chuyện này xảy ra?** Không ai biết thì
@@ -315,9 +402,15 @@ sớm, giờ sẽ chuyển bài khác thay vì kẹt lặp mãi một bài lỗi
 
 ## Việc kế tiếp khi quay lại code
 
-**T3.1 đã xong, T3.0 đã xong.** Trước khi mở T3.2, đọc lại mục "Bổ sung 29/8"
-ở trên — T3.2 giờ nên nghĩ ở khung "vốn + cửa hàng" (KDC-style: chủ quán rượu,
-chủ lò rèn, chủ bến đò), không chỉ "công cụ cá nhân" hẹp như thiết kế ban đầu.
+**Track T3.2 gần xong:** T3.2a (seed shop), T3.2b (vốn cá nhân), T3.2c-1 (mở
+quán trọ + countdown), T3.2c-3 (UI Cơ Nghiệp, kiểm bằng mắt trên trình duyệt
+0 lỗi) — cả 4 xong. Chỉ còn **T3.2c-2** (vacancy: `shop.vacantSinceDay` + tick
+tháng "họ mạnh nhất xã lấp" sau 45 ngày bỏ trống, ghép `pickXaSeatSuccessorClan`
++ template spawn T3.2a). Làm nốt cái này là đóng hẳn T3.2.
+
+**Ngay sau khi T3.2 đóng, trước khi mở T3.3:** làm việc nhỏ ở "Bổ sung 30/8
+(2)" — sửa gate `actionXayNha` sang kiểm ghế thật thay vì `minRank`. Việc lớn
+(viết lại court.js) để dành cho "AI dùng ghế thật" sau cả track T3.
 
 **Đừng làm cùng lúc:** hai lớp đồng hồ (chờ GĐ3), player-events qua inbox (chờ
 GĐ2b), dòng họ/tổ chức (chờ GĐ2b), AI có lịch trình (chờ AI dùng ghế thật),
