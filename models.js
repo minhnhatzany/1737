@@ -326,13 +326,14 @@ export class Person {
 
     this.giaDinh = { vo: "", con: 0 };
     this.holdings = [];
-    this.capital = [];   // T3.2b: vốn/công cụ cá nhân — trâu, khung cửi, nồi rượu... (core/capital.js)
+    this.capital = [];    // T3.2b: vốn/công cụ cá nhân — trâu, khung cửi, nồi rượu... (core/capital.js)
+    this.farmPlots = [];  // T3.3-2: thửa ruộng nắm giữ (cong/tu/re) — core/farm.js. Lộc: dẫn xuất từ ghế.
     this.armies = [];
     this.maa = [];
     this.inventory = {
       ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0,
     };
-    this.properties = { ruongDat: 1, tuuLau: 0 };
+    // T3.3-2: bỏ this.properties = {ruongDat, tuuLau} — 0 use-site, thay bằng farmPlots + shops thật.
 
     // Sinh mệnh & Thể lực (tách riêng)
     this.hpMax = 100;
@@ -390,7 +391,9 @@ export class Village {
     unrest = 10,
     pops = { nong: 100, tho: 10, thuong: 5 },
     clanIds = [],
-    drafted = 0,          // T3.3-0: suất đinh đã trưng (per-xã, có cơ chế thu hồi tháng)
+    drafted = 0,          // T3.3-0: suất đinh đã trưng cho QUÂN (per-xã, thu hồi tháng)
+    suatDinh = 0,         // T3.3-2: tổng suất đinh xã (hand-data geo) — dùng tính suất công điền
+    congDienTaken = 0,    // T3.3-2: số thửa ruộng công đã chia (POOL RIÊNG với drafted quân)
   }) {
     this.name = name;
     this.xaId = xaId;
@@ -400,6 +403,8 @@ export class Village {
     this.pops = pops;
     this.clanIds = clanIds.slice();
     this.drafted = drafted;
+    this.suatDinh = suatDinh;
+    this.congDienTaken = congDienTaken;
   }
 }
 

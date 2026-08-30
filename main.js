@@ -15,6 +15,7 @@ import {
   actionPostingBuild,
   actionXayNha, actionDemolishNha, actionTradeItem,
   actionMuaCongCu, actionMoCuaHang, actionThueNguoi, actionSaThai,
+  actionXinCongDien, actionMuaRuongTu, locPlotsForPlayer,
   actionTangRuouNPC, actionRecruitMaa, actionJoinBattle, actionAttackVillage, setWanted, checkWantedArrest, MaaDb,
   PropertyDb, PropertyCategories, RegionsDb, ItemsDb, RegionId,
   initQuestsIfNeeded, tickQuests,
@@ -30,6 +31,7 @@ import { drainPendingToInbox } from "./core/inbox.js";
 import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
 import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
 import { JobKind, JOB_WAGE_BASE, SHOP_WORKER_CAP } from "./core/employment.js";
+import { FarmTenure, congDienSlots, RUONG_TU_GIA } from "./core/farm.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -1800,12 +1802,43 @@ function renderCoNghiep() {
     }
   }
 
+  // ── Ruộng đất (T3.3-2) ──────────────────────────────────────
+  const TEN_LABEL = { [FarmTenure.CONG]: "ruộng công", [FarmTenure.TU]: "ruộng tư", [FarmTenure.RE]: "cấy rẽ" };
+  const plots = p.farmPlots || [];
+  const locPlots = (typeof locPlotsForPlayer === "function") ? locPlotsForPlayer(state) : [];
+  const plotRows = [
+    ...plots.map(f => `<div class="prop-card" style="padding:5px 8px;"><div class="prop-card-header">
+      <span class="prop-name">${esc(TEN_LABEL[f.tenure] || f.tenure)} · ${esc(qoXaName(f.xaId))}</span>
+      <span class="prop-level">${f.landlordId ? "chia tô" : "của ngươi"}</span></div></div>`),
+    ...locPlots.map(f => `<div class="prop-card" style="padding:5px 8px;opacity:.85;"><div class="prop-card-header">
+      <span class="prop-name">ruộng lộc · ${esc(qoXaName(f.xaId))}</span>
+      <span class="prop-level">theo ghế</span></div></div>`),
+  ].join("");
+
+  const v = state.village;
+  const slots = v?.suatDinh ? congDienSlots(v.suatDinh) : 0;
+  const hasCongHere = plots.some(f => f.tenure === FarmTenure.CONG && f.xaId === v?.xaId);
+  const congFree = slots - (v?.congDienTaken || 0);
+  const canCong = !!v?.xaId && !hasCongHere && congFree > 0;
+  const canTu = p.tien >= RUONG_TU_GIA;
+  const farmHtml = `
+    <div style="display:flex;flex-direction:column;gap:4px;">${plotRows || `<p class="muted" style="font-size:0.82rem;">Chưa có thửa ruộng nào.</p>`}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+      <button class="action-btn ${canCong ? "highlight-gold" : "soft-locked"}" style="font-size:0.74rem;padding:3px 7px;"
+        onclick="window.doXinCongDien()" ${canCong ? "" : "disabled"}>Xin ruộng công (${v?.name || "?"}: còn ${Math.max(0, congFree)}/${slots})</button>
+      <button class="action-btn ${canTu ? "highlight-gold" : "soft-locked"}" style="font-size:0.74rem;padding:3px 7px;"
+        onclick="window.doMuaRuongTu()" ${canTu ? "" : "disabled"}>Mua ruộng tư (${RUONG_TU_GIA}Q)</button>
+    </div>
+    <p class="muted" style="font-size:0.74rem;margin-top:4px;">Thửa ruộng chưa sinh sản lượng — vụ mùa & thu tô ở bước sau.</p>`;
+
   box.innerHTML = `
     <div style="font-weight:600;margin-bottom:4px;">Vốn cá nhân</div>
     <div style="display:flex;flex-direction:column;gap:4px;">${capRows}</div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${buyBtns}</div>
     <div style="font-weight:600;margin:10px 0 4px;">Cửa hàng</div>
-    ${shopHtml}`;
+    ${shopHtml}
+    <div style="font-weight:600;margin:10px 0 4px;">Ruộng đất</div>
+    ${farmHtml}`;
 }
 
 function renderOfficialsAndClans() {
@@ -2836,6 +2869,8 @@ window.doThueNguoi  = () => {
   if (id) doAction(actionThueNguoi, [id]);
 };
 window.doSaThai     = id => doAction(actionSaThai, [id]);
+window.doXinCongDien = () => doAction(actionXinCongDien);
+window.doMuaRuongTu  = () => doAction(actionMuaRuongTu);
 window.doLuyenVo    = ()  => doAction(actionLuyenVo);
 window.doDiHoc      = ()  => doAction(actionDiHoc);
 window.doThiHuong   = ()  => window.openActivityPlanner("thi_huong");

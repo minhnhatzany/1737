@@ -6,6 +6,8 @@ import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS } from ".
 import { actionMoCuaHang } from "./actions/shops.js";
 import { detachJob } from "./core/employment.js";
 import { actionThueNguoi, actionSaThai } from "./actions/employment.js";
+import { LOC_PLOTS_BY_TITLE } from "./core/farm.js";
+import { actionXinCongDien, actionMuaRuongTu } from "./actions/farm.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { actionMuaCongCu } from "./actions/capital.js";
@@ -503,6 +505,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     _prisonerSeq: 1,
     _capitalSeq: 1,     // T3.2b: bộ đếm id p.capital[] (khuôn _prisonerSeq, không Date.now())
     _buildSeq: 1,       // T3.2c-pre: bộ đếm id p.buildQueue[] (thay Date.now() cũ ở actionXayNha)
+    _plotSeq: 1,        // T3.3-2: bộ đếm id p.farmPlots[]
     activity: null,
     _activityUiPulse: 0,
     lastActivityReport: null,
@@ -660,6 +663,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
           unrest: 12,
           pops: { nong: Math.max(10, pop), tho: 20, thuong: 5 },
           clanIds: xaClanIds(state, xaQO.id) || [],
+          suatDinh: xaQO.suatDinh || Math.floor(pop / 5), // T3.3-2: dùng tính suất công điền
         });
       }
     }
@@ -1243,13 +1247,32 @@ function playerHoldsSeatAtLeast(state, minTitle) {
  * Ngoài QO (huyện procedural): dùng chung state._fallbackVillage, tạo một lần.
  * state.village LUÔN là con trỏ tới object trả về đây — KHÔNG bao giờ copy field.
  */
+/**
+ * T3.3-2: ruộng LỘC của người chơi — DẪN XUẤT từ ghế đang giữ, KHÔNG lưu field.
+ * Mất ghế (occupantId đổi) -> mất lộc ngay, không cần teardown. Tô lộc chảy thẳng
+ * Person.tien occupant (T3.3-4). Số thửa theo LOC_PLOTS_BY_TITLE (2/3/6).
+ */
+export function locPlotsForPlayer(state) {
+  const pid = state.player?.id;
+  if (!pid || !state.seats) return [];
+  const out = [];
+  for (const seat of Object.values(state.seats)) {
+    if (!seat || seat.occupantId !== pid) continue;
+    const n = LOC_PLOTS_BY_TITLE[seat.title] || 0;
+    for (let i = 0; i < n; i++) {
+      out.push({ id: `loc_${seat.id}_${i}`, xaId: seat.scopeId, tenure: "loc", seatId: seat.id, landlordId: null });
+    }
+  }
+  return out;
+}
+
 export function villageForXa(state, xaId) {
   if (xaId && state.villagesByXa && state.villagesByXa[xaId]) return state.villagesByXa[xaId];
   if (!state._fallbackVillage) {
     const globalClanIds = (state.clans || []).filter(c => c.scope == null).map(c => c.id);
     state._fallbackVillage = new Village({
       name: "Làng", xaId: null, quyLang: 120, khoThoc: 600, unrest: 12,
-      pops: { nong: 400, tho: 20, thuong: 5 }, clanIds: globalClanIds,
+      pops: { nong: 400, tho: 20, thuong: 5 }, clanIds: globalClanIds, suatDinh: 80,
     });
   }
   return state._fallbackVillage;
@@ -4215,5 +4238,6 @@ export { actionXayNha, actionRecruitMaa, actionDemolishNha };
 export { actionMuaCongCu };
 export { actionMoCuaHang };
 export { actionThueNguoi, actionSaThai };
+export { actionXinCongDien, actionMuaRuongTu };
 
 export { hasPerk };
