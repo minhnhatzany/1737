@@ -1809,8 +1809,9 @@ function renderCoNghiep() {
   const locPlots = (typeof locPlotsForPlayer === "function") ? locPlotsForPlayer(state) : [];
   const plotRows = [
     ...plots.map(f => {
+      const hits = (f.weatherHits || []).length;
       const vuTxt = f.phase
-        ? `${esc(PHASE_LABEL[f.phase] || f.phase)} · còn ${f.phaseDaysLeft | 0} ngày`
+        ? `${esc(PHASE_LABEL[f.phase] || f.phase)} · còn ${f.phaseDaysLeft | 0} ngày${f.phase === "cho" && hits ? ` · ⚠ ${hits} lần thiên tai/phá` : ""}`
         : (f.lastYield != null ? `nhàn · vụ trước ${f.lastYield} thóc` : "nhàn");
       const khoiBtn = !f.phase
         ? `<button class="action-btn ${p.theLuc >= 20 ? "highlight-gold" : "soft-locked"}" style="font-size:0.68rem;padding:2px 6px;margin-top:3px;"

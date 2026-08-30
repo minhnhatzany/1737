@@ -17,7 +17,7 @@ import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, act
 import { actionAssumeOfficeHere, actionLocalBribeSuperior, actionLocalCollectTax, actionLocalEmbezzle, actionLocalFund, actionLocalLevy, actionLocalPacify, actionLocalPatrol, actionLocalRecruitMaa, actionPostingBuild, resolveCase } from "./actions/office.js";
 import { actionAcceptMarketContract, actionMarketHaggle, actionTradeItem, ensureMarketSceneState, getMarketSceneBrief, getMerchantProgress, getTradeQuote, rollMonthlyMarketScene } from "./actions/market.js";
 import { actionBuonLauMuoi, actionCauCaSong, actionCayRuong, actionChanNuoiLon, actionChatGo, actionDanhBatVenBien, actionDetVai, actionKhaiThacDacSan, actionLuyenVo, actionMoBinh, actionNauRuou, actionNghiAnCom, collapseFromExhaustion } from "./actions/livelihood.js";
-import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, adjustClanStatus, clanSurname, getClanPressurePreset, localClanIds, maybeAddClanRivalryCase, maybeAddSeatContestCase, pickXaSeatSuccessorClan, syncSeatContestants, tickClanPressureForCommoner, tickLocalClansMonthly, tickXaClanStatusMonthly, xaClanIds } from "./actions/clan.js";
+import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, adjustClanStatus, clanAvgOpinionToPlayer, clanSurname, getClanPressurePreset, isClanHostile, localClanIds, maybeAddClanRivalryCase, maybeAddSeatContestCase, pickXaSeatSuccessorClan, syncSeatContestants, tickClanPressureForCommoner, tickLocalClansMonthly, tickXaClanStatusMonthly, xaClanIds } from "./actions/clan.js";
 import {
   Person, Clan, Village,
   PlayerRank, Gender, ClanAttitude, Faction, NpcTrait, RegionId, MenAtArmType,
@@ -1271,7 +1271,7 @@ export function locPlotsForPlayer(state) {
  * + hasTrau + patron (rank dân/phú hộ) + _quanLyBonus + biến thiên ±15% (rng(state),
  * KHÔNG dùng rollPersonalHarvestThoc's fallback stream). weatherHits/phá hoại: T3.3-3b.
  */
-function rollVuYield(state, plot) {
+export function rollVuYield(state, plot) {
   const p = state.player;
   let y = BASE_VU_YIELD * vuWeatherFactor(state.thoiTiet);
   if (plot.hasTrau) y *= 1.15;
@@ -1280,8 +1280,41 @@ function rollVuYield(state, plot) {
     y *= (getClanPressurePreset(state).patronHarvestBoost || 1.0);
   }
   y *= (state._quanLyBonus || 1.0);
+  // T3.3-3b: mỗi cú thời tiết xấu / phá hoại tích trong phase "chờ" -> −12%, sàn 0.1.
+  const hits = plot.weatherHits?.length || 0;
+  if (hits > 0) y *= Math.max(0.1, 1 - 0.12 * hits);
   y *= (0.85 + rng(state) * 0.30);
   return Math.max(1, Math.floor(y));
+}
+
+/**
+ * T3.3-3b: rủi ro phase "chờ" — mỗi THÁNG, thửa đang "cho" tích weatherHits nếu:
+ *  (a) state.thoiTiet ∈ {BÃO, LŨ, HẠN};  (b) dòng họ đối nghịch phá (rng(state) <
+ *  sabotageChance, CHỈ rank dân/phú hộ — khớp actionCayRuong). Log cảnh báo mỗi hit.
+ */
+function processMonthlyFarmRisk(state) {
+  const p = state.player;
+  if (!Array.isArray(p?.farmPlots)) return;
+  const bad = (state.thoiTiet === Weather.BAO || state.thoiTiet === Weather.LU || state.thoiTiet === Weather.HAN);
+  const rankOk = (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO);
+  const preset = getClanPressurePreset(state);
+  const localHostile = rankOk && (localClanIds(state) || []).some(cid => {
+    if (cid === p._patronClanId) return false;
+    const c = state.clans?.find(x => x.id === cid);
+    return c && (isClanHostile(c) || clanAvgOpinionToPlayer(state, cid) < -20);
+  });
+  for (const plot of p.farmPlots) {
+    if (plot.phase !== "cho") continue;
+    if (!Array.isArray(plot.weatherHits)) plot.weatherHits = [];
+    if (bad) {
+      plot.weatherHits.push(state.thoiTiet);
+      logLine(state, `⛈ ${state.thoiTiet} hại thửa lúa đang chờ — vụ này khó được mùa.`, true);
+    }
+    if (localHostile && rng(state) < (preset.sabotageChance || 0)) {
+      plot.weatherHits.push("pha_hoai");
+      logLine(state, `⚠ Dòng họ đối nghịch phá thửa lúa đang chờ của ngươi.`, true);
+    }
+  }
 }
 
 export function villageForXa(state, xaId) {
@@ -3108,6 +3141,7 @@ export function gameTick(state) {
     processMonthlyShopVacancy(state);
     processMonthlyWages(state);
     processMonthlyDraftReclaim(state);
+    processMonthlyFarmRisk(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -4258,7 +4292,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyFarmRisk }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
 // markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 
