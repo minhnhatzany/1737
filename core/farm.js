@@ -8,10 +8,11 @@
  * tenure "loc" (ruộng lộc theo ghế) KHÔNG lưu ở đây — đọc dẫn xuất từ state.seats
  *   qua engine.locPlotsForPlayer (mất ghế -> mất lộc, không cần teardown).
  *
- * T3.3-2a: chỉ dựng SHAPE + xin công điền + mua ruộng tư. Thửa TRƠ — chưa có cơ chế
- * sản lượng (vụ mùa nhiều giai đoạn: T3.3-3; thu tô: T3.3-4). actionCayThue/CayRe
- * (tenure "re" + job kind="farm"): T3.3-2b.
+ * T3.3-2a: chỉ dựng SHAPE + xin công điền + mua ruộng tư. T3.3-3: state machine vụ mùa.
+ * actionCayThue/CayRe (tenure "re" + job kind="farm"): T3.3-2b.
  */
+
+import { Weather } from "../weather.js";
 
 export const FarmTenure = Object.freeze({
   CONG: "cong",
@@ -50,5 +51,35 @@ export function congDienSlots(xaSuatDinh) {
 }
 
 export function makeFarmPlot({ seq, xaId, tenure, landlordId = null, reShare = null, day }) {
-  return { id: "plot_" + seq, xaId, tenure, landlordId, reShare, acquiredDay: day };
+  return {
+    id: "plot_" + seq, xaId, tenure, landlordId, reShare, acquiredDay: day,
+    // T3.3-3: state machine vụ mùa. phase=null -> thửa NHÀN.
+    phase: null, phaseDaysLeft: 0, hasTrau: false, weatherHits: [], vuStartedDay: null, lastYield: null,
+  };
+}
+
+// ── T3.3-3: vụ mùa nhiều giai đoạn ──────────────────────────────────────────
+
+/** Chuỗi giai đoạn một vụ lúa, nối tiếp nhau. */
+export const VU_PHASES = Object.freeze(["lam_dat", "gieo_ma", "cay", "cho", "gat"]);
+
+/** Số ngày (game-day) mỗi giai đoạn. Theo brief "3-4 tháng" seed→gặt (10+6+5+75+3≈99).
+ *  lam_dat: bằng TAY; có trâu -> LAM_DAT_DAYS_TRAU. SỐ HẠT GIỐNG (tinh chỉnh sau chơi thử). */
+export const PHASE_DAYS = Object.freeze({ lam_dat: 10, gieo_ma: 6, cay: 5, cho: 75, gat: 3 });
+export const LAM_DAT_DAYS_TRAU = 4;
+
+export const PHASE_LABEL = Object.freeze({
+  lam_dat: "làm đất", gieo_ma: "gieo mạ", cay: "cấy", cho: "chờ lúa", gat: "gặt",
+});
+
+/** Thóc GỘP một vụ trước khi tách tô (T3.3-4). Hằng số thật, tinh chỉnh sau. */
+export const BASE_VU_YIELD = 60;
+
+/** Hệ số thời tiết cho yield vụ — khớp rollPersonalHarvestThoc NHƯNG là lookup thuần
+ *  (rollPersonalHarvestThoc dùng rng() fallback stream, không replay-safe). */
+export const VU_WEATHER_FACTOR = Object.freeze({
+  [Weather.MUA]: 1.3, [Weather.NANG]: 0.9, [Weather.BAO]: 0.5, [Weather.LU]: 0.4, [Weather.HAN]: 0.2,
+});
+export function vuWeatherFactor(weather) {
+  return VU_WEATHER_FACTOR[weather] ?? 1.0;
 }

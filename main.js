@@ -16,7 +16,7 @@ import {
   actionXayNha, actionDemolishNha, actionTradeItem,
   actionMuaCongCu, actionMoCuaHang, actionThueNguoi, actionSaThai,
   actionXinCongDien, actionMuaRuongTu, locPlotsForPlayer,
-  actionCayThue, actionCayRe, actionNghiViec,
+  actionCayThue, actionCayRe, actionNghiViec, actionKhoiVu,
   actionTangRuouNPC, actionRecruitMaa, actionJoinBattle, actionAttackVillage, setWanted, checkWantedArrest, MaaDb,
   PropertyDb, PropertyCategories, RegionsDb, ItemsDb, RegionId,
   initQuestsIfNeeded, tickQuests,
@@ -32,7 +32,7 @@ import { drainPendingToInbox } from "./core/inbox.js";
 import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
 import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
 import { JobKind, JOB_WAGE_BASE, SHOP_WORKER_CAP } from "./core/employment.js";
-import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD } from "./core/farm.js";
+import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, PHASE_LABEL } from "./core/farm.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -1808,9 +1808,18 @@ function renderCoNghiep() {
   const plots = p.farmPlots || [];
   const locPlots = (typeof locPlotsForPlayer === "function") ? locPlotsForPlayer(state) : [];
   const plotRows = [
-    ...plots.map(f => `<div class="prop-card" style="padding:5px 8px;"><div class="prop-card-header">
-      <span class="prop-name">${esc(TEN_LABEL[f.tenure] || f.tenure)} · ${esc(qoXaName(f.xaId))}</span>
-      <span class="prop-level">${f.landlordId ? "chia tô" : "của ngươi"}</span></div></div>`),
+    ...plots.map(f => {
+      const vuTxt = f.phase
+        ? `${esc(PHASE_LABEL[f.phase] || f.phase)} · còn ${f.phaseDaysLeft | 0} ngày`
+        : (f.lastYield != null ? `nhàn · vụ trước ${f.lastYield} thóc` : "nhàn");
+      const khoiBtn = !f.phase
+        ? `<button class="action-btn ${p.theLuc >= 20 ? "highlight-gold" : "soft-locked"}" style="font-size:0.68rem;padding:2px 6px;margin-top:3px;"
+             onclick="window.doKhoiVu('${f.id}')" ${p.theLuc >= 20 ? "" : "disabled"}>Khởi vụ (-20 TL)</button>` : "";
+      return `<div class="prop-card ${f.phase ? "prop-owned" : ""}" style="padding:5px 8px;"><div class="prop-card-header">
+        <span class="prop-name">${esc(TEN_LABEL[f.tenure] || f.tenure)} · ${esc(qoXaName(f.xaId))}</span>
+        <span class="prop-level">${f.landlordId ? "chia tô" : "của ngươi"}</span></div>
+        <div class="prop-effect">${vuTxt}</div>${khoiBtn}</div>`;
+    }),
     ...locPlots.map(f => `<div class="prop-card" style="padding:5px 8px;opacity:.85;"><div class="prop-card-header">
       <span class="prop-name">ruộng lộc · ${esc(qoXaName(f.xaId))}</span>
       <span class="prop-level">theo ghế</span></div></div>`),
@@ -2896,6 +2905,7 @@ window.doMuaRuongTu  = () => doAction(actionMuaRuongTu);
 window.doCayThue     = () => doAction(actionCayThue);
 window.doCayRe       = () => doAction(actionCayRe);
 window.doNghiViec    = () => doAction(actionNghiViec);
+window.doKhoiVu      = plotId => doAction(actionKhoiVu, [plotId]);
 window.doLuyenVo    = ()  => doAction(actionLuyenVo);
 window.doDiHoc      = ()  => doAction(actionDiHoc);
 window.doThiHuong   = ()  => window.openActivityPlanner("thi_huong");

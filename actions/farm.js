@@ -1,7 +1,10 @@
-import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, makeFarmPlot } from "../core/farm.js";
+import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, makeFarmPlot,
+  PHASE_DAYS, LAM_DAT_DAYS_TRAU, PHASE_LABEL } from "../core/farm.js";
 import { JobKind, JOB_WAGE_BASE, attachJob, detachJob } from "../core/employment.js";
 import { seatIdForXa } from "../core/seats.js";
+import { Faction } from "../models.js";
 import { totalDaysAbs } from "../engine.js";
+import { collapseFromExhaustion } from "./livelihood.js";
 import { logLine } from "../log.js";
 
 /** Lý trưởng xã đang đứng = "địa chủ" cho cày thuê/cấy rẽ. null nếu ghế trống (Vạn Xuân
@@ -125,4 +128,33 @@ export function actionNghiViec(state) {
   }
   logLine(state, "Xin nghỉ việc làm thuê.", true);
   return { ok: true, feedback: [{ text: "Đã nghỉ việc", tone: "bad" }], sfx: "murmur" };
+}
+
+/**
+ * T3.3-3a — KHỞI VỤ trên một thửa NHÀN (phase==null). Đưa thửa vào chuỗi
+ * lam_dat→gieo_ma→cay→cho→gat (daily tick trong engine tự chuyển phase). hasTrau
+ * đọc từ p.capital lúc này -> làm đất nhanh hơn. −20 theLuc (như actionCayRuong).
+ * KHÔNG tạo thửa: không có thửa thì làm actionCayRuong (làm công nhật) như cũ.
+ */
+export function actionKhoiVu(state, plotId) {
+  const p = state.player;
+  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn lo mùa màng như dân thường." };
+  if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
+  const plot = (p.farmPlots || []).find(f => f.id === plotId);
+  if (!plot) return { ok: false, msg: "Không tìm thấy thửa ruộng này." };
+  if (plot.phase) return { ok: false, msg: `Thửa này đang trong vụ (${PHASE_LABEL[plot.phase] || plot.phase}). Chờ gặt xong đã.` };
+  if (p.theLuc < 20) return { ok: false, msg: "Hết thể lực để làm đất." };
+
+  p.theLuc -= 20;
+  plot.hasTrau = (p.capital || []).some(c => c.kind === "trau" && (c.cond | 0) > 0);
+  plot.phase = "lam_dat";
+  plot.phaseDaysLeft = plot.hasTrau ? LAM_DAT_DAYS_TRAU : PHASE_DAYS.lam_dat;
+  plot.weatherHits = [];
+  plot.vuStartedDay = totalDaysAbs(state);
+  plot.lastYield = null;
+
+  logLine(state, `Khởi vụ trên một thửa ruộng — làm đất ${plot.hasTrau ? "bằng trâu" : "bằng tay"} (${plot.phaseDaysLeft} ngày).`, true);
+  const feedback = [{ text: "-20 Thể lực", tone: "bad" }, { text: `Khởi vụ (${plot.hasTrau ? "có trâu" : "cày tay"})`, tone: "good" }];
+  if (p.theLuc <= 0) { collapseFromExhaustion(state); return { ok: true, feedback, shake: true, sfx: "cay" }; }
+  return { ok: true, feedback, sfx: "cay" };
 }

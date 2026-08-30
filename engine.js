@@ -6,8 +6,8 @@ import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS } from ".
 import { actionMoCuaHang } from "./actions/shops.js";
 import { detachJob } from "./core/employment.js";
 import { actionThueNguoi, actionSaThai } from "./actions/employment.js";
-import { LOC_PLOTS_BY_TITLE } from "./core/farm.js";
-import { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec } from "./actions/farm.js";
+import { LOC_PLOTS_BY_TITLE, VU_PHASES, PHASE_DAYS, LAM_DAT_DAYS_TRAU, PHASE_LABEL, BASE_VU_YIELD, vuWeatherFactor } from "./core/farm.js";
+import { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec, actionKhoiVu } from "./actions/farm.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { actionMuaCongCu } from "./actions/capital.js";
@@ -17,7 +17,7 @@ import { actionPrisonerExecute, actionPrisonerRansom, actionPrisonerRelease, act
 import { actionAssumeOfficeHere, actionLocalBribeSuperior, actionLocalCollectTax, actionLocalEmbezzle, actionLocalFund, actionLocalLevy, actionLocalPacify, actionLocalPatrol, actionLocalRecruitMaa, actionPostingBuild, resolveCase } from "./actions/office.js";
 import { actionAcceptMarketContract, actionMarketHaggle, actionTradeItem, ensureMarketSceneState, getMarketSceneBrief, getMerchantProgress, getTradeQuote, rollMonthlyMarketScene } from "./actions/market.js";
 import { actionBuonLauMuoi, actionCauCaSong, actionCayRuong, actionChanNuoiLon, actionChatGo, actionDanhBatVenBien, actionDetVai, actionKhaiThacDacSan, actionLuyenVo, actionMoBinh, actionNauRuou, actionNghiAnCom, collapseFromExhaustion } from "./actions/livelihood.js";
-import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, adjustClanStatus, clanSurname, localClanIds, maybeAddClanRivalryCase, maybeAddSeatContestCase, pickXaSeatSuccessorClan, syncSeatContestants, tickClanPressureForCommoner, tickLocalClansMonthly, tickXaClanStatusMonthly, xaClanIds } from "./actions/clan.js";
+import { actionAdvanceClanMissionIntel, actionBeginClanMission, actionChooseClanPatron, actionClanMediate, actionClanMischief, actionDropClanPatron, actionExecuteClanMission, actionSetClanPressureMode, adjustClanMembersOpinion, adjustClanStatus, clanSurname, getClanPressurePreset, localClanIds, maybeAddClanRivalryCase, maybeAddSeatContestCase, pickXaSeatSuccessorClan, syncSeatContestants, tickClanPressureForCommoner, tickLocalClansMonthly, tickXaClanStatusMonthly, xaClanIds } from "./actions/clan.js";
 import {
   Person, Clan, Village,
   PlayerRank, Gender, ClanAttitude, Faction, NpcTrait, RegionId, MenAtArmType,
@@ -1264,6 +1264,24 @@ export function locPlotsForPlayer(state) {
     }
   }
   return out;
+}
+
+/**
+ * T3.3-3a: thóc GỘP một vụ vừa gặt (chưa tách tô — T3.3-4). weather (state.thoiTiet)
+ * + hasTrau + patron (rank dân/phú hộ) + _quanLyBonus + biến thiên ±15% (rng(state),
+ * KHÔNG dùng rollPersonalHarvestThoc's fallback stream). weatherHits/phá hoại: T3.3-3b.
+ */
+function rollVuYield(state, plot) {
+  const p = state.player;
+  let y = BASE_VU_YIELD * vuWeatherFactor(state.thoiTiet);
+  if (plot.hasTrau) y *= 1.15;
+  if ((p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO) && p._patronClanId
+      && state.clans?.some(c => c.id === p._patronClanId)) {
+    y *= (getClanPressurePreset(state).patronHarvestBoost || 1.0);
+  }
+  y *= (state._quanLyBonus || 1.0);
+  y *= (0.85 + rng(state) * 0.30);
+  return Math.max(1, Math.floor(y));
 }
 
 export function villageForXa(state, xaId) {
@@ -3195,6 +3213,36 @@ export function gameTick(state) {
     }
   }
 
+  // T3.3-3a: vụ mùa nhiều giai đoạn (daily) — state machine trên từng farmPlot của player.
+  // phase != null && phaseDaysLeft>0 -> đếm lùi; về 0 -> sang phase kế (lam_dat→...→gat);
+  // "gat" về 0 -> resolve yield (rollVuYield), thửa về NHÀN. Player-only.
+  {
+    const pf = state.player?.farmPlots;
+    if (Array.isArray(pf)) {
+      for (const plot of pf) {
+        if (!plot.phase || (plot.phaseDaysLeft | 0) <= 0) continue;
+        plot.phaseDaysLeft = (plot.phaseDaysLeft | 0) - 1;
+        if ((plot.phaseDaysLeft | 0) > 0) continue;
+        const idx = VU_PHASES.indexOf(plot.phase);
+        if (idx < 0) { plot.phase = null; plot.phaseDaysLeft = 0; continue; }
+        if (plot.phase !== "gat") {
+          const next = VU_PHASES[idx + 1];
+          plot.phase = next;
+          plot.phaseDaysLeft = (next === "lam_dat" && plot.hasTrau) ? LAM_DAT_DAYS_TRAU : (PHASE_DAYS[next] | 0);
+          logLine(state, `Thửa ruộng sang giai đoạn "${PHASE_LABEL[next] || next}" (${plot.phaseDaysLeft} ngày).`);
+        } else {
+          const y = rollVuYield(state, plot);
+          plot.lastYield = y;
+          plot.phase = null;
+          plot.phaseDaysLeft = 0;
+          plot.weatherHits = [];
+          state.player.thocCaNhan = (state.player.thocCaNhan || 0) + y;
+          logLine(state, `🌾 Gặt xong một thửa ruộng (${plot.tenure}) — thu về ${y} thóc.`, true);
+        }
+      }
+    }
+  }
+
   // Personal daily consumption (requested: ít nhất 1/ngày)
   // NOTE: Campaign/army supply will be separated later; for now only personal food.
   {
@@ -4238,6 +4286,6 @@ export { actionXayNha, actionRecruitMaa, actionDemolishNha };
 export { actionMuaCongCu };
 export { actionMoCuaHang };
 export { actionThueNguoi, actionSaThai };
-export { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec };
+export { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec, actionKhoiVu };
 
 export { hasPerk };
