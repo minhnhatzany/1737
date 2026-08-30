@@ -14,7 +14,7 @@ import {
   resolveCase,
   actionPostingBuild,
   actionXayNha, actionDemolishNha, actionTradeItem,
-  actionMuaCongCu, actionMoCuaHang,
+  actionMuaCongCu, actionMoCuaHang, actionThueNguoi, actionSaThai,
   actionTangRuouNPC, actionRecruitMaa, actionJoinBattle, actionAttackVillage, setWanted, checkWantedArrest, MaaDb,
   PropertyDb, PropertyCategories, RegionsDb, ItemsDb, RegionId,
   initQuestsIfNeeded, tickQuests,
@@ -29,6 +29,7 @@ import { rollDailyEvent, resolveEventChoice } from "./events.js";
 import { drainPendingToInbox } from "./core/inbox.js";
 import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
 import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
+import { JobKind, JOB_WAGE_BASE, SHOP_WORKER_CAP } from "./core/employment.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -1697,6 +1698,12 @@ function qoXaFreeQuanTro() {
   }));
 }
 
+// T3.3-1: AI có thể thuê làm công — không giữ ghế, không có cơ nghiệp riêng, chưa có việc.
+// Chưa lọc theo địa lý (cùng xã hay không) — thêm sau nếu chơi thử thấy cần.
+function hireableNpcs(state) {
+  return (state.npcs || []).filter(n => !n.seatId && !n.shopId && !(n._jobs?.length));
+}
+
 function renderCoNghiep() {
   const box = $("coNghiepBody");
   if (!box || !state) return;
@@ -1738,11 +1745,43 @@ function renderCoNghiep() {
       <div class="prop-desc">${esc(qoXaName(founding.xaId))}</div></div>`;
   } else if (owned) {
     const present = p.currentXa === owned.xaId;
-    const gain = present ? (owned.incomeBase | 0) : Math.floor((owned.incomeBase | 0) / 2);
+    const workerIds = owned.workerIds || [];
+    const full = present || workerIds.length > 0;
+    const gain = full ? (owned.incomeBase | 0) : Math.floor((owned.incomeBase | 0) / 2);
+    const why = present ? "đang có mặt" : (workerIds.length ? "có người làm" : "vắng mặt — thu nửa");
+
+    // Người làm hiện có
+    const workerRows = workerIds.map(id => {
+      const w = state.npcById?.[id];
+      const wage = (w?._jobs || []).find(j => j.ref === owned.id)?.wagePerMonth ?? JOB_WAGE_BASE[JobKind.SHOP];
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:0.8rem;padding:2px 0;">
+        <span>${esc(w?.name || id)} · ${wage}Q/tháng</span>
+        <button class="action-btn danger" style="font-size:0.68rem;padding:2px 6px;" onclick="window.doSaThai('${id}')">Cho nghỉ</button>
+      </div>`;
+    }).join("");
+
+    let hireHtml = "";
+    if (workerIds.length < SHOP_WORKER_CAP) {
+      const cands = hireableNpcs(state);
+      const wage = JOB_WAGE_BASE[JobKind.SHOP];
+      const afford = p.tien >= wage;
+      if (cands.length === 0) {
+        hireHtml = `<p class="muted" style="font-size:0.76rem;margin-top:2px;">Chưa có ai rảnh để thuê.</p>`;
+      } else {
+        const sel = cands.map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join("");
+        hireHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+          <select id="thueNguoiId" style="font-size:0.8rem;padding:3px;">${sel}</select>
+          <button class="action-btn ${afford ? "highlight-gold" : "soft-locked"}"
+            style="font-size:0.76rem;padding:3px 7px;" onclick="window.doThueNguoi()" ${afford ? "" : "disabled"}>
+            Thuê (${wage}Q/tháng)</button></div>`;
+      }
+    }
+
     shopHtml = `<div class="prop-card prop-owned" style="padding:6px 8px;">
       <div class="prop-card-header"><span class="prop-name">${esc(SHOP_LABEL[owned.loai] || "Quán")} — ${esc(qoXaName(owned.xaId))}</span>
       <span class="prop-level">Cơ nghiệp của ngươi</span></div>
-      <div class="prop-effect">Tô tháng: +${gain} Quan ${present ? "(đang có mặt)" : "(vắng mặt — thu nửa)"}</div></div>`;
+      <div class="prop-effect">Tô tháng: +${gain} Quan (${why})</div>
+      ${workerRows}${hireHtml}</div>`;
   } else {
     const opts = qoXaFreeQuanTro();
     if (opts.length === 0) {
@@ -2792,6 +2831,11 @@ window.doMoCuaHang  = () => {
   const xaId = $("moCuaHangXa")?.value || state.player.currentXa;
   doAction(actionMoCuaHang, [xaId, "quan_tro"]);
 };
+window.doThueNguoi  = () => {
+  const id = $("thueNguoiId")?.value;
+  if (id) doAction(actionThueNguoi, [id]);
+};
+window.doSaThai     = id => doAction(actionSaThai, [id]);
 window.doLuyenVo    = ()  => doAction(actionLuyenVo);
 window.doDiHoc      = ()  => doAction(actionDiHoc);
 window.doThiHuong   = ()  => window.openActivityPlanner("thi_huong");

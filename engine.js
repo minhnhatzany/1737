@@ -4,6 +4,8 @@ import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, s
 import { rollXaClans, clanIdForXa } from "./core/clans.js";
 import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS } from "./core/shops.js";
 import { actionMoCuaHang } from "./actions/shops.js";
+import { detachJob } from "./core/employment.js";
+import { actionThueNguoi, actionSaThai } from "./actions/employment.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
 import { actionMuaCongCu } from "./actions/capital.js";
@@ -3033,6 +3035,7 @@ export function gameTick(state) {
     processMonthlyCapitalWear(state);
     processMonthlyShopIncome(state);
     processMonthlyShopVacancy(state);
+    processMonthlyWages(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -3631,8 +3634,8 @@ function processMonthlyCapitalWear(state) {
 
 // T3.2c-1: tô cửa hàng hàng tháng — chảy vào tien của occupant (player HOẶC AI, như
 // ruộng lộc). Đủ khi occupant CÓ MẶT ở xã cửa hàng HOẶC có người làm; thiếu cả hai -> nửa.
-// occupant AI luôn coi như có mặt. workerIds luôn [] ở T3.2c-1 -> nhánh "có người làm"
-// là STUB, T3.2d nối dây thật. Tách riêng khỏi processMonthlyPropertyAndArmy.
+// occupant AI luôn coi như có mặt. T3.3-1: shop.workerIds được nối dây thật (actionThueNguoi)
+// -> nhánh "có người làm" hết stub. Tách riêng khỏi processMonthlyPropertyAndArmy.
 function processMonthlyShopIncome(state) {
   const ym = ymKey(state);
   const player = state.player;
@@ -3643,7 +3646,7 @@ function processMonthlyShopIncome(state) {
     const occ = isPlayer ? player : state.npcById?.[shop.occupantId];
     if (!occ) continue;
     const present = isPlayer ? (player.currentXa === shop.xaId) : true;
-    const hasWorkers = (shop.workerIds?.length || 0) > 0; // STUB T3.2c-1 (luôn false) — T3.2d
+    const hasWorkers = (shop.workerIds?.length || 0) > 0; // T3.3-1: actionThueNguoi đẩy vào đây
     const gain = (present || hasWorkers)
       ? (shop.incomeBase | 0)
       : Math.floor((shop.incomeBase | 0) / 2);
@@ -3666,6 +3669,12 @@ export function markShopVacant(state, shopId) {
   if (!shop || !shop.occupantId) return false;
   const occ = state.npcById?.[shop.occupantId];
   if (occ && occ.shopId === shopId) occ.shopId = null;
+  // T3.3-1: mất chủ -> người làm mất việc (không còn ai trả công).
+  for (const wid of (shop.workerIds || []).slice()) {
+    const w = wid === state.player?.id ? state.player : state.npcById?.[wid];
+    if (w) detachJob(w, shopId);
+  }
+  shop.workerIds = [];
   shop.occupantId = null;
   shop.vacantSinceDay = totalDaysAbs(state);
   return true;
@@ -3707,6 +3716,37 @@ function processMonthlyShopVacancy(state) {
     shop.ownerClanId = clan.id;
     shop.vacantSinceDay = null;
     logLine(state, `${clan.name} đưa người vào tiếp quản ${SHOP_LABEL[shop.loai] || "cửa hàng"} bỏ trống — nay là ${person.name}.`, true);
+  }
+}
+
+// T3.3-1: trả lương người làm hàng tháng. Chủ −wage, người làm +wage vào .tien.
+// Chủ không đủ tiền -> việc chấm dứt (người làm bỏ), gỡ khỏi shop.workerIds + _jobs.
+// Cơ chế CHUNG: job.kind="farm" (T3.3-2) chạy qua đây y nguyên, chỉ khác ref là plotId.
+function processMonthlyWages(state) {
+  const player = state.player;
+  const people = [player, ...(state.npcs || [])];
+  for (const worker of people) {
+    if (!worker || !Array.isArray(worker._jobs) || worker._jobs.length === 0) continue;
+    for (const job of worker._jobs.slice()) {          // slice: detach có thể sửa _jobs
+      const wage = job.wagePerMonth | 0;
+      if (wage <= 0) continue;
+      const employer = job.employerId === player?.id ? player : state.npcById?.[job.employerId];
+      if (!employer) { detachJob(worker, job.ref); continue; }
+      if ((employer.tien || 0) < wage) {
+        detachJob(worker, job.ref);
+        const shop = job.kind === "shop" ? state.shops?.[job.ref] : null;
+        if (shop && Array.isArray(shop.workerIds)) {
+          shop.workerIds = shop.workerIds.filter(id => id !== worker.id);
+        }
+        if (employer === player) logLine(state, `Không đủ tiền trả công, ${worker.name} bỏ việc.`, true);
+        else if (worker === player) logLine(state, `${employer.name || "Chủ"} hết tiền trả công — ngươi nghỉ việc.`, true);
+        continue;
+      }
+      employer.tien -= wage;
+      worker.tien = (worker.tien || 0) + wage;
+      if (employer === player) logLine(state, `Trả công ${worker.name}: −${wage} Quan.`);
+      else if (worker === player) logLine(state, `Nhận công từ ${employer.name || "chủ"}: +${wage} Quan.`);
+    }
   }
 }
 
@@ -4104,7 +4144,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome, processMonthlyShopVacancy }; // T3.2c: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages }; // T3.2c/T3.3-1: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
 // markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 
@@ -4131,5 +4171,6 @@ export { initQuestsIfNeeded, refreshQuestsYearly, tickQuests };
 export { actionXayNha, actionRecruitMaa, actionDemolishNha };
 export { actionMuaCongCu };
 export { actionMoCuaHang };
+export { actionThueNguoi, actionSaThai };
 
 export { hasPerk };
