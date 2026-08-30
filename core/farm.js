@@ -46,6 +46,15 @@ export const RUONG_TU_GIA = 200;
  */
 export const RE_SHARE_TO_LANDLORD = 0.5;
 
+/**
+ * T3.3-4 — tô ruộng công: phần thóc thu hoạch nộp vào KHO THÓC của LÀNG (xã có
+ * thửa, không phải xã người chơi đang đứng). = 0.30 — neo vào cấy rẽ (0.5, tư nhân
+ * khắc nghiệt nhất); thấp hơn rõ để "được làng chia ruộng công" thật sự là ưu đãi
+ * so với đi cấy rẽ đất tư. Lý trưởng KHÔNG xén phần nào (ruộng lộc mới là bổng lộc
+ * hợp pháp của ghế; công điền giữ sạch "của làng"). SỐ HẠT GIỐNG.
+ */
+export const CONG_TO_RATE = 0.30;
+
 export function congDienSlots(xaSuatDinh) {
   return Math.max(0, Math.floor((xaSuatDinh || 0) * CONG_DIEN_RATIO));
 }
@@ -74,6 +83,14 @@ export const PHASE_LABEL = Object.freeze({
 
 /** Thóc GỘP một vụ trước khi tách tô (T3.3-4). Hằng số thật, tinh chỉnh sau. */
 export const BASE_VU_YIELD = 60;
+
+/**
+ * T3.3-4 — tô ruộng LỘC: thóc mỗi thửa lộc / tháng, chảy vào occupant ghế
+ * (locPlotsForPlayer dẫn xuất từ state.seats). = 8 -> lý trưởng 2 thửa ≈ 16/tháng
+ * ≈ 192/năm, cỡ nửa một vụ công điền: bổng lộc ĐỀU nhưng thấp hơn tự cày. Không
+ * qua state machine vụ mùa — cộng thẳng hàng tháng. SỐ HẠT GIỐNG.
+ */
+export const LOC_MONTHLY_THOC = 8;
 
 /** Hệ số thời tiết cho yield vụ — khớp rollPersonalHarvestThoc NHƯNG là lookup thuần
  *  (rollPersonalHarvestThoc dùng rng() fallback stream, không replay-safe). */

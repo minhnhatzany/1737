@@ -6,7 +6,7 @@ import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS } from ".
 import { actionMoCuaHang } from "./actions/shops.js";
 import { detachJob } from "./core/employment.js";
 import { actionThueNguoi, actionSaThai } from "./actions/employment.js";
-import { LOC_PLOTS_BY_TITLE, VU_PHASES, PHASE_DAYS, LAM_DAT_DAYS_TRAU, PHASE_LABEL, BASE_VU_YIELD, vuWeatherFactor } from "./core/farm.js";
+import { LOC_PLOTS_BY_TITLE, VU_PHASES, PHASE_DAYS, LAM_DAT_DAYS_TRAU, PHASE_LABEL, BASE_VU_YIELD, vuWeatherFactor, CONG_TO_RATE, RE_SHARE_TO_LANDLORD, LOC_MONTHLY_THOC } from "./core/farm.js";
 import { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec, actionKhoiVu } from "./actions/farm.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
@@ -1288,6 +1288,37 @@ export function rollVuYield(state, plot) {
 }
 
 /**
+ * T3.3-4: TÁCH TÔ khỏi sản lượng gộp một vụ vừa gặt TRƯỚC khi cộng vào túi người
+ * chơi (không cộng gộp rồi trừ lại). Theo tenure:
+ *   cong — tô CONG_TO_RATE (0.30) vào KHO THÓC làng của xã CÓ THỬA (villageForXa
+ *          theo plot.xaId — KHÔNG phải state.village là con trỏ theo vị trí đứng).
+ *          Lý trưởng không xén (ruộng lộc mới là bổng lộc hợp pháp của ghế).
+ *   tu   — 0 tô, giữ 100%.
+ *   re   — tô reShare (0.5) cho landlord = occupant ghế xã. NPC không có kho thóc
+ *          -> occ.thocCaNhan ad-hoc (mirror field player; nối tiếp lệch shape AI
+ *          đã biết từ T2.2, không quy ra Quan để khỏi kéo hệ định giá vùng vào).
+ *   loc  — không đi qua đây (không nằm trong p.farmPlots; thu tháng: processMonthlyLocRent).
+ * Trả về { keep, to } để test cô lập.
+ */
+export function settleVuYield(state, plot, gross) {
+  const g = Math.max(0, gross | 0);
+  let to = 0;
+  if (plot.tenure === "cong") {
+    to = Math.round(g * CONG_TO_RATE);
+    const v = villageForXa(state, plot.xaId);
+    if (v) v.khoThoc = Math.min(999999, (v.khoThoc || 0) + to);
+  } else if (plot.tenure === "re") {
+    to = Math.round(g * (plot.reShare ?? RE_SHARE_TO_LANDLORD));
+    const lord = plot.landlordId ? state.npcById?.[plot.landlordId] : null;
+    if (lord) lord.thocCaNhan = (lord.thocCaNhan || 0) + to;
+  }
+  // tu / khác: to = 0
+  const keep = g - to;
+  state.player.thocCaNhan = (state.player.thocCaNhan || 0) + keep;
+  return { keep, to };
+}
+
+/**
  * T3.3-3b: rủi ro phase "chờ" — mỗi THÁNG, thửa đang "cho" tích weatherHits nếu:
  *  (a) state.thoiTiet ∈ {BÃO, LŨ, HẠN};  (b) dòng họ đối nghịch phá (rng(state) <
  *  sabotageChance, CHỈ rank dân/phú hộ — khớp actionCayRuong). Log cảnh báo mỗi hit.
@@ -1314,6 +1345,28 @@ function processMonthlyFarmRisk(state) {
       plot.weatherHits.push("pha_hoai");
       logLine(state, `⚠ Dòng họ đối nghịch phá thửa lúa đang chờ của ngươi.`, true);
     }
+  }
+}
+
+/**
+ * T3.3-4: thu tô ruộng LỘC hàng tháng. Lộc DẪN XUẤT từ ghế (LOC_PLOTS_BY_TITLE) —
+ * không nằm trong p.farmPlots, không qua state machine vụ mùa. Mỗi thửa lộc
+ * LOC_MONTHLY_THOC thóc/tháng vào occupant ghế: player -> thocCaNhan; NPC ->
+ * occ.thocCaNhan ad-hoc (mirror, như landlord "re"). Mất ghế -> hết lộc ngay
+ * (không teardown). Chạy cho MỌI ghế có người ngồi (thế giới nhất quán).
+ */
+function processMonthlyLocRent(state) {
+  if (!state.seats) return;
+  for (const seat of Object.values(state.seats)) {
+    if (!seat || !seat.occupantId) continue;
+    const n = LOC_PLOTS_BY_TITLE[seat.title] || 0;
+    if (n <= 0) continue;
+    const gain = n * LOC_MONTHLY_THOC;
+    const isPlayer = seat.occupantId === state.player?.id;
+    const occ = isPlayer ? state.player : state.npcById?.[seat.occupantId];
+    if (!occ) continue;
+    occ.thocCaNhan = (occ.thocCaNhan || 0) + gain;
+    if (isPlayer) logLine(state, `Ruộng lộc theo ghế ${RankLabel[seat.title] || seat.title}: +${gain} thóc (${n} thửa/tháng).`);
   }
 }
 
@@ -3142,6 +3195,7 @@ export function gameTick(state) {
     processMonthlyWages(state);
     processMonthlyDraftReclaim(state);
     processMonthlyFarmRisk(state);
+    processMonthlyLocRent(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -3270,8 +3324,14 @@ export function gameTick(state) {
           plot.phase = null;
           plot.phaseDaysLeft = 0;
           plot.weatherHits = [];
-          state.player.thocCaNhan = (state.player.thocCaNhan || 0) + y;
-          logLine(state, `🌾 Gặt xong một thửa ruộng (${plot.tenure}) — thu về ${y} thóc.`, true);
+          // T3.3-4: tách tô TRƯỚC khi vào túi (theo tenure). villageForXa(plot.xaId), KHÔNG state.village.
+          const { keep, to } = settleVuYield(state, plot, y);
+          const toWhere = plot.tenure === "cong" ? "kho làng"
+            : plot.tenure === "re" ? "địa chủ"
+            : null;
+          logLine(state, toWhere
+            ? `🌾 Gặt xong một thửa ruộng (${plot.tenure}) — ${y} thóc: giữ ${keep}, nộp tô ${to} cho ${toWhere}.`
+            : `🌾 Gặt xong một thửa ruộng (${plot.tenure}) — thu về ${keep} thóc.`, true);
         }
       }
     }
@@ -4292,7 +4352,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyFarmRisk }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyFarmRisk, processMonthlyLocRent }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
 // markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 

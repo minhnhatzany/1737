@@ -32,7 +32,7 @@ import { drainPendingToInbox } from "./core/inbox.js";
 import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
 import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
 import { JobKind, JOB_WAGE_BASE, SHOP_WORKER_CAP } from "./core/employment.js";
-import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, PHASE_LABEL } from "./core/farm.js";
+import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, PHASE_LABEL, CONG_TO_RATE, LOC_MONTHLY_THOC } from "./core/farm.js";
 import {
   actionDiHoc, actionThiHuong, actionThiHoi, actionThiDinh,
   actionBacCu, actionThangTienVo, actionLuanChuyenKhaoKhoa,
@@ -1810,9 +1810,14 @@ function renderCoNghiep() {
   const plotRows = [
     ...plots.map(f => {
       const hits = (f.weatherHits || []).length;
+      const toRate = f.tenure === FarmTenure.CONG ? CONG_TO_RATE
+        : f.tenure === FarmTenure.RE ? (f.reShare ?? RE_SHARE_TO_LANDLORD) : 0;
+      const kept = f.lastYield != null ? f.lastYield - Math.round(f.lastYield * toRate) : null;
       const vuTxt = f.phase
         ? `${esc(PHASE_LABEL[f.phase] || f.phase)} · còn ${f.phaseDaysLeft | 0} ngày${f.phase === "cho" && hits ? ` · ⚠ ${hits} lần thiên tai/phá` : ""}`
-        : (f.lastYield != null ? `nhàn · vụ trước ${f.lastYield} thóc` : "nhàn");
+        : (f.lastYield != null
+            ? `nhàn · vụ trước giữ ${kept} thóc${toRate ? ` (tô ${Math.round(f.lastYield * toRate)})` : ""}`
+            : "nhàn");
       const khoiBtn = !f.phase
         ? `<button class="action-btn ${p.theLuc >= 20 ? "highlight-gold" : "soft-locked"}" style="font-size:0.68rem;padding:2px 6px;margin-top:3px;"
              onclick="window.doKhoiVu('${f.id}')" ${p.theLuc >= 20 ? "" : "disabled"}>Khởi vụ (-20 TL)</button>` : "";
@@ -1861,7 +1866,7 @@ function renderCoNghiep() {
         onclick="window.doMuaRuongTu()" ${canTu ? "" : "disabled"}>Mua ruộng tư (${RUONG_TU_GIA}Q)</button>
     </div>
     <div style="margin-top:6px;">${laborHtml}</div>
-    <p class="muted" style="font-size:0.74rem;margin-top:4px;">Thửa ruộng chưa sinh sản lượng — vụ mùa & thu tô ở bước sau.</p>`;
+    <p class="muted" style="font-size:0.74rem;margin-top:4px;">Khởi vụ rồi chờ gặt (~99 ngày). Gặt xong: ruộng công nộp ${Math.round(CONG_TO_RATE * 100)}% tô cho kho làng, ruộng tư giữ hết, cấy rẽ chia nửa cho địa chủ. Ruộng lộc theo ghế thu ${LOC_MONTHLY_THOC} thóc/thửa mỗi tháng.</p>`;
 
   box.innerHTML = `
     <div style="font-weight:600;margin-bottom:4px;">Vốn cá nhân</div>
