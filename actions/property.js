@@ -1,5 +1,5 @@
 import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
-import { MaaDb, PropertyDb, RegionsDb, hasPerk } from "../engine.js";
+import { MaaDb, PropertyDb, RegionsDb, hasPerk, playerHoldsSeatAtLeast } from "../engine.js";
 import { Faction, PlayerRank, RankLabel } from "../models.js";
 import { logLine } from "../log.js";
 
@@ -20,6 +20,11 @@ export function actionXayNha(state, propId) {
     if (playerRankIdx < reqRankIdx) {
       return { ok: false, msg: `Chức vụ chưa đủ để xây ${prop.name} (cần: ${RankLabel[cond.minRank]}).` };
     }
+  }
+  // minSeatRank: phải ĐANG giữ ghế thật (occupantId) đủ cấp — không phải p.rank cache
+  // (court.js ghi thẳng rank được mà không nhậm chức). Xem playerHoldsSeatAtLeast (engine.js).
+  if (cond.minSeatRank && !playerHoldsSeatAtLeast(state, cond.minSeatRank)) {
+    return { ok: false, msg: `Phải thật sự đang giữ chức ${RankLabel[cond.minSeatRank] || cond.minSeatRank} (đã nhậm chức tại nha môn) mới xây được ${prop.name}.` };
   }
   if (cond.minUyTin && p.uyTinCong < cond.minUyTin) {
     return { ok: false, msg: `Cần tối thiểu ${cond.minUyTin} Uy Tín để xây.` };

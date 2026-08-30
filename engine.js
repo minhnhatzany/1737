@@ -172,14 +172,14 @@ export const PropertyDb = {
     desc:"Sân rộng tường cao, phòng khách sang trọng.",
     effectDesc: "Mỗi tháng: +15 TL, +30 Uy tín, +50 Danh Vọng.",
     buffs:[[["theLucRegen",15],["uyTinMon",30],["danhVongMon",50]], [["theLucRegen",20],["uyTinMon",50],["danhVongMon",100]]],
-    unlockCondition: { minRank: PlayerRank.TRI_HUYEN },
+    unlockCondition: { minSeatRank: PlayerRank.TRI_HUYEN }, // gate kiểm GHẾ thật (occupantId), không kiểm p.rank cache
   },
   PHU_DE: {
     id:"phu_de", category:"nha_o", name:"Phủ Đệ Đại Quan", cost:80000, upgradeCost:150000, maxLevel:2,
     desc:"Phủ đệ uy nghiêm, đại quan mới xứng.",
     effectDesc: "+25 TL/tháng, +100 Uy tín, +200 Quan/tháng từ tô thuế.",
     buffs:[[["theLucRegen",25],["uyTinMon",100],["tienMon",200]], [["theLucRegen",30],["uyTinMon",150],["tienMon",500]]],
-    unlockCondition: { minRank: PlayerRank.HIEN_SAT_SU },
+    unlockCondition: { minRank: PlayerRank.HIEN_SAT_SU }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
 
   // ── THƯƠNG MẠI ─────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ export const PropertyDb = {
     desc:"Cơ sở buôn bán quy mô lớn giữa các trấn.",
     effectDesc: "+200 Quan/tháng và mở rộng mạng lưới thương mại.",
     buffs:[[["tienMon",200]], [["tienMon",400]]],
-    unlockCondition: { minRank: PlayerRank.PHU_HO, lifestylePoints: 3 },
+    unlockCondition: { minRank: PlayerRank.PHU_HO, lifestylePoints: 3 }, // PHU_HO = dân giàu, KHÔNG phải quan — cố ý, không đổi
   },
 
   // ── HỌC THUẬT ──────────────────────────────────────────────────────
@@ -239,14 +239,14 @@ export const PropertyDb = {
     desc:"Thờ Khổng Tử và tiên hiền, học thuật đỉnh cao.",
     effectDesc: "+15 Uy tín/tháng, +2 Học Vấn/tháng, thi cử tỉ lệ cao hơn.",
     buffs:[[["uyTinMon",15],["hocVanMon",2]], [["uyTinMon",30],["hocVanMon",3]]],
-    unlockCondition: { minRank: PlayerRank.TRI_HUYEN },
+    unlockCondition: { minSeatRank: PlayerRank.TRI_HUYEN }, // gate kiểm GHẾ thật (occupantId), không kiểm p.rank cache
   },
   THAI_HOC_VIEN: {
     id:"thai_hoc_vien", category:"hoc_thuat", name:"Thái Học Viện Riêng", cost:100000, upgradeCost:0, maxLevel:1,
     desc:"Học viện bậc cao ngang ngửa Quốc Tử Giám.",
     effectDesc: "+3 Học Vấn/tháng, +50 Uy tín/tháng, thu học phí 100 Quan/tháng.",
     buffs:[[["hocVanMon",3],["uyTinMon",50],["tienMon",100]]],
-    unlockCondition: { minRank: PlayerRank.THUONG_THU },
+    unlockCondition: { minRank: PlayerRank.THUONG_THU }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
 
   // ── QUÂN SỰ ────────────────────────────────────────────────────────
@@ -255,42 +255,42 @@ export const PropertyDb = {
     desc:"Cất giữ vũ khí và giáp trụ.",
     effectDesc: "Quân đội của bạn +5% sức chiến đấu mỗi cấp.",
     buffs:[[["quanBuff",0.05]], [["quanBuff",0.10]]],
-    unlockCondition: { minRank: PlayerRank.DOI_TRUONG },
+    unlockCondition: { minRank: PlayerRank.DOI_TRUONG }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
   DOANH_TRAI: {
     id:"doanh_trai", category:"quan_su", name:"Doanh Trại Hương Dũng", cost:5000, upgradeCost:10000, maxLevel:3,
     desc:"Trại binh giữ quân kỷ luật.",
     effectDesc: "Giảm 10/20/30% chi phí lương lính hàng tháng.",
     buffs:[[["luongGiam",0.10]], [["luongGiam",0.20]], [["luongGiam",0.30]]],
-    unlockCondition: { minRank: PlayerRank.DOI_TRUONG },
+    unlockCondition: { minRank: PlayerRank.DOI_TRUONG }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
   LUYEN_BINH_TRUONG: {
     id:"luyen_binh_truong", category:"quan_su", name:"Điểm Luyện Binh", cost:8000, upgradeCost:15000, maxLevel:3,
     desc:"Thao trường luyện binh ngày ngày.",
     effectDesc: "+1 Võ Thuật tự động mỗi 2 tháng.",
     buffs:[[["voThuatAccum",1]], [["voThuatAccum",2]], [["voThuatAccum",3]]],
-    unlockCondition: { minRank: PlayerRank.CAI_CO },
+    unlockCondition: { minRank: PlayerRank.CAI_CO }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
   PHAO_DAI: {
     id:"phao_dai", category:"quan_su", name:"Pháo Đài Tường Thành", cost:30000, upgradeCost:60000, maxLevel:2,
     desc:"Công sự phòng thủ vững chắc.",
     effectDesc: "Phòng thủ khi bị tấn công gấp đôi, NPC địch không dám dễ dàng đột kích.",
     buffs:[[["phongThuBuff",2.0]], [["phongThuBuff",3.0]]],
-    unlockCondition: { minRank: PlayerRank.BACH_HO },
+    unlockCondition: { minRank: PlayerRank.BACH_HO }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
   DAI_DOANH: {
     id:"dai_doanh", category:"quan_su", name:"Đại Doanh Tổng Lĩnh", cost:80000, upgradeCost:150000, maxLevel:2,
     desc:"Đại bản doanh chỉ huy toàn quân — chỉ dành cho Đô Đốc trở lên.",
     effectDesc: "Tất cả Quân đội +20% chiến lực, bổ nhậm tướng tá dễ dàng hơn.",
     buffs:[[["quanBuff",0.20]], [["quanBuff",0.35]]],
-    unlockCondition: { minRank: PlayerRank.DO_DOC },
+    unlockCondition: { minRank: PlayerRank.DO_DOC }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
   THUY_DOANH: {
     id:"thuy_doanh", category:"quan_su", name:"Thủy Doanh Ven Sông", cost:40000, upgradeCost:80000, maxLevel:2,
     desc:"Căn cứ thủy quân, tàu thuyền sẵn chiến.",
     effectDesc: "+Thủy Quân hàng tháng, di chuyển giữa trấn ven sông không tốn thể lực.",
     buffs:[[["thuyQuanMon",10]], [["thuyQuanMon",25]]],
-    unlockCondition: { minRank: PlayerRank.TONG_LINH },
+    unlockCondition: { minRank: PlayerRank.TONG_LINH }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
 
   // ── NÔNG NGHIỆP ─────────────────────────────────────────────────────
@@ -387,7 +387,7 @@ export const PropertyDb = {
     desc:"Tế lễ sĩ phu địa phương, thờ Khổng Mạnh.",
     effectDesc: "+30 Uy tín/tháng, Học Vấn tăng +1 mỗi học kỳ tế lễ.",
     buffs:[[["uyTinMon",30],["hocVanAccum",1]]],
-    unlockCondition: { minRank: PlayerRank.TRI_PHU },
+    unlockCondition: { minRank: PlayerRank.TRI_PHU }, // minRank: bậc chưa có ghế thực thể — chuyển kiểm ghế khi "AI dùng ghế thật"
   },
 };
 
@@ -1202,6 +1202,25 @@ function isOfficialRank(rank) {
     PlayerRank.DOI_TRUONG, PlayerRank.CAI_DOI, PlayerRank.CAI_CO, PlayerRank.CHUONG_CO, PlayerRank.BACH_HO, PlayerRank.TONG_LINH,
     PlayerRank.DO_DOC, PlayerRank.DO_CHI_HUY_SU, PlayerRank.DAI_TUONG
   ].includes(rank);
+}
+
+/**
+ * Người chơi ĐANG giữ một ghế thật (state.seats) có title >= minTitle, so theo
+ * thứ tự Object.values(PlayerRank) — cùng thứ tự actionXayNha vốn dùng cho minRank.
+ * Chặt hơn kiểm p.rank: p.rank là cache tự xưng, court.js ghi thẳng được mà không
+ * chạm ghế. Lúc này chỉ có ghế xã/tổng/huyện tồn tại -> minTitle > TRI_HUYEN luôn
+ * false tới khi "AI dùng ghế thật" dựng thêm bậc ghế.
+ */
+function playerHoldsSeatAtLeast(state, minTitle) {
+  const order = Object.values(PlayerRank);
+  const need = order.indexOf(minTitle);
+  if (need < 0) return false;
+  const pid = state?.player?.id;
+  if (!pid || !state.seats) return false;
+  for (const seat of Object.values(state.seats)) {
+    if (seat && seat.occupantId === pid && order.indexOf(seat.title) >= need) return true;
+  }
+  return false;
 }
 
 function ensurePostingIfNeeded(state) {
@@ -4101,7 +4120,7 @@ export { MARKET_MOODS, MARKET_TRADER_NAMES };
 
 export { actionPostingBuild, resolveCase, actionAssumeOfficeHere, actionLocalLevy, actionLocalFund, actionLocalEmbezzle, actionLocalRecruitMaa, actionLocalCollectTax, actionLocalPatrol, actionLocalPacify, actionLocalBribeSuperior };
 
-export { PostingBuildingDb, ensureCaseList, isOfficialRank, perkFx };
+export { PostingBuildingDb, ensureCaseList, isOfficialRank, perkFx, playerHoldsSeatAtLeast };
 
 export { actionRebelTrain, actionRebelRaidSupply, actionRebelAidPeople, actionRebelBurnYamen, actionRebelRecruitLocal, addPrisoner, actionPrisonerRelease, actionPrisonerExecute, actionPrisonerRansom };
 
