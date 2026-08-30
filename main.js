@@ -4541,10 +4541,13 @@ function openTutorial() {
 // Settings screen uses inline onclick="openTutorial()"
 window.openTutorial = openTutorial;
 function renderTutorialPage() {
+  const content = $("tutorialContent");
+  if (!content) return; // #tutorialModal vắng khỏi DOM -> không dựng gì, tránh ném null
   const p = TUTORIAL_PAGES[tutPage];
-  $("tutorialContent").innerHTML = `<h4 style="color:var(--gold-light);margin-bottom:0.5rem;">${p.title}</h4>${p.content}`;
+  content.innerHTML = `<h4 style="color:var(--gold-light);margin-bottom:0.5rem;">${p.title}</h4>${p.content}`;
   setText("tutorialPage", `${tutPage+1}/${TUTORIAL_PAGES.length}`);
-  $("tutorialPrev").style.opacity = tutPage === 0 ? "0.3" : "1";
+  const prev = $("tutorialPrev");
+  if (prev) prev.style.opacity = tutPage === 0 ? "0.3" : "1";
   const next = $("tutorialNext");
   if (next) next.textContent = tutPage === TUTORIAL_PAGES.length - 1 ? "✓ Hiểu rồi!" : "Tiếp ▶";
 }
