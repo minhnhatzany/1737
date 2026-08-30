@@ -477,6 +477,8 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     seatsByScope: {},
     shops: {},          // T3.2a: cửa hàng/cơ ngơi — { [shopId]: shop }
     shopsByXa: {},      // T3.2a: index tra ngược — { [xaId]: [shopId, ...] }
+    villagesByXa: {},   // T3.3-0: một Village per xã QO — { [xaId]: Village }; state.village trỏ vào đây
+    _fallbackVillage: null, // T3.3-0: village dùng chung cho xã ngoài QO (huyện procedural)
     log: [],
     logDirty: false,
     thueDinh: 8, suuDich: 4, trieuThangNop: 15,
@@ -535,7 +537,6 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   const firstXa = firstTong.xa[firstXaId];
   const langIds = Object.keys(firstXa?.lang || {});
   const firstLangId = langIds[randInt(0, Math.max(0, langIds.length - 1))];
-  const firstLangObj = firstXa.lang[firstLangId];
 
   // Set Player Geography
   player.homeTong = firstTongId;
@@ -559,14 +560,8 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   // Personal food adapter (future: tách khỏi hậu cần quân chiến dịch).
   if (typeof player.personalFood !== "number") player.personalFood = player.thocCaNhan;
 
-  // The 'village' obj models the actual village the player is currently in
-  const startVillage = new Village({
-    name: firstLangObj.name,
-    quyLang: 120, khoThoc: 600, unrest: 12,
-    pops: { nong: firstLangObj.pop, tho: 20, thuong: 5 }
-  });
-  startVillage.clanIds = clans.map(c => c.id);
-  state.village = startVillage;
+  // T3.3-0: state.village KHÔNG còn là 1 object toàn cục — seed 1 Village per xã QO
+  // ở block bên dưới (sau khi có dòng họ cục bộ), rồi trỏ state.village vào xã hiện tại.
 
   // 2.1d: mở rộng seats ra 27 xã phủ Quảng Oai (địa lý viết tay T2.3).
   // Đọc lyTruong từ map_data; tạo Person(isAI) cho xã có người — chỉ số roll từ
@@ -649,6 +644,27 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   for (const seatId of Object.keys(state.seats)) {
     if (state.seats[seatId].scope === "xa") syncSeatContestants(state, seatId);
   }
+
+  // T3.3-0: seed 1 Village per xã QO (27). Dữ liệu tất định từ geo (xa.pop) — KHÔNG rng.
+  // quyLang/khoThoc scale theo dân (công thức trùng default cũ ~1700 dân: 120/600).
+  // clanIds = dòng họ cục bộ xã đó (xaClanIds). state.village trỏ vào xã hiện tại.
+  for (const huyenId of ["bat_bat", "tien_phong", "minh_nghia"]) {
+    const geoQO = getLowerRegions(state, huyenId);
+    for (const tongQO of Object.values(geoQO.tong || {})) {
+      for (const xaQO of Object.values(tongQO.xa || {})) {
+        const pop = xaQO.pop || 0;
+        state.villagesByXa[xaQO.id] = new Village({
+          name: xaQO.name, xaId: xaQO.id,
+          quyLang: Math.max(40, Math.round(pop * 0.07)),
+          khoThoc: Math.max(120, Math.round(pop * 0.35)),
+          unrest: 12,
+          pops: { nong: Math.max(10, pop), tho: 20, thuong: 5 },
+          clanIds: xaClanIds(state, xaQO.id) || [],
+        });
+      }
+    }
+  }
+  state.village = villageForXa(state, player.currentXa);
 
   // T3.2a: seed cửa hàng / cơ ngơi cho 27 xã phủ Quảng Oai (schema + generator, CHƯA
   // action nào đọc). Mỗi xã: slot generic "quán trọ" theo dân số (bỏ trống) + cơ ngơi
@@ -882,15 +898,12 @@ function arriveTravel(state) {
   p.location.xaId = p.currentXa;
   p.location.langId = p.currentLang;
 
-  // Update village context (estimate)
+  // T3.3-0: TRỎ state.village sang Village của xã đích — KHÔNG ghi đè field (state xã
+  // cũ: unrest/khoThoc/drafted... giữ nguyên, quay lại là còn). Xã ngoài QO -> fallback.
+  state.village = villageForXa(state, d.xaId);
+
   const geoData = getLowerRegions(state, d.huyenId);
   const langObj = geoData?.tong?.[d.tongId]?.xa?.[d.xaId]?.lang?.[d.langId];
-  if (langObj) {
-    state.village.name = langObj.name;
-    state.village.pops.nong = Math.max(10, langObj.pop - 25);
-    state.village.unrest = 12;
-  }
-
   logLine(state, `📍 Đã tới nơi: ${langObj?.name || d.langId}.`, true);
 
   // If arriving due to an imperial transfer order, switch active posting
@@ -1223,6 +1236,23 @@ function playerHoldsSeatAtLeast(state, minTitle) {
     if (seat && seat.occupantId === pid && order.indexOf(seat.title) >= need) return true;
   }
   return false;
+}
+
+/**
+ * T3.3-0: Village của một xã. QO: 27 xã seed sẵn trong state.villagesByXa (createInitialState).
+ * Ngoài QO (huyện procedural): dùng chung state._fallbackVillage, tạo một lần.
+ * state.village LUÔN là con trỏ tới object trả về đây — KHÔNG bao giờ copy field.
+ */
+export function villageForXa(state, xaId) {
+  if (xaId && state.villagesByXa && state.villagesByXa[xaId]) return state.villagesByXa[xaId];
+  if (!state._fallbackVillage) {
+    const globalClanIds = (state.clans || []).filter(c => c.scope == null).map(c => c.id);
+    state._fallbackVillage = new Village({
+      name: "Làng", xaId: null, quyLang: 120, khoThoc: 600, unrest: 12,
+      pops: { nong: 400, tho: 20, thuong: 5 }, clanIds: globalClanIds,
+    });
+  }
+  return state._fallbackVillage;
 }
 
 function ensurePostingIfNeeded(state) {
@@ -3036,6 +3066,7 @@ export function gameTick(state) {
     processMonthlyShopIncome(state);
     processMonthlyShopVacancy(state);
     processMonthlyWages(state);
+    processMonthlyDraftReclaim(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -3750,6 +3781,18 @@ function processMonthlyWages(state) {
   }
 }
 
+// T3.3-0: thu hồi suất đinh đã trưng — trai tráng lớn lên / giải ngũ dần. ~5%/tháng
+// (min 1) cho MỌI village per-xã + fallback. Chữa bệnh "village.drafted không hồi bao giờ"
+// (recon 28/8). SỐ HẠT GIỐNG.
+function processMonthlyDraftReclaim(state) {
+  const all = [...Object.values(state.villagesByXa || {}), state._fallbackVillage].filter(Boolean);
+  for (const v of all) {
+    const d = v.drafted | 0;
+    if (d <= 0) continue;
+    v.drafted = Math.max(0, d - Math.max(1, Math.ceil(d * 0.05)));
+  }
+}
+
 export function actionJoinBattle(state, battleId, side = "def") {
   const p = state.player;
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
@@ -4144,7 +4187,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages }; // T3.2c/T3.3-1: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
 // markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 

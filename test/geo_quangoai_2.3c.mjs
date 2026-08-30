@@ -73,18 +73,18 @@ const mnLast = geos.minh_nghia.tong.minh_nghia_t2;
 check("Tổng Thượng Tiết là tổng cuối Minh Nghĩa", mnLast.name === "Tổng Thượng Tiết");
 check("xã Vạn Xuân lyTruong = null (ghế trống)", mnLast.xa.minh_nghia_t2_x2.name === "Vạn Xuân" && mnLast.xa.minh_nghia_t2_x2.lyTruong === null);
 
-// spawn vào Quảng Oai -> village name lấy từ dữ liệu tay (không phải "Làng <GeoName>")
-const HANDLANG = new Set();
-for (const h of HUYEN) for (const t of Object.values(geos[h].tong)) for (const x of Object.values(t.xa)) for (const l of Object.values(x.lang)) HANDLANG.add(l.name);
+// T3.3-0: state.village là Village per XÃ -> name là tên XÃ viết tay (không phải làng).
+const HANDXA = new Set();
+for (const h of HUYEN) for (const t of Object.values(geos[h].tong)) for (const x of Object.values(t.xa)) HANDXA.add(x.name);
 let qoSpawn = 0, qoNameOk = 0;
 for (let seed = 1; seed <= 600; seed++) {
   const s = createInitialState("T", seed);
   if (s.player.homePhu === "quang_oai") {
     qoSpawn++;
-    if (HANDLANG.has(s.village.name)) qoNameOk++;
+    if (HANDXA.has(s.village.name) && s.village === s.villagesByXa[s.player.currentXa]) qoNameOk++;
   }
 }
-check(`spawn Quảng Oai (${qoSpawn} lần/600 seed): village name luôn từ dữ liệu tay`, qoSpawn > 0 && qoNameOk === qoSpawn);
+check(`spawn Quảng Oai (${qoSpawn} lần/600 seed): state.village = Village xã hiện tại, name từ dữ liệu tay`, qoSpawn > 0 && qoNameOk === qoSpawn);
 
 // huyện ngoài Quảng Oai vẫn procedural — T3.0 khoá spawn về QO nên gọi trực tiếp
 // getLowerRegions với huyện ngoài QO (tách "generator còn sống" khỏi "đường spawn").

@@ -384,18 +384,22 @@ export class Clan {
 export class Village {
   constructor({
     name,
+    xaId = null,          // T3.3-0: village per xã — id xã (null = fallback toàn cục)
     quyLang = 100,
     khoThoc = 500,
     unrest = 10,
     pops = { nong: 100, tho: 10, thuong: 5 },
     clanIds = [],
+    drafted = 0,          // T3.3-0: suất đinh đã trưng (per-xã, có cơ chế thu hồi tháng)
   }) {
     this.name = name;
+    this.xaId = xaId;
     this.quyLang = quyLang;
     this.khoThoc = khoThoc;
     this.unrest = unrest;
     this.pops = pops;
     this.clanIds = clanIds.slice();
+    this.drafted = drafted;
   }
 }
 

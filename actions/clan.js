@@ -107,7 +107,9 @@ export function xaClanIds(state, xaId) {
   return ids.length ? ids : null;
 }
 function fallbackGlobalClanIds(state) {
-  return (state.village?.clanIds || []).slice(0, 6);
+  // T3.3-0: village.clanIds nay là họ CỤC BỘ xã hiện tại. Fallback (xã ngoài QO) phải
+  // đọc thẳng 3 họ toàn cục (scope=null), không qua village.
+  return (state.clans || []).filter(c => c.scope == null).map(c => c.id).slice(0, 6);
 }
 /** T3.1c: đổi vị thế (status 0..100) một dòng họ, clamp. */
 export function adjustClanStatus(state, clanId, delta) {
