@@ -79,6 +79,14 @@ export const SHOP_FOUND_DAYS = Object.freeze({
 /** T3.2c: mỗi người chơi chỉ giữ 1 cơ nghiệp (chưa thuê được người làm — T3.2d nới). */
 export const SHOP_MAX_PER_PLAYER = 1;
 
+/**
+ * T3.2c-2: cửa hàng TỪNG có chủ mà bỏ trống quá ngần này ngày game -> dòng họ mạnh
+ * nhất xã đưa người vào tiếp quản. Slot quán trọ nguyên trinh (chưa ai từng giữ)
+ * KHÔNG bị đụng. 45 ngày ~ 1.5 tháng game — nới cửa sổ an toàn cho người chơi
+ * không toàn thời gian (đi vắng/bận vài ngày không mất cơ nghiệp).
+ */
+export const SHOP_VACANT_FILL_DAYS = 45;
+
 // Tên đệm + tên cho chủ cửa hàng AI (nam). Bốc từ stream riêng — KHÔNG dùng bảng tên
 // toàn cục trong engine.js (tránh tiêu draw fallback -> lệch world-gen). Họ lấy theo
 // dòng họ sở hữu, nơi gọi tự ghép.
@@ -125,6 +133,30 @@ export function rollXaShops(xaId, opts = {}) {
     out.push(makeSpec(s, xaId, idx++, SHOP_GENERIC_TYPE, false));
   }
   return out;
+}
+
+/**
+ * T3.2c-2: hồ sơ một chủ cửa hàng AI MỚI (khi dòng họ đưa người tiếp quản cửa hàng
+ * bỏ trống). STREAM RNG RIÊNG theo seedStr — KHÔNG đụng state.rngState, tất định.
+ * Cùng shape với ownerProfile trong makeSpec (T3.2a); nơi gọi tự ghép họ + givenName.
+ */
+export function rollShopOwner(seedStr) {
+  const s = { rngState: initSeed(String(seedStr)) };
+  const core = () => (rng(s) < 0.9)
+    ? 9 + Math.floor(rng(s) * 12)
+    : Math.min(48, 20 + Math.floor(rng(s) * 28));
+  return {
+    givenName: OWNER_DEM[Math.floor(rng(s) * OWNER_DEM.length)] + " " +
+               OWNER_TEN[Math.floor(rng(s) * OWNER_TEN.length)],
+    age:       rngInt(s, 30, 58),
+    tien:      rngInt(s, 20, 120),
+    opinion:   rngInt(s, -10, 10),
+    ngoaiGiao: core(),
+    voThuat:   core(),
+    quanLy:    core(),
+    muuMeo:    core(),
+    hocVan:    core(),
+  };
 }
 
 function makeSpec(s, xaId, idx, loai, wantsOwner) {

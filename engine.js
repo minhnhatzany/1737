@@ -2,7 +2,7 @@ import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from ".
 import { expireInbox, inboxFull } from "./core/inbox.js";
 import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, syncRankFromSeats } from "./core/seats.js";
 import { rollXaClans, clanIdForXa } from "./core/clans.js";
-import { rollXaShops, SHOP_LABEL } from "./core/shops.js";
+import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS } from "./core/shops.js";
 import { actionMoCuaHang } from "./actions/shops.js";
 export { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { actionDemolishNha, actionRecruitMaa, actionXayNha } from "./actions/property.js";
@@ -3013,6 +3013,7 @@ export function gameTick(state) {
     processMonthlyPropertyAndArmy(state);
     processMonthlyCapitalWear(state);
     processMonthlyShopIncome(state);
+    processMonthlyShopVacancy(state);
     processMonthlyDebts(state);
     processMonthlyTaxes(state);
     processMonthlySalary(state);
@@ -3635,6 +3636,61 @@ function processMonthlyShopIncome(state) {
   }
 }
 
+/**
+ * T3.2c-2: đánh dấu một cửa hàng bỏ trống (occupant chết / bỏ đi). Chỉ tác dụng khi
+ * shop ĐANG có occupant. Giữ ownerClanId làm dấu vết. Nơi gọi: hệ thống cái chết /
+ * bỏ nghề sau này. HIỆN CHƯA có đường tự nhiên nào khiến occupant mất khi game còn
+ * chạy (chết người chơi = gameOver, NPC danh tính không chết) — đây là hook sẵn.
+ */
+export function markShopVacant(state, shopId) {
+  const shop = state.shops?.[shopId];
+  if (!shop || !shop.occupantId) return false;
+  const occ = state.npcById?.[shop.occupantId];
+  if (occ && occ.shopId === shopId) occ.shopId = null;
+  shop.occupantId = null;
+  shop.vacantSinceDay = totalDaysAbs(state);
+  return true;
+}
+
+// T3.2c-2: cửa hàng TỪNG có chủ mà bỏ trống > SHOP_VACANT_FILL_DAYS -> dòng họ mạnh
+// nhất xã (pickXaSeatSuccessorClan qua ghế xã) đưa người AI vào tiếp quản. Template
+// spawn khớp block seed T3.2a. Slot quán trọ NGUYÊN TRINH (vacantSinceDay == null)
+// KHÔNG bị đụng — giữ chỗ cho người chơi. Tách riêng khỏi processMonthlyShopIncome.
+function processMonthlyShopVacancy(state) {
+  const now = totalDaysAbs(state);
+  for (const shop of Object.values(state.shops || {})) {
+    if (!shop || shop.occupantId || shop.foundingById) continue;
+    if (shop.vacantSinceDay == null) continue;                       // slot nguyên trinh
+    if (now - shop.vacantSinceDay < SHOP_VACANT_FILL_DAYS) continue;
+
+    const clanId = pickXaSeatSuccessorClan(state, seatIdForXa(shop.xaId));
+    const clan = clanId ? state.clanById?.[clanId] : null;
+    if (!clan) continue;   // xã không có dòng họ cục bộ (huyện procedural) -> để trống
+
+    const huyenId = shop.xaId.replace(/_t\d+_x\d+$/, "");
+    const tongId  = shop.xaId.replace(/_x\d+$/, "");
+    const pf = rollShopOwner("shopfill:" + shop.id + ":" + shop.vacantSinceDay);
+    const person = new Person({
+      isAI: true, name: clanSurname(clan.name) + " " + pf.givenName,
+      gender: Gender.NAM, disposition: [],
+      age: pf.age, tien: pf.tien, opinion: pf.opinion,
+      ngoaiGiao: pf.ngoaiGiao, voThuat: pf.voThuat, quanLy: pf.quanLy,
+      muuMeo: pf.muuMeo, hocVan: pf.hocVan,
+      clanId: clan.id,
+      currentRegion: RegionId.SON_TAY, currentPhu: "quang_oai",
+      currentHuyen: huyenId, currentTong: tongId, currentXa: shop.xaId,
+      shopId: shop.id,
+    });
+    state.npcs.push(person);
+    state.npcById[person.id] = person;
+    clan.memberIds.push(person.id);
+    shop.occupantId = person.id;
+    shop.ownerClanId = clan.id;
+    shop.vacantSinceDay = null;
+    logLine(state, `${clan.name} đưa người vào tiếp quản ${SHOP_LABEL[shop.loai] || "cửa hàng"} bỏ trống — nay là ${person.name}.`, true);
+  }
+}
+
 export function actionJoinBattle(state, battleId, side = "def") {
   const p = state.player;
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
@@ -4029,7 +4085,8 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome }; // T3.2c-1: export riêng để test cô lập (player.tien bị nhiều hàm tháng khác đụng)
+export { processMonthlyShopIncome, processMonthlyShopVacancy }; // T3.2c: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+// markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 
 export { actionChooseClanPatron, actionDropClanPatron, actionClanMediate, actionSetClanPressureMode, actionClanMischief, actionBeginClanMission, actionAdvanceClanMissionIntel, actionExecuteClanMission, localClanIds, xaClanIds, pickXaSeatSuccessorClan, adjustClanStatus, syncSeatContestants, tickXaClanStatusMonthly };
