@@ -1,4 +1,5 @@
 export default [
+  { ignores: ["test_eslint.js"] }, // fixture cố ý chứa lỗi — chứng minh config bắt no-undef
   {
     languageOptions: {
       ecmaVersion: 2022,
@@ -37,5 +38,13 @@ export default [
     rules: {
       "no-undef": "error"
     }
+  },
+  {
+    files: ["test/**"],
+    languageOptions: { globals: { process: "readonly" } }
+  },
+  {
+    files: ["audio.js"],
+    languageOptions: { globals: { URL: "readonly", Audio: "readonly" } }
   }
 ];
