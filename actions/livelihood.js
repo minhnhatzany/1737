@@ -4,6 +4,7 @@ import { randInt } from "../engine.js";
 import { Faction, PlayerRank, RegionId, totalPops, takeFromExtraction } from "../models.js";
 import { Weather, rollPersonalHarvestThoc } from "../weather.js";
 import { CapitalKind, THUYEN_WEAR_PER_TRIP } from "../core/capital.js";
+import { getTradeQuote } from "./market.js";
 import { logLine } from "../log.js";
 
 /** T3.4-1a: MÓN công cụ CÒN DÙNG ĐƯỢC (cond>0), hoặc null. cond=0 = hỏng -> coi như
@@ -264,30 +265,49 @@ export function actionDanhBatVenBien(state) {
     : `🚣 Lội ven bờ mò sò bắt cua, được ${qty} giỏ cá.`);
   return { ok: true, feedback: [{ text: `+${qty} Cá`, tone: "good" }, { text: "-24 TL", tone: "bad" }], sfx: "battle" };
 }
-export function actionBuonLauMuoi(state) {
+/**
+ * T3.4-3b — buôn lậu muối. Input là ITEM `muoi` THẬT trong inventory (không còn vốn
+ * 10Q trừu tượng): người chơi tự kiếm muối (KhaiThacDacSan ở HẢI_DƯƠNG, hoặc mua nơi
+ * khác) rồi đưa qua đây. Trót lọt -> bán chợ đen giá theo VÙNG (giá người mua sẵn trả
+ * = quote phía MUA, cao hơn giá lái buôn ép) × _quanLyBonus. Bị bắt -> mất số muối
+ * đang mang + cờ trongSoDenLy (hậu quả phạm pháp THẬT — wantedLevel/witness — để dành
+ * GĐ2b, đã ghi sổ nợ). Region-gate tối thiểu: không buôn lậu ngay tại vùng muối rẻ.
+ * KHÔNG người mua có tên (chợ đen chung cho mọi hàng cấm: thiết kế ở GĐ2b).
+ */
+export function actionBuonLauMuoi(state, qty) {
   const p = state.player;
   if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không đi buôn bán chợ búa nữa." };
   if (p.dangOm) return { ok: false, msg: "Đang ốm." };
-  if (p.tien < 10) return { ok: false, msg: "Cần ít nhất 10 quan làm vốn." };
-  p.tien -= 10;
+  qty = Math.floor(qty || 0);
+  if (qty <= 0) return { ok: false, msg: "Không có muối để đưa đi buôn lậu." };
+  const have = p.inventory?.muoi || 0;
+  if (have < qty) return { ok: false, msg: `Chỉ có ${have} gánh muối để đưa đi.` };
+  if (p.currentRegion === RegionId.HAI_DUONG || p.currentRegion === RegionId.AN_QUANG) {
+    return { ok: false, msg: "Vùng muối rẻ đầy chợ — phải đem muối đi nơi khác mới có lãi buôn lậu." };
+  }
+
   p.theLuc -= 15;
   const amMuuBonus = state._amMuuBonus || 1.0;
   let catchRate = Math.max(0.05, 0.30 - p.muuMeo * 0.01) / amMuuBonus;
   if (p._patronClanId && (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO)) {
-    const preset = getClanPressurePreset(state);
-    catchRate *= preset.smuggleCatchMul;
+    catchRate *= getClanPressurePreset(state).smuggleCatchMul;
   }
   if (rng(state) < catchRate) {
+    p.inventory.muoi -= qty;             // mất số muối đang mang (thay cho "mất 10Q" cũ)
     p.trongSoDenLy = true;
-    logLine(state, "Bị tuần tráng phát hiện! Bị tịch thu tiền muối và ghi vào sổ bìa đen.");
-    return { ok: true, shake: true, sfx: "caiVa" };
+    logLine(state, `Bị tuần tráng phát hiện! Tịch thu ${qty} gánh muối, ghi vào sổ bìa đen.`, true);
+    return { ok: true, shake: true, sfx: "caiVa", feedback: [{ text: `-${qty} Muối (bị tịch thu)`, tone: "bad" }] };
   }
-  let gained = randInt(20, 45);
-  gained = Math.floor(gained * (state._quanLyBonus || 1.0));
+
+  // Giá chợ đen = quote phía MUA của vùng đang đứng (người mua sẵn trả, không bị lái
+  // buôn ép giá bán). rng(state) qua getTradeQuote's marketScene — replay-safe.
+  const unit = Math.max(1, getTradeQuote(state, "muoi", true).unitPrice || 0);
+  const gained = Math.floor(unit * qty * (state._quanLyBonus || 1.0));
+  p.inventory.muoi -= qty;
   p.tien += gained;
-  p.quanLy = Math.min(100, p.quanLy + 0.5);
-  logLine(state, `Chuyến buôn muối trót lọt, thu về ${gained} quan.`);
-  return { ok: true, feedback: [{ text: `+${gained} Quan`, tone: "good" }], sfx: "coin" };
+  // T3.4-3b: bỏ quanLy += 0.5 — T3.5 làm accumulator thống nhất (khuôn actionLuyenVo).
+  logLine(state, `Chuyến buôn lậu ${qty} gánh muối trót lọt, thu về ${gained} quan.`);
+  return { ok: true, feedback: [{ text: `+${gained} Quan`, tone: "good" }, { text: `-${qty} Muối`, tone: "bad" }], sfx: "coin" };
 }
 export function actionMoBinh(state) {
   const p = state.player;

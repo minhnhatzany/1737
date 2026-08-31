@@ -1210,7 +1210,7 @@ function updateActionSoftLocks() {
   const lockDanhBat = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Nghĩa quân không đánh bắt dân sự lúc này." : (p.dangOm ? "Đang ốm liệt giường." : (p.theLuc < 24 ? "Cần 24 thể lực." : (!coastRegions.includes(p.currentRegion) ? "Phải ở vùng ven biển." : ""))));
   const lockChanNuoi = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Nghĩa quân không chăn nuôi dân sự lúc này." : (p.dangOm ? "Đang ốm liệt giường." : (p.theLuc < 18 ? "Cần 18 thể lực." : (p.tien < 8 ? "Cần 8 quan vốn." : ""))));
   const lockNauRuou = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Nghĩa quân không mở lò rượu dân sự." : (p.dangOm ? "Đang ốm liệt giường." : (p.theLuc < 16 ? "Cần 16 thể lực." : ((p.thocCaNhan || 0) < 2 ? "Cần 2 thóc." : ""))));
-  const lockBuon = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Nghĩa quân không buôn muối." : (p.dangOm ? "Đang ốm." : (p.tien < 10 ? "Cần 10 quan vốn." : "")));
+  const lockBuon = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Nghĩa quân không buôn muối." : (p.dangOm ? "Đang ốm." : ((p.inventory?.muoi || 0) < 1 ? "Cần có muối trong tay (kiếm/mua muối trước)." : ((p.currentRegion === RegionId.HAI_DUONG || p.currentRegion === RegionId.AN_QUANG) ? "Vùng muối rẻ — đem đi nơi khác mới có lãi." : ""))));
   const lockVo = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Nghĩa quân không luyện ở võ đường triều đình." : (p.theLuc < 30 ? "Cần 30 thể lực." : (p.tien < 3 ? "Cần 3 quan." : "")));
   const suatDinhRanh = Math.floor((totalPops(state.village) || 0) / 5) - (state.village?.drafted || 0);
   const lockMoBinh = blockedByGlobal || (p.faction === Faction.NGHIA_QUAN ? "Hãy dùng mục mộ binh của Nghĩa Quân." : (p.tien < 30 ? "Cần 30 quan." : (p.thocCaNhan < 20 ? "Cần 20 thóc." : (suatDinhRanh < 10 ? `Không đủ suất đinh (còn ${suatDinhRanh}).` : ""))));
@@ -4723,7 +4723,8 @@ function initButtons() {
   $("btnChanNuoi")?.addEventListener("click", () => doAction(actionChanNuoiLon));
   $("btnNauRuou")?.addEventListener("click", () => doAction(actionNauRuou));
   // btnNghi removed (stamina auto-regens daily)
-  $("btnBuonMuoi")?.addEventListener("click", () => doAction(actionBuonLauMuoi));
+  // T3.4-3b: buôn lậu cả số muối đang mang trong 1 chuyến (rủi ro tự quản qua lượng tích trữ).
+  $("btnBuonMuoi")?.addEventListener("click", () => doAction(actionBuonLauMuoi, [state?.player?.inventory?.muoi || 0]));
   $("btnRebelTrain")?.addEventListener("click", () => doAction(actionRebelTrain));
   $("btnRebelRaid")?.addEventListener("click", () => doAction(actionRebelRaidSupply));
   $("btnRebelAid")?.addEventListener("click", () => doAction(actionRebelAidPeople));
