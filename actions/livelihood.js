@@ -3,13 +3,17 @@ import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile, localClan
 import { randInt } from "../engine.js";
 import { Faction, PlayerRank, RegionId, totalPops } from "../models.js";
 import { Weather, rollPersonalHarvestThoc } from "../weather.js";
-import { CapitalKind } from "../core/capital.js";
+import { CapitalKind, THUYEN_WEAR_PER_TRIP } from "../core/capital.js";
 import { logLine } from "../log.js";
 
-/** T3.4-1a: có công cụ chế biến CÒN DÙNG ĐƯỢC (cond>0). cond=0 = hỏng -> coi như không
- *  có (khớp cách actionKhoiVu đọc hasTrau — KHÔNG chỉ some(kind===...) hời hợt). */
+/** T3.4-1a: MÓN công cụ CÒN DÙNG ĐƯỢC (cond>0), hoặc null. cond=0 = hỏng -> coi như
+ *  không có (khớp cách actionKhoiVu đọc hasTrau — KHÔNG chỉ some(kind===...) hời hợt). */
+function getWorkingCapital(p, kind) {
+  return (p.capital || []).find(c => c.kind === kind && (c.cond | 0) > 0) || null;
+}
+/** Bản boolean của getWorkingCapital — 1a dùng cho nồi/khung. */
 function hasWorkingCapital(p, kind) {
-  return (p.capital || []).some(c => c.kind === kind && (c.cond | 0) > 0);
+  return getWorkingCapital(p, kind) !== null;
 }
 /** T3.4-1a: sợi/tơ cho buổi dệt — trừu tượng thành tiền (khuôn actionChanNuoiLon).
  *  Bông/tơ thành hàng hoá thật có chuỗi cung ứng: để dành GĐ2b. */
@@ -216,9 +220,16 @@ export function actionCauCaSong(state) {
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 16;
   const weatherMul = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.MUA) ? 1.2 : (state.thoiTiet === Weather.HAN ? 0.8 : 1.0);
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * weatherMul * (state._quanLyBonus || 1.0)));
+  const boat = getWorkingCapital(p, CapitalKind.THUYEN_NAN);
+  // Không thuyền -> câu tay mép bờ, 1 giỏ/buổi. Có thuyền -> ra sông giăng lưới đầy đủ.
+  const qty = boat
+    ? Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * weatherMul * (state._quanLyBonus || 1.0)))
+    : 1;
   p.inventory.ca = (p.inventory.ca || 0) + qty;
-  logLine(state, `🎣 Ngồi mép sông câu cá, thu được ${qty} giỏ cá.`);
+  if (boat) boat.cond = Math.max(0, (boat.cond | 0) - THUYEN_WEAR_PER_TRIP);
+  logLine(state, boat
+    ? `🎣 Chèo thuyền ra sông câu cá, thu được ${qty} giỏ cá.`
+    : `🎣 Ngồi mép sông câu tay, được ${qty} giỏ cá.`);
   return { ok: true, feedback: [{ text: `+${qty} Cá`, tone: "good" }, { text: "-16 TL", tone: "bad" }], sfx: "murmur" };
 }
 export function actionDanhBatVenBien(state) {
@@ -232,9 +243,16 @@ export function actionDanhBatVenBien(state) {
   p.theLuc -= 24;
   const seaMul = p.currentRegion === RegionId.AN_QUANG ? 1.25 : 1.0;
   const weatherMul = (state.thoiTiet === Weather.BAO) ? 0.65 : (state.thoiTiet === Weather.MUA ? 1.1 : 1.0);
-  const qty = Math.max(1, Math.floor((2 + randInt(0, 3)) * seaMul * weatherMul * (state._quanLyBonus || 1.0)));
+  const boat = getWorkingCapital(p, CapitalKind.THUYEN_NAN);
+  // Không thuyền -> lội ven bờ mò sò bắt cua, 1 giỏ/buổi. Có thuyền -> dong khơi đánh lưới.
+  const qty = boat
+    ? Math.max(1, Math.floor((2 + randInt(state, 0, 3)) * seaMul * weatherMul * (state._quanLyBonus || 1.0)))
+    : 1;
   p.inventory.ca = (p.inventory.ca || 0) + qty;
-  logLine(state, `🚣 Ra cửa biển đánh lưới, mang về ${qty} giỏ cá.`);
+  if (boat) boat.cond = Math.max(0, (boat.cond | 0) - THUYEN_WEAR_PER_TRIP);
+  logLine(state, boat
+    ? `🚣 Dong thuyền ra cửa biển đánh lưới, mang về ${qty} giỏ cá.`
+    : `🚣 Lội ven bờ mò sò bắt cua, được ${qty} giỏ cá.`);
   return { ok: true, feedback: [{ text: `+${qty} Cá`, tone: "good" }, { text: "-24 TL", tone: "bad" }], sfx: "battle" };
 }
 export function actionBuonLauMuoi(state) {

@@ -45,6 +45,11 @@ export const CAPITAL_LABEL = Object.freeze({
 // Hao mòn mỗi tháng (điểm cond). cond 100 -> 0 trong ~50 tháng nếu không sửa.
 export const CAPITAL_WEAR_PER_MONTH = 2;
 
+// T3.4-2a: thuyền nan hao THEO LẦN DÙNG (mỗi chuyến ra khơi) — bằng đúng 1 tháng nằm
+// không. cond 100 -> ~50 chuyến hưởng lợi đầy đủ. Chạy SONG SONG với hao mòn tháng.
+// Chỉ thuyền hao kiểu này; nồi/khung (chế biến tại nhà) vẫn chỉ hao theo tháng.
+export const THUYEN_WEAR_PER_TRIP = 2;
+
 /**
  * Dựng một mục capital. Nơi gọi tự tăng state._capitalSeq và truyền vào seq + day.
  * @param {{ kind: string, seq: number, day: number }} p
