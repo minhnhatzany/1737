@@ -112,7 +112,7 @@ export function actionChatGo(state) {
   p.theLuc -= 22;
   const regionBoost = p.currentRegion === RegionId.SON_TAY ? 1.35 : 1.0;
   const weatherCut = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.BAO) ? 0.82 : 1.0;
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * regionBoost * weatherCut * (state._quanLyBonus || 1)));
+  const qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * regionBoost * weatherCut * (state._quanLyBonus || 1)));
   p.inventory.go = (p.inventory.go || 0) + qty;
   logLine(state, `🪵 Vào rừng đốn gỗ, gom được ${qty} tấm gỗ.`);
   return { ok: true, feedback: [{ text: `+${qty} Gỗ`, tone: "good" }, { text: "-22 TL", tone: "bad" }], sfx: "cay" };
@@ -130,7 +130,7 @@ export function actionDetVai(state) {
   const regionBoost = (p.currentRegion === RegionId.SON_NAM || p.currentRegion === RegionId.KINH_BAC) ? 1.25 : 1.0;
   // Không khung -> dệt tay, 1 tấm thô/buổi. Có khung -> năng suất đầy đủ (vùng + focus).
   const qty = coKhung
-    ? Math.max(1, Math.floor((1 + randInt(0, 1)) * regionBoost * (state._quanLyBonus || 1)))
+    ? Math.max(1, Math.floor((1 + randInt(state, 0, 1)) * regionBoost * (state._quanLyBonus || 1)))
     : 1;
   p.inventory.lua = (p.inventory.lua || 0) + qty;
   logLine(state, coKhung
@@ -147,7 +147,7 @@ export function actionChanNuoiLon(state) {
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 18;
   p.tien -= 8;
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 2)) * (state._quanLyBonus || 1)));
+  const qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * (state._quanLyBonus || 1)));
   p.inventory.thit_lon = (p.inventory.thit_lon || 0) + qty;
   p.uyTinCong = Math.min(9999, (p.uyTinCong || 0) + (rng(state) < 0.35 ? 1 : 0));
   logLine(state, `🐖 Xuất chuồng lợn, thu được ${qty} mẻ thịt. Mang ra chợ bán sẽ lời hơn.`);
