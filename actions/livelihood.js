@@ -343,9 +343,12 @@ export function actionLuyenVo(state) {
   if (p.tien < 3) return { ok: false, msg: "Cần 3 Quan mã bóng thuốc xương khớp cho buổi tập." };
   p.tien -= 3;
   p.theLuc -= 30;
-  // T3.5-3.5a: tích luỹ qua bumpSkill chung (khuôn cũ _voTrainAccum, ngưỡng 4 — HÀNH
-  // VI KHÔNG ĐỔI). rng(state) cho "buổi tốt" giữ nguyên trước khi bồi.
-  const gain = (rng(state) < 0.18) ? 2 : 1; // rarely "great session"
+  // T3.5-3.5a: tích luỹ qua bumpSkill chung (khuôn cũ _voTrainAccum, ngưỡng 4).
+  // T3.5-3.5c-hotfix: lò rèn (lo_ren, 4000Q) -> "buổi tốt" 0.30 thay 0.18 — khuôn
+  // hoc_duong/van_mieu ở actionDiHoc (3.5b), trả tác dụng cho công trình sau khi
+  // 3.5c cắt passive voThuatAccum. Không lo_ren -> 0.18 như cũ (hành vi không đổi).
+  const hasForge = (p.holdings || []).some(h => h.typeId === "lo_ren");
+  const gain = (rng(state) < (hasForge ? 0.30 : 0.18)) ? 2 : 1; // "great session"
   const ups = bumpSkill(state, "voThuat", gain);
   if (ups > 0) {
     logLine(state, `Khổ luyện có ngày. Võ Thuật +${ups}.`);
