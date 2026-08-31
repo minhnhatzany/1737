@@ -562,6 +562,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
 
   // Personal food adapter (future: tách khỏi hậu cần quân chiến dịch).
   if (typeof player.personalFood !== "number") player.personalFood = player.thocCaNhan;
+  if (typeof player._doiDays !== "number") player._doiDays = 0; // đếm ngày liên tục không có gì ăn (phạt đói đứng yên)
 
   // T3.3-0: state.village KHÔNG còn là 1 object toàn cục — seed 1 Village per xã QO
   // ở block bên dưới (sau khi có dòng họ cục bộ), rồi trỏ state.village vào xã hiện tại.
@@ -1316,6 +1317,36 @@ export function settleVuYield(state, plot, gross) {
   const keep = g - to;
   state.player.thocCaNhan = (state.player.thocCaNhan || 0) + keep;
   return { keep, to };
+}
+
+/**
+ * PHẠT ĐÓI lúc ĐỨNG YÊN (không hành quân — march có hậu cần riêng ở tickTravel).
+ * CHỈ player (khớp tiền lệ farmPlots player-only). KHÔNG chạm uyTinCong: đói vì
+ * nghèo không phải chuyện mất mặt (khác trốn thuế — phạt danh dự có chủ ý riêng).
+ * Phạt chỉ ở tầng thể chất.
+ *
+ * p._doiDays = số ngày LIÊN TỤC không có gì ăn. ateToday=true (thocCaNhan > 0
+ * TRƯỚC khi trừ khẩu phần hôm nay) -> chuỗi đứt, reset 0. Reset KHÔNG rút ngắn
+ * dangOm nếu đã kích hoạt — dangOm giữ luật cũ (tự lành lúc chuyển tháng).
+ *   ngày 1, 3 : chỉ log, không phạt cơ học (giáp hạt là đời thường).
+ *   ngày 4+   : bào hồi thể lực 3×(d−3), sàn net −4/ngày — xử ở block "Hồi thể lực".
+ *   ngày 5+   : hp −1/ngày (sàn 1).
+ *   d≥8 && theLuc==0 : dangOm=true, hp −5 (sàn 1), log rõ.
+ */
+export function applyStarvation(state, ateToday) {
+  const p = state.player;
+  if (!p) return;
+  if (ateToday) { p._doiDays = 0; return; }
+  const d = p._doiDays = (p._doiDays || 0) + 1;
+  if (d === 1) { logLine(state, "Trong nhà hết sạch thóc — bữa nay nhịn."); return; }
+  if (d === 3) { logLine(state, "Ba ngày liền không hạt cơm nào vào bụng, người rã rời."); return; }
+  if (d < 4) return;
+  if (d >= 5 && typeof p.hp === "number") p.hp = Math.max(1, p.hp - 1);
+  if (d >= 8 && (p.theLuc | 0) <= 0 && !p.dangOm) {
+    p.dangOm = true;
+    if (typeof p.hp === "number") p.hp = Math.max(1, p.hp - 5);
+    logLine(state, "Đói lả nhiều ngày, kiệt sức nằm liệt giường.", true);
+  }
 }
 
 /**
@@ -3002,6 +3033,7 @@ export function gameTick(state) {
   if (state.player && typeof state.player.personalFood !== "number") {
     state.player.personalFood = state.player.thocCaNhan;
   }
+  if (state.player && typeof state.player._doiDays !== "number") state.player._doiDays = 0;
   if (state.player && !state.player.location) {
     state.player.location = {
       regionId: state.player.currentRegion,
@@ -3343,8 +3375,10 @@ export function gameTick(state) {
     const p = state.player;
     if (p && !state.travel?.active && !p?._attached?.battleId) {
       // Only consume when not marching (march already consumes travel thóc via tickTravel)
+      const ateToday = (p.thocCaNhan || 0) > 0; // có gì ăn TRƯỚC khi trừ khẩu phần
       p.thocCaNhan = Math.max(0, (p.thocCaNhan || 0) - 1);
       p.personalFood = p.thocCaNhan;
+      applyStarvation(state, ateToday); // đói lúc đứng yên: bào thể lực/HP, đủ lâu -> dangOm
     }
   }
   // Overdue posting order => punishment event (if not traveling and not jailed)
@@ -3576,9 +3610,12 @@ export function gameTick(state) {
         });
       }
       const maxTL = p.theLucMax || 144;
+      // Đói (đứng yên) ngày 4+ -> bào hồi thể lực theo 3×(_doiDays−3), sàn net −4/ngày.
+      const doiDays = p._doiDays || 0;
+      if (doiDays >= 4) regen = Math.max(regen - 3 * (doiDays - 3), -4);
       p.theLuc = clamp(p.theLuc + regen, 0, maxTL);
-      // HP hồi rất chậm
-      if (typeof p.hp === "number" && p.hp < (p.hpMax || 100)) {
+      // HP hồi rất chậm — nhưng đói nặng (ngày 5+) thì thôi hồi (applyStarvation trừ −1/ngày).
+      if (typeof p.hp === "number" && p.hp < (p.hpMax || 100) && doiDays < 5) {
         p.hp = Math.min((p.hpMax || 100), p.hp + 1);
       }
     }
