@@ -192,9 +192,13 @@ buổi), tạo cảm giác NPC đang sống.
 
 ### Hàng ngoại thương (GĐ2b, thiết kế item)
 
-Súng hoả mai, hàng lạ qua thương nhân Bồ Đào Nha/Hà Lan — đúng sử, đáng làm một
-nhánh item riêng: hiếm, đắt, mang tính khoe khoang, khác hẳn thóc muối gỗ nội
-địa.
+**Đính chính 31/8**: KHÔNG phải Bồ Đào Nha/Hà Lan thường xuyên — thương điếm Hà
+Lan đã đóng cửa từ năm 1700. Năm 1737 chủ lực cảng Đàng Ngoài là **Hoa kiều và
+Nhật Bản**. Tàu Bồ Đào Nha thi thoảng mới liều ghé, hiếm và nguy hiểm (bị tháo
+bánh lái/tước vũ khí, "khám tàu" trấn lột, nghi chở giáo sĩ). Dùng Hoa kiều/
+Nhật Bản làm nguồn hàng ngoại thường xuyên; tàu Tây hiếm hoi là một SỰ KIỆN đặc
+biệt, không phải quan hệ buôn bán đều đặn. Chi tiết đầy đủ + cấu trúc cảng
+(Domea → Phố Hiến → Kẻ Chợ) trong `1737-suLieu-gd2b-31-8.md`.
 
 ---
 
