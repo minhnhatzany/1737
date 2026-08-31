@@ -3,7 +3,17 @@ import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile, localClan
 import { randInt } from "../engine.js";
 import { Faction, PlayerRank, RegionId, totalPops } from "../models.js";
 import { Weather, rollPersonalHarvestThoc } from "../weather.js";
+import { CapitalKind } from "../core/capital.js";
 import { logLine } from "../log.js";
+
+/** T3.4-1a: có công cụ chế biến CÒN DÙNG ĐƯỢC (cond>0). cond=0 = hỏng -> coi như không
+ *  có (khớp cách actionKhoiVu đọc hasTrau — KHÔNG chỉ some(kind===...) hời hợt). */
+function hasWorkingCapital(p, kind) {
+  return (p.capital || []).some(c => c.kind === kind && (c.cond | 0) > 0);
+}
+/** T3.4-1a: sợi/tơ cho buổi dệt — trừu tượng thành tiền (khuôn actionChanNuoiLon).
+ *  Bông/tơ thành hàng hoá thật có chuỗi cung ứng: để dành GĐ2b. */
+const DET_VAI_SOI_COST = 6;
 
 export function collapseFromExhaustion(state, tuChonLog) {
   const p = state.player;
@@ -112,13 +122,21 @@ export function actionDetVai(state) {
   if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không ở phường dệt như dân thường." };
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
   if (p.theLuc < 20) return { ok: false, msg: "Cần 20 thể lực." };
+  if (p.tien < DET_VAI_SOI_COST) return { ok: false, msg: `Cần ${DET_VAI_SOI_COST} quan mua sợi/tơ cho buổi dệt.` };
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 20;
+  p.tien -= DET_VAI_SOI_COST;
+  const coKhung = hasWorkingCapital(p, CapitalKind.KHUNG_CUI);
   const regionBoost = (p.currentRegion === RegionId.SON_NAM || p.currentRegion === RegionId.KINH_BAC) ? 1.25 : 1.0;
-  const qty = Math.max(1, Math.floor((1 + randInt(0, 1)) * regionBoost * (state._quanLyBonus || 1)));
+  // Không khung -> dệt tay, 1 tấm thô/buổi. Có khung -> năng suất đầy đủ (vùng + focus).
+  const qty = coKhung
+    ? Math.max(1, Math.floor((1 + randInt(0, 1)) * regionBoost * (state._quanLyBonus || 1)))
+    : 1;
   p.inventory.lua = (p.inventory.lua || 0) + qty;
-  logLine(state, `🧵 Dệt cửi cả buổi, được ${qty} tấm vải lụa.`);
-  return { ok: true, feedback: [{ text: `+${qty} Lụa`, tone: "good" }, { text: "-20 TL", tone: "bad" }], sfx: "coin" };
+  logLine(state, coKhung
+    ? `🧵 Dệt khung cửi cả buổi, được ${qty} tấm vải.`
+    : `🧵 Dệt tay lần hồi, được ${qty} tấm vải thô.`);
+  return { ok: true, feedback: [{ text: `+${qty} Lụa`, tone: "good" }, { text: `-${DET_VAI_SOI_COST} Quan sợi`, tone: "bad" }, { text: "-20 TL", tone: "bad" }], sfx: "coin" };
 }
 export function actionChanNuoiLon(state) {
   const p = state.player;
@@ -144,9 +162,13 @@ export function actionNauRuou(state) {
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 16;
   p.thocCaNhan = Math.max(0, (p.thocCaNhan || 0) - 2);
-  const qty = 1 + (rng(state) < 0.45 ? 1 : 0);
+  const coNoi = hasWorkingCapital(p, CapitalKind.NOI_RUOU);
+  // Không nồi -> cất chõ tay, 1 hũ/buổi. Có nồi -> mẻ khá hơn, tỉ lệ ra 2 tăng.
+  const qty = coNoi ? (1 + (rng(state) < 0.55 ? 1 : 0)) : 1;
   p.inventory.ruou = (p.inventory.ruou || 0) + qty;
-  logLine(state, `🍶 Nấu rượu thủ công, ủ được ${qty} hũ rượu.`);
+  logLine(state, coNoi
+    ? `🍶 Cất rượu bằng nồi, ủ được ${qty} hũ.`
+    : `🍶 Cất rượu chõ tay, được ${qty} hũ.`);
   return { ok: true, feedback: [{ text: `+${qty} Rượu`, tone: "good" }, { text: "-2 Thóc", tone: "bad" }, { text: "-16 TL", tone: "bad" }], sfx: "murmur" };
 }
 export function actionCauCaSong(state) {
