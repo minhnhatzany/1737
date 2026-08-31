@@ -5,6 +5,7 @@ import { Faction, PlayerRank, RegionId, totalPops, takeFromExtraction } from "..
 import { Weather, rollPersonalHarvestThoc } from "../weather.js";
 import { CapitalKind, THUYEN_WEAR_PER_TRIP } from "../core/capital.js";
 import { getTradeQuote } from "./market.js";
+import { bumpSkill } from "../lifestyle.js";
 import { logLine } from "../log.js";
 
 /** T3.4-1a: MÓN công cụ CÒN DÙNG ĐƯỢC (cond>0), hoặc null. cond=0 = hỏng -> coi như
@@ -339,14 +340,11 @@ export function actionLuyenVo(state) {
   if (p.tien < 3) return { ok: false, msg: "Cần 3 Quan mã bóng thuốc xương khớp cho buổi tập." };
   p.tien -= 3;
   p.theLuc -= 30;
-  // Slow stat progression: accumulate training; only occasionally convert to +1
-  if (typeof p._voTrainAccum !== "number") p._voTrainAccum = 0;
+  // T3.5-3.5a: tích luỹ qua bumpSkill chung (khuôn cũ _voTrainAccum, ngưỡng 4 — HÀNH
+  // VI KHÔNG ĐỔI). rng(state) cho "buổi tốt" giữ nguyên trước khi bồi.
   const gain = (rng(state) < 0.18) ? 2 : 1; // rarely "great session"
-  p._voTrainAccum += gain;
-  let ups = 0;
-  while (p._voTrainAccum >= 4) { p._voTrainAccum -= 4; ups++; }
+  const ups = bumpSkill(state, "voThuat", gain);
   if (ups > 0) {
-    p.voThuat = Math.min(100, (p.voThuat || 0) + ups);
     logLine(state, `Khổ luyện có ngày. Võ Thuật +${ups}.`);
     return { ok: true, feedback: [{ text: `+${ups} Võ Thuật`, tone: "good" }, { text: "-30 TL", tone: "bad" }], sfx: "battle" };
   }

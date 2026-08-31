@@ -3037,6 +3037,11 @@ export function gameTick(state) {
   }
   if (state.player && typeof state.player._doiDays !== "number") state.player._doiDays = 0;
   if (state.player) state.player._cayRuongToday = 0; // T3.4-0: reset trần cày công nhật mỗi ngày (gameTick = 1 ngày) + cover save cũ
+  if (state.player && typeof state.player._voTrainAccum === "number") { // T3.5-3.5a: dời _voTrainAccum -> _skillAccum.voThuat (save cũ đang luyện võ dở)
+    state.player._skillAccum = state.player._skillAccum || {};
+    state.player._skillAccum.voThuat = (state.player._skillAccum.voThuat || 0) + state.player._voTrainAccum;
+    delete state.player._voTrainAccum;
+  }
   if (state.player && !state.player.location) {
     state.player.location = {
       regionId: state.player.currentRegion,

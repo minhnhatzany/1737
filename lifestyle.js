@@ -172,6 +172,36 @@ export function addLifestyleXP(state, lifestyleId, amount) {
   state.player.lifestyleXP[lifestyleId] = (state.player.lifestyleXP[lifestyleId] || 0) + amount;
 }
 
+/**
+ * T3.5-3.5a — TẦNG DƯỚI: 5 chỉ số cũ (ngoaiGiao/voThuat/quanLy/muuMeo/hocVan) tăng
+ * qua HÀNH ĐỘNG THẬT bằng accumulator (khuôn _voTrainAccum của actionLuyenVo).
+ * p._skillAccum[stat] bồi `gain` mỗi lần; đủ SKILL_ACCUM_THRESHOLD -> +1 chỉ số, dư
+ * mang sang. KHÔNG rng, KHÔNG addLifestyleXP ở đây (nối cây perk: 3.5b).
+ *
+ * NGUYÊN TẮC bồi chỉ số — áp cho MỌI hành động mới, không chỉ 8 nghề T3.4:
+ *   BỒI  khi hành động là QUẢN LÝ một tài sản / quy trình CÓ THỜI GIAN —
+ *        giữ ghế, giữ cửa hàng, khởi vụ, cấy rẽ, chế biến có công cụ, học hành.
+ *   KHÔNG BỒI khi là lao động ĂN CÔNG TỨC THỜI —
+ *        cày công nhật, cày thuê, khai thác thô (chặt gỗ/câu cá/đánh bắt/đặc sản).
+ * Phần thưởng kỹ năng của lao động thô (bền bỉ, tay nghề vùng miền) thuộc TẦNG TRÊN
+ * — domain hẹp kiểu KDC (Phần B, thiết kế cùng GĐ2b), chưa tới lượt.
+ */
+export const SKILL_ACCUM_THRESHOLD = 4;
+
+export function bumpSkill(state, stat, gain) {
+  const p = state?.player;
+  if (!p || !stat || !(gain > 0)) return 0;
+  if (!p._skillAccum) p._skillAccum = {};
+  p._skillAccum[stat] = (p._skillAccum[stat] || 0) + gain;
+  let ups = 0;
+  while (p._skillAccum[stat] >= SKILL_ACCUM_THRESHOLD) {
+    p._skillAccum[stat] -= SKILL_ACCUM_THRESHOLD;
+    ups++;
+  }
+  if (ups > 0) p[stat] = Math.min(100, (p[stat] || 0) + ups);
+  return ups;
+}
+
 /** Lấy tổng XP hiện có của 1 lifestyle */
 export function getLifestyleXP(state, lifestyleId) {
   return (state.player.lifestyleXP?.[lifestyleId] || 0);
