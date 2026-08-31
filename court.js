@@ -1,5 +1,6 @@
 import { rng, rngInt, randInt, rngChance, rngChoice } from "./core/rng.js";
 import { PlayerRank, RegionId, RankLabel } from "./models.js";
+import { bumpSkill } from "./lifestyle.js";
 import { logLine } from "./log.js";
 import { planActivity, activityStatus } from "./engine.js";
 
@@ -25,18 +26,19 @@ export function actionDiHoc(state) {
   p.tien -= 5;
   p.theLuc -= 30;
 
-  // Số học đường nâng cao bonus
-  const hasSchool = (p.holdings || []).find(h => h.typeId === "hoc_duong" || h.typeId === "van_mieu");
-  let baseChance = 0.40 + (hasSchool ? 0.15 : 0);
-
-  if (rng() < baseChance) {
-    p.hocVan = Math.min(100, p.hocVan + 1);
-    logLine(state, `Cày quyển Tứ Thư Ngũ Kinh thâu đêm. Học Vấn +1!`);
-    return { ok: true, feedback: [{ text: "+1 Học Vấn", tone: "good" }], sfx: "murmur" };
-  } else {
-    logLine(state, `Đọc đi đọc lại vẫn chưa ngộ thêm điều gì. Tiếp tục kiên trì!`);
-    return { ok: true, feedback: [{ text: "-30 TL", tone: "bad" }], sfx: "cay" };
+  // T3.5-3.5b: tích luỹ (khuôn actionLuyenVo), KHÔNG còn xác suất nhị phân 40/55%.
+  // Trường học (hoc_duong/van_mieu) -> thỉnh thoảng "buổi ngộ" gain 2 (~30%, thay
+  // cho +0.15 xác suất cũ). _birthThienTai ("học nhanh ~50%") -> ×1.5 gain, làm tròn lên.
+  const hasSchool = (p.holdings || []).some(h => h.typeId === "hoc_duong" || h.typeId === "van_mieu");
+  let gain = (hasSchool && rng(state) < 0.30) ? 2 : 1;
+  if (p._birthThienTai) gain = Math.ceil(gain * 1.5);
+  const ups = bumpSkill(state, "hocVan", gain);
+  if (ups > 0) {
+    logLine(state, `Cày quyển Tứ Thư Ngũ Kinh thâu đêm. Học Vấn +${ups}!`);
+    return { ok: true, feedback: [{ text: `+${ups} Học Vấn`, tone: "good" }], sfx: "murmur" };
   }
+  logLine(state, `Đọc đi đọc lại, chữ nghĩa ngấm dần. Cần kiên trì tích luỹ.`);
+  return { ok: true, feedback: [{ text: "Tiến bộ (tích lũy)", tone: "good" }, { text: "-30 TL", tone: "bad" }], sfx: "cay" };
 }
 
 // === KHOA CỬ VĂN ===

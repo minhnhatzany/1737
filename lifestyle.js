@@ -176,7 +176,7 @@ export function addLifestyleXP(state, lifestyleId, amount) {
  * T3.5-3.5a — TẦNG DƯỚI: 5 chỉ số cũ (ngoaiGiao/voThuat/quanLy/muuMeo/hocVan) tăng
  * qua HÀNH ĐỘNG THẬT bằng accumulator (khuôn _voTrainAccum của actionLuyenVo).
  * p._skillAccum[stat] bồi `gain` mỗi lần; đủ SKILL_ACCUM_THRESHOLD -> +1 chỉ số, dư
- * mang sang. KHÔNG rng, KHÔNG addLifestyleXP ở đây (nối cây perk: 3.5b).
+ * mang sang. KHÔNG rng. T3.5-3.5b: cũng bồi cây lifestyle tương ứng (STAT_TO_LIFESTYLE).
  *
  * NGUYÊN TẮC bồi chỉ số — áp cho MỌI hành động mới, không chỉ 8 nghề T3.4:
  *   BỒI  khi hành động là QUẢN LÝ một tài sản / quy trình CÓ THỜI GIAN —
@@ -187,6 +187,15 @@ export function addLifestyleXP(state, lifestyleId, amount) {
  * — domain hẹp kiểu KDC (Phần B, thiết kế cùng GĐ2b), chưa tới lượt.
  */
 export const SKILL_ACCUM_THRESHOLD = 4;
+
+/** T3.5-3.5b: chỉ số cũ -> cây lifestyle được bồi XP cùng lúc. */
+export const STAT_TO_LIFESTYLE = {
+  voThuat:   LifestyleId.QUAN_SU,
+  hocVan:    LifestyleId.HOC_THUAT,
+  quanLy:    LifestyleId.QUAN_LY,
+  muuMeo:    LifestyleId.AM_MUU,
+  ngoaiGiao: LifestyleId.NGOAI_GIAO,
+};
 
 export function bumpSkill(state, stat, gain) {
   const p = state?.player;
@@ -199,6 +208,9 @@ export function bumpSkill(state, stat, gain) {
     ups++;
   }
   if (ups > 0) p[stat] = Math.min(100, (p[stat] || 0) + ups);
+  // T3.5-3.5b: hành động thật cũng nuôi cây perk tương ứng (không rng).
+  const lid = STAT_TO_LIFESTYLE[stat];
+  if (lid) addLifestyleXP(state, lid, gain);
   return ups;
 }
 

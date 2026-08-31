@@ -173,6 +173,7 @@ export function actionDetVai(state) {
     logLine(state, "Dòng họ đối nghịch phá khung, buổi dệt hụt đi.", true);
   }
   p.inventory.lua = (p.inventory.lua || 0) + qty;
+  bumpSkill(state, "quanLy", 1); // T3.5-3.5b: chế biến có công cụ = quản lý quy trình
   logLine(state, coKhung
     ? `🧵 Dệt khung cửi cả buổi, được ${qty} tấm vải.`
     : `🧵 Dệt tay lần hồi, được ${qty} tấm vải thô.`);
@@ -194,6 +195,7 @@ export function actionChanNuoiLon(state) {
   }
   p.inventory.thit_lon = (p.inventory.thit_lon || 0) + qty;
   p.uyTinCong = Math.min(9999, (p.uyTinCong || 0) + (rng(state) < 0.35 ? 1 : 0));
+  bumpSkill(state, "quanLy", 1); // T3.5-3.5b: quản đàn/vốn/cám theo lứa = quản lý
   logLine(state, `🐖 Xuất chuồng lợn, thu được ${qty} mẻ thịt. Mang ra chợ bán sẽ lời hơn.`);
   return { ok: true, feedback: [{ text: `+${qty} Thịt lợn`, tone: "good" }, { text: "-8 Quan vốn", tone: "bad" }, { text: "-18 TL", tone: "bad" }], sfx: "coin" };
 }
@@ -214,6 +216,7 @@ export function actionNauRuou(state) {
     logLine(state, "Dòng họ đối nghịch đổ mẻ rượu đang ủ, hụt mất một phần.", true);
   }
   p.inventory.ruou = (p.inventory.ruou || 0) + qty;
+  bumpSkill(state, "quanLy", 1); // T3.5-3.5b: ủ men/canh lửa/canh mẻ = quản lý quy trình
   logLine(state, coNoi
     ? `🍶 Cất rượu bằng nồi, ủ được ${qty} hũ.`
     : `🍶 Cất rượu chõ tay, được ${qty} hũ.`);
@@ -306,7 +309,7 @@ export function actionBuonLauMuoi(state, qty) {
   const gained = Math.floor(unit * qty * (state._quanLyBonus || 1.0));
   p.inventory.muoi -= qty;
   p.tien += gained;
-  // T3.4-3b: bỏ quanLy += 0.5 — T3.5 làm accumulator thống nhất (khuôn actionLuyenVo).
+  bumpSkill(state, "muuMeo", 1); // T3.5-3.5b: né tuần tráng, tính đường đi = mưu mẹo (thay quanLy+=0.5 cũ)
   logLine(state, `Chuyến buôn lậu ${qty} gánh muối trót lọt, thu về ${gained} quan.`);
   return { ok: true, feedback: [{ text: `+${gained} Quan`, tone: "good" }, { text: `-${qty} Muối`, tone: "bad" }], sfx: "coin" };
 }

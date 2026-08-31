@@ -5,6 +5,7 @@ import { seatIdForXa } from "../core/seats.js";
 import { Faction } from "../models.js";
 import { totalDaysAbs } from "../engine.js";
 import { collapseFromExhaustion } from "./livelihood.js";
+import { bumpSkill } from "../lifestyle.js";
 import { logLine } from "../log.js";
 
 /** Lý trưởng xã đang đứng = "địa chủ" cho cày thuê/cấy rẽ. null nếu ghế trống (Vạn Xuân
@@ -110,6 +111,7 @@ export function actionCayRe(state) {
     seq: state._plotSeq, xaId: v.xaId, tenure: FarmTenure.RE,
     landlordId, reShare: RE_SHARE_TO_LANDLORD, day: totalDaysAbs(state),
   }));
+  bumpSkill(state, "quanLy", 1); // T3.5-3.5b: nhận rủi ro sản lượng + chia phần = quản lý một tài sản
   const boss = state.npcById?.[landlordId];
   logLine(state, `Nhận cấy rẽ một thửa của ${boss?.name || "lý trưởng"} xã ${v.name} (chia ${Math.round(RE_SHARE_TO_LANDLORD * 100)}% hoa lợi).`, true);
   return { ok: true, feedback: [{ text: `+1 thửa cấy rẽ · ${v.name}`, tone: "good" }, { text: `chia ${Math.round(RE_SHARE_TO_LANDLORD * 100)}%`, tone: "bad" }], sfx: "coin" };
@@ -152,6 +154,7 @@ export function actionKhoiVu(state, plotId) {
   plot.weatherHits = [];
   plot.vuStartedDay = totalDaysAbs(state);
   plot.lastYield = null;
+  bumpSkill(state, "quanLy", 1); // T3.5-3.5b: quản một thửa qua trọn vụ 99 ngày = quản lý quy trình
 
   logLine(state, `Khởi vụ trên một thửa ruộng — làm đất ${plot.hasTrau ? "bằng trâu" : "bằng tay"} (${plot.phaseDaysLeft} ngày).`, true);
   const feedback = [{ text: "-20 Thể lực", tone: "bad" }, { text: `Khởi vụ (${plot.hasTrau ? "có trâu" : "cày tay"})`, tone: "good" }];

@@ -4,6 +4,7 @@ import {
 } from "../core/shops.js";
 import { totalDaysAbs, ItemsDb } from "../engine.js";
 import { getTradeQuote } from "./market.js";
+import { bumpSkill } from "../lifestyle.js";
 import { Faction } from "../models.js";
 import { logLine } from "../log.js";
 
@@ -107,6 +108,7 @@ export function actionBanChoShop(state, itemKey, qty) {
   p.inventory[itemKey] -= soldQty;
   p.tien += total;
   shop.buyBudget -= total;
+  bumpSkill(state, "ngoaiGiao", 1); // T3.5-3.5b: thương lượng với chủ đầu mối = ngoại giao
 
   const boss = state.npcById?.[shop.occupantId];
   logLine(state, `Bán ${soldQty} ${itemName} cho ${label}${boss ? ` (${boss.name})` : ""}: +${total} Quan (giá xưởng cao hơn chợ).`, true);
