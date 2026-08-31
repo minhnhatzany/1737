@@ -79,6 +79,26 @@ export const SHOP_FOUND_DAYS = Object.freeze({
 /** T3.2c: mỗi người chơi chỉ giữ 1 cơ nghiệp (chưa thuê được người làm — T3.2d nới). */
 export const SHOP_MAX_PER_PLAYER = 1;
 
+// ── T3.4-3a: người mua có tên — occupant shop là đầu mối thu mua 3 mặt hàng ───
+// Loại shop nào tự nhiên mua mặt hàng nào (dò T3.4-3a). ca/muoi/thit_lon/thoc:
+// KHÔNG có shop khớp -> giữ bán qua chợ ẩn danh (sổ nợ), chưa làm state.buyers.
+export const SHOP_BUYS = Object.freeze({
+  go:   [ShopType.XUONG_CUA, ShopType.PHUONG_THAN, ShopType.BEN_BE],
+  lua:  [ShopType.XUONG_DET],
+  ruou: [ShopType.QUAN_TRO],
+});
+
+/** Vốn kinh doanh MUA HÀNG/tháng của một shop — TÁCH khỏi tien cá nhân occupant.
+ *  = max(300, incomeBase × 20). Sàn 300 để quán trọ vẫn là người mua rượu có nghĩa.
+ *  Reset CỨNG mỗi tháng (khuôn processMonthlyExtractionReset). SỐ HẠT GIỐNG. */
+export function shopBuyBudget(incomeBase) {
+  return Math.max(300, (incomeBase | 0) * 20);
+}
+
+/** Giá qua shop-buyer so với chợ ẩn danh: +15% (đủ để đáng chọn, đã bị buyBudget
+ *  chặn trần nên không phá cân bằng). SỐ HẠT GIỐNG. */
+export const SHOP_BUYER_PREMIUM = 1.15;
+
 /**
  * T3.2c-2: cửa hàng TỪNG có chủ mà bỏ trống quá ngần này ngày game -> dòng họ mạnh
  * nhất xã đưa người vào tiếp quản. Slot quán trọ nguyên trinh (chưa ai từng giữ)
@@ -160,6 +180,7 @@ export function rollShopOwner(seedStr) {
 }
 
 function makeSpec(s, xaId, idx, loai, wantsOwner) {
+  const incomeBase = SHOP_INCOME_BASE[loai] || 0;
   const spec = {
     id: shopIdForXa(xaId, idx),
     loai,
@@ -168,7 +189,8 @@ function makeSpec(s, xaId, idx, loai, wantsOwner) {
     seeded: true,
     wantsOwner,
     level: 1,
-    incomeBase: SHOP_INCOME_BASE[loai] || 0,
+    incomeBase,
+    buyBudget: shopBuyBudget(incomeBase), // T3.4-3a: vốn mua hàng/tháng, reset cứng
   };
   if (wantsOwner) {
     spec.ownerGivenName =

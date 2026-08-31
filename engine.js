@@ -2,8 +2,8 @@ import { initSeed, seedRng, rng, rngInt, randInt, rngChance, rngChoice } from ".
 import { expireInbox, inboxFull } from "./core/inbox.js";
 import { makeSeat, scopeKey, SeatLegitimacy, seatIdForXa, rollLyTruongProfile, syncRankFromSeats } from "./core/seats.js";
 import { rollXaClans, clanIdForXa } from "./core/clans.js";
-import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS } from "./core/shops.js";
-import { actionMoCuaHang } from "./actions/shops.js";
+import { rollXaShops, SHOP_LABEL, rollShopOwner, SHOP_VACANT_FILL_DAYS, shopBuyBudget } from "./core/shops.js";
+import { actionMoCuaHang, actionBanChoShop } from "./actions/shops.js";
 import { detachJob } from "./core/employment.js";
 import { actionThueNguoi, actionSaThai } from "./actions/employment.js";
 import { LOC_PLOTS_BY_TITLE, VU_PHASES, PHASE_DAYS, LAM_DAT_DAYS_TRAU, PHASE_LABEL, BASE_VU_YIELD, vuWeatherFactor, CONG_TO_RATE, RE_SHARE_TO_LANDLORD, LOC_MONTHLY_THOC } from "./core/farm.js";
@@ -697,6 +697,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
             seeded: true, level: spec.level,
             occupantId: null, ownerClanId: null,
             incomeBase: spec.incomeBase,
+            buyBudget: spec.buyBudget,                   // T3.4-3a: vốn mua hàng/tháng
             capitalIds: [],                              // T3.2b
             workerIds: [],                              // T3.2d
             contestingClanIds: contestingClanIds.slice(),
@@ -3229,6 +3230,7 @@ export function gameTick(state) {
     processMonthlyWages(state);
     processMonthlyDraftReclaim(state);
     processMonthlyExtractionReset(state);
+    processMonthlyBuyBudgetReset(state);
     processMonthlyFarmRisk(state);
     processMonthlyLocRent(state);
     processMonthlyDebts(state);
@@ -4005,6 +4007,14 @@ function processMonthlyExtractionReset(state) {
   for (const v of all) v.monthlyExtraction = { go: 0, ca: 0, dacSan: 0 };
 }
 
+// T3.4-3a: vốn mua hàng của shop — RESET CỨNG về max(300, incomeBase×20) mỗi tháng.
+// Tách khỏi tien cá nhân occupant. Cùng khuôn reset cứng như hồ khai thác.
+function processMonthlyBuyBudgetReset(state) {
+  for (const shop of Object.values(state.shops || {})) {
+    if (shop) shop.buyBudget = shopBuyBudget(shop.incomeBase | 0);
+  }
+}
+
 export function actionJoinBattle(state, battleId, side = "def") {
   const p = state.player;
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
@@ -4399,7 +4409,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyExtractionReset, processMonthlyFarmRisk, processMonthlyLocRent }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyExtractionReset, processMonthlyBuyBudgetReset, processMonthlyFarmRisk, processMonthlyLocRent }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
 // markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 
@@ -4425,7 +4435,7 @@ export { initQuestsIfNeeded, refreshQuestsYearly, tickQuests };
 
 export { actionXayNha, actionRecruitMaa, actionDemolishNha };
 export { actionMuaCongCu };
-export { actionMoCuaHang };
+export { actionMoCuaHang, actionBanChoShop };
 export { actionThueNguoi, actionSaThai };
 export { actionXinCongDien, actionMuaRuongTu, actionCayThue, actionCayRe, actionNghiViec, actionKhoiVu };
 

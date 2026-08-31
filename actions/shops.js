@@ -1,7 +1,10 @@
 import {
   ShopType, SHOP_OPEN_COST, SHOP_FOUND_DAYS, SHOP_LABEL, SHOP_MAX_PER_PLAYER,
+  SHOP_BUYS, SHOP_BUYER_PREMIUM, shopBuyBudget,
 } from "../core/shops.js";
-import { totalDaysAbs } from "../engine.js";
+import { totalDaysAbs, ItemsDb } from "../engine.js";
+import { getTradeQuote } from "./market.js";
+import { Faction } from "../models.js";
 import { logLine } from "../log.js";
 
 /**
@@ -61,4 +64,56 @@ export function actionMoCuaHang(state, xaId, loai = ShopType.QUAN_TRO) {
     ],
     sfx: "murmur",
   };
+}
+
+/**
+ * T3.4-3a — bán hàng THẲNG cho một cửa hàng đầu mối ở xã đang đứng (người mua có
+ * TÊN, giá tốt hơn chợ ẩn danh ×SHOP_BUYER_PREMIUM, nhưng có HẠN MỨC shop.buyBudget/
+ * tháng). Chỉ 3 mặt hàng có shop khớp: go / lua / ruou (SHOP_BUYS). ca/muoi/thit_lon/
+ * thoc vẫn bán qua chợ ẩn danh (actionTradeItem) — chưa làm state.buyers.
+ *
+ * Tiền trả TỪ shop.buyBudget (vốn kinh doanh cửa hàng, tự nạp mỗi tháng) — KHÔNG
+ * đụng tien cá nhân occupant. Kẹp qty theo ngân sách còn lại.
+ */
+export function actionBanChoShop(state, itemKey, qty) {
+  const p = state.player;
+  if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn buôn bán chợ búa." };
+  qty = Math.floor(qty || 0);
+  if (qty <= 0) return { ok: false, msg: "Số lượng không hợp lệ." };
+
+  const loais = SHOP_BUYS[itemKey];
+  const itemName = ItemsDb[itemKey]?.name || itemKey;
+  if (!loais) return { ok: false, msg: `${itemName} không cửa hàng nào thu mua — bán ở Chợ.` };
+
+  const have = p.inventory?.[itemKey] || 0;
+  if (have < qty) return { ok: false, msg: `Chỉ có ${have} ${itemName}.` };
+
+  const ids = state.shopsByXa?.[p.currentXa] || [];
+  const shop = ids
+    .map(id => state.shops?.[id])
+    .find(s => s && s.occupantId && loais.includes(s.loai));
+  if (!shop) return { ok: false, msg: `Xã này không có cửa hàng nào thu mua ${itemName}.` };
+  if (typeof shop.buyBudget !== "number") shop.buyBudget = shopBuyBudget(shop.incomeBase | 0); // save cũ
+
+  const label = SHOP_LABEL[shop.loai] || "cửa hàng";
+  const unit = Math.round((getTradeQuote(state, itemKey, false).unitPrice || 0) * SHOP_BUYER_PREMIUM);
+  if (unit <= 0) return { ok: false, msg: "Không định được giá mặt hàng này." };
+  if (shop.buyBudget < unit) {
+    return { ok: false, msg: `${label} đã hết vốn mua tháng này. Bán ở Chợ, hoặc chờ tháng sau.` };
+  }
+
+  const soldQty = Math.min(qty, Math.floor(shop.buyBudget / unit));
+  const total = unit * soldQty;
+  p.inventory[itemKey] -= soldQty;
+  p.tien += total;
+  shop.buyBudget -= total;
+
+  const boss = state.npcById?.[shop.occupantId];
+  logLine(state, `Bán ${soldQty} ${itemName} cho ${label}${boss ? ` (${boss.name})` : ""}: +${total} Quan (giá xưởng cao hơn chợ).`, true);
+  const feedback = [
+    { text: `+${total} Quan`, tone: "good" },
+    { text: `-${soldQty} ${itemName}`, tone: "bad" },
+  ];
+  if (soldQty < qty) feedback.push({ text: `${label} chỉ mua nổi ${soldQty}/${qty} (hết vốn tháng)`, tone: "neutral" });
+  return { ok: true, feedback, sfx: "coin" };
 }

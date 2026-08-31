@@ -14,7 +14,7 @@ import {
   resolveCase,
   actionPostingBuild,
   actionXayNha, actionDemolishNha, actionTradeItem,
-  actionMuaCongCu, actionMoCuaHang, actionThueNguoi, actionSaThai,
+  actionMuaCongCu, actionMoCuaHang, actionBanChoShop, actionThueNguoi, actionSaThai,
   actionXinCongDien, actionMuaRuongTu, locPlotsForPlayer,
   actionCayThue, actionCayRe, actionNghiViec, actionKhoiVu,
   actionTangRuouNPC, actionRecruitMaa, actionJoinBattle, actionAttackVillage, setWanted, checkWantedArrest, MaaDb,
@@ -30,7 +30,7 @@ import {
 import { rollDailyEvent, resolveEventChoice } from "./events.js";
 import { drainPendingToInbox } from "./core/inbox.js";
 import { CapitalKind, CAPITAL_PRICE, CAPITAL_LABEL } from "./core/capital.js";
-import { ShopType, SHOP_LABEL, SHOP_OPEN_COST } from "./core/shops.js";
+import { ShopType, SHOP_LABEL, SHOP_OPEN_COST, SHOP_BUYS, SHOP_BUYER_PREMIUM } from "./core/shops.js";
 import { JobKind, JOB_WAGE_BASE, SHOP_WORKER_CAP } from "./core/employment.js";
 import { FarmTenure, congDienSlots, RUONG_TU_GIA, RE_SHARE_TO_LANDLORD, PHASE_LABEL, CONG_TO_RATE, LOC_MONTHLY_THOC } from "./core/farm.js";
 import {
@@ -1539,6 +1539,25 @@ function renderMarket() {
       ? `<span style="color:#f87171;font-size:0.7rem;">(Khan hiếm — Giá cao)</span>`
       : "";
 
+    // T3.4-3a: người mua có tên — xưởng đầu mối ở xã đang đứng thu mua go/lua/ruou
+    // với giá cao hơn chợ (×SHOP_BUYER_PREMIUM), nhưng có hạn mức buyBudget/tháng.
+    let shopBuyerHtml = "";
+    const buyerLoais = SHOP_BUYS[item.key];
+    if (buyerLoais && current > 0) {
+      const bShop = (state.shopsByXa?.[state.player.currentXa] || [])
+        .map(id => state.shops?.[id])
+        .find(s => s && s.occupantId && buyerLoais.includes(s.loai));
+      if (bShop) {
+        const bUnit = Math.round(sellPrice * SHOP_BUYER_PREMIUM);
+        const bBudget = bShop.buyBudget | 0;
+        const dry = bBudget < bUnit;
+        shopBuyerHtml = `<button class="btn-market sell ${dry ? "" : "highlight-gold"}" ${dry ? "disabled" : ""}
+          onclick="window.doBanChoShop('${item.key}')"
+          title="Bán thẳng cho ${SHOP_LABEL[bShop.loai]} — ${bUnit} Quan/${unit} (cao hơn chợ), ngân sách xưởng còn ${bBudget}Q">
+          🏭 Xưởng: ${dry ? "hết vốn" : `${bUnit}Q · quỹ ${bBudget}`}</button>`;
+      }
+    }
+
     return `
       <div class="market-row">
         <div class="market-row-item">
@@ -1564,6 +1583,7 @@ function renderMarket() {
           <button class="btn-market" onclick="window.doMarketHaggle('${item.key}')" title="Dùng Ngoại Giao để đàm phán ưu đãi giá trong tháng">${isHaggleActive ? "🧮 Đã Mặc Cả" : "🧮 Đàm Phán"}</button>
           <button class="btn-market buy"  onclick="window.doMarketBuy('${item.key}')">Mua</button>
           <button class="btn-market sell" onclick="window.doMarketSell('${item.key}')">Bán</button>
+          ${shopBuyerHtml}
         </div>
       </div>
     `;
@@ -2888,6 +2908,11 @@ window.doMarketSell = key => {
 };
 window.doMarketHaggle = key => doAction(actionMarketHaggle, [key]);
 window.acceptMarketContract = () => doAction(actionAcceptMarketContract);
+window.doBanChoShop = key => {
+  const qty = parseInt($(`mktQty_${key}`)?.value || "1");
+  const res = doAction(actionBanChoShop, [key, qty]);
+  if (res?.ok) pushMarketFeed(`🏭 Bán ${ItemsDb[key]?.name || key} cho xưởng đầu mối`);
+};
 
 window.setPropCat   = cat => {
   const el = $("propList");
