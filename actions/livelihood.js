@@ -14,14 +14,25 @@ export function collapseFromExhaustion(state, tuChonLog) {
   if (typeof p.hp === "number") p.hp = Math.max(1, p.hp - 10);
   logLine(state, tuChonLog || "Làm việc kiệt sức ngã gục. Nằm liệt giường, mất bộn tiền thuốc.");
 }
+/** T3.4-0: cày công nhật là ĐẮP ĐỔI QUA NGÀY, không tích sản. Sản lượng nền ×0.4 so
+ *  với vụ mùa thật (actionKhoiVu, BASE_VU_YIELD 60/vụ) + trần buổi/ngày để không spam
+ *  tới kiệt thể lực. Có ruộng thật (khởi vụ) mới là đường làm giàu. */
+const CAY_RUONG_FACTOR = 0.4;
+const CAY_RUONG_MAX_PER_DAY = 3;
+
 export function actionCayRuong(state) {
   const p = state.player;
   if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn cày ruộng như dân thường." };
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
   if (p.theLuc < 20) return { ok: false, msg: "Hết thể lực." };
+  if ((p._cayRuongToday || 0) >= CAY_RUONG_MAX_PER_DAY) {
+    return { ok: false, msg: `Cày công nhật cả ngày rồi, lưng còng gối mỏi. Mai làm tiếp (tối đa ${CAY_RUONG_MAX_PER_DAY} buổi/ngày).` };
+  }
   p.theLuc -= 20;
-  let thoc = rollPersonalHarvestThoc(state.thoiTiet);
-  // Clan influence (commoner phase): patron helps, hostile clans sabotage.
+  p._cayRuongToday = (p._cayRuongToday || 0) + 1;
+  // rng(state) — replay-safe; KHÔNG dùng fallback stream của rollPersonalHarvestThoc.
+  let thoc = Math.max(1, Math.floor(rollPersonalHarvestThoc(state.thoiTiet, state) * CAY_RUONG_FACTOR));
+  // Clan influence (commoner phase): patron helps, hostile clans sabotage. (giữ nguyên)
   if (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO) {
     const preset = getClanPressurePreset(state);
     const patron = state.clans?.find(c => c.id === p._patronClanId);
@@ -32,7 +43,7 @@ export function actionCayRuong(state) {
       return c && (isClanHostile(c) || clanAvgOpinionToPlayer(state, cid) < -20);
     });
     if (localHostile && rng(state) < preset.sabotageChance) {
-      thoc = Math.max(0, thoc - 2);
+      thoc = Math.max(0, thoc - 2); // giữ nguyên: dòng họ phá có thể làm trắng một buổi xấu
       logLine(state, "Bị dòng họ đối nghịch phá việc đồng áng, mất bớt sản lượng.", true);
     }
   }
@@ -40,9 +51,9 @@ export function actionCayRuong(state) {
   const bonus = state._quanLyBonus || 1.0;
   if (bonus > 1) thoc = Math.floor(thoc * bonus);
   p.thocCaNhan += thoc;
-  let feedback = [{ text: "-20 Thể lực", tone: "bad" }, { text: `+${thoc} Thóc`, tone: "good" }];
+  let feedback = [{ text: "-20 Thể lực", tone: "bad" }, { text: `+${thoc} thóc (bữa qua ngày)`, tone: "neutral" }];
   if (p.theLuc <= 0) { collapseFromExhaustion(state); return { ok: true, feedback, shake: true, sfx: "cay" }; }
-  logLine(state, `Cày cuốc nhọc nhằn, thu được ${thoc} thóc.`);
+  logLine(state, "Đi cày công nhật, kiếm bữa qua ngày.");
   return { ok: true, feedback, sfx: "cay" };
 }
 export function actionNghiAnCom(state) {

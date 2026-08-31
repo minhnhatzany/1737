@@ -16,8 +16,10 @@ export function rollWeather(state = null, ) {
   return Weather.HAN;
 }
 
-export function rollPersonalHarvestThoc(weather) {
-  const base = 10 + Math.floor(rng() * 15);
+export function rollPersonalHarvestThoc(weather, state = null) {
+  // T3.4-0: nhận state để rút từ dòng RNG phiên (replay-safe). state=null -> fallback
+  // stream như cũ (giữ tương thích; hiện chỉ actionCayRuong gọi, luôn truyền state).
+  const base = 10 + Math.floor(rng(state) * 15);
   switch (weather) {
     case Weather.MUA:  return Math.floor(base * 1.3);
     case Weather.NANG: return Math.floor(base * 0.9);

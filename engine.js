@@ -563,6 +563,7 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
   // Personal food adapter (future: tách khỏi hậu cần quân chiến dịch).
   if (typeof player.personalFood !== "number") player.personalFood = player.thocCaNhan;
   if (typeof player._doiDays !== "number") player._doiDays = 0; // đếm ngày liên tục không có gì ăn (phạt đói đứng yên)
+  if (typeof player._cayRuongToday !== "number") player._cayRuongToday = 0; // T3.4-0: trần buổi cày công nhật/ngày
 
   // T3.3-0: state.village KHÔNG còn là 1 object toàn cục — seed 1 Village per xã QO
   // ở block bên dưới (sau khi có dòng họ cục bộ), rồi trỏ state.village vào xã hiện tại.
@@ -3034,6 +3035,7 @@ export function gameTick(state) {
     state.player.personalFood = state.player.thocCaNhan;
   }
   if (state.player && typeof state.player._doiDays !== "number") state.player._doiDays = 0;
+  if (state.player) state.player._cayRuongToday = 0; // T3.4-0: reset trần cày công nhật mỗi ngày (gameTick = 1 ngày) + cover save cũ
   if (state.player && !state.player.location) {
     state.player.location = {
       regionId: state.player.currentRegion,
