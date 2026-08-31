@@ -3619,6 +3619,7 @@ export function gameTick(state) {
           }
         });
       }
+      if (p._birthThienY) regen *= 2; // T3.5-3.5d: Thiên Y — hồi thể lực nhanh gấp đôi
       const maxTL = p.theLucMax || 144;
       // Đói (đứng yên) ngày 4+ -> bào hồi thể lực theo 3×(_doiDays−3), sàn net −4/ngày.
       const doiDays = p._doiDays || 0;

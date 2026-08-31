@@ -185,28 +185,31 @@ window.showFeedback = (results) => showFeedback(results);
 // CHARACTER CREATION — Data & UI (đặt sớm: HTML dùng onclick="window.selectGender…"
 // phải có hàm ngay khi module bắt đầu chạy; nếu lỗi ở giữa file thì trước đây chưa kịp gán window.*)
 // ──────────────────────────────────────────────────
+// T3.5-3.5d: dọn cờ _traitXxx/_birthXxx chết. Cờ CÒN được đọc runtime: _traitGianXao,
+// _traitADao, _birthDepTrai, _birthCuongTrang (event), _traitChamChi + _birthThienY
+// (T3.5-3.5d mới hiện thực hoá). Cờ khác đã xoá; mô tả UI sửa lại cho khớp thực tế.
 const PERSONALITY_TRAITS = [
-  { id:"tiet_kiem",  name:"Tiết Kiệm 💰",      effect:"Chi tiêu ít hơn 20%.",                   apply(p){ p._traitTietKiem=true; } },
-  { id:"hao_phong",  name:"Hào Phóng 🎁",      effect:"Cho/tặng +30% uy tín. Chi phí cao hơn.", apply(p){ p._traitHaoPhong=true; } },
-  { id:"dung_cam",   name:"Dũng Cảm ⚔️",       effect:"+10 Võ Thuật. Roll chiến đấu +15%.",      apply(p){ p.voThuat=Math.min(100,p.voThuat+10); p._traitDungCam=true; } },
-  { id:"than_trong", name:"Thận Trọng 🛡️",     effect:"Event tiêu cực giảm 20%.",                apply(p){ p._traitThanTrong=true; } },
-  { id:"tham_vong",  name:"Tham Vọng 🏆",      effect:"+15% tốc độ thăng chức.",                 apply(p){ p._traitThamVong=true; } },
-  { id:"gian_xao",   name:"Gian Xảo 🦊",       effect:"+10 Mưu Mẹo. Roll lừa đảo +10%.",        apply(p){ p.muuMeo=Math.min(100,p.muuMeo+10); p._traitGianXao=true; } },
-  { id:"cham_chi",   name:"Chăm Chỉ 🌾",       effect:"Sản xuất, khai thác +25%.",               apply(p){ p._traitChamChi=true; } },
-  { id:"hao_hoa",    name:"Hào Hoa 🌸",         effect:"+10 Ngoại Giao. NPC dễ cảm tình hơn.",  apply(p){ p.ngoaiGiao=Math.min(100,p.ngoaiGiao+10); p._traitHaoHoa=true; } },
-  { id:"trung_nghia",name:"Trung Nghĩa 🤝",    effect:"+20 uy tín dân ban đầu.",                  apply(p){ p.uyTinCong+=20; p._traitTrungNghia=true; } },
+  { id:"tiet_kiem",  name:"Tiết Kiệm 💰",      effect:"Dè sẻn, tính từng đồng. (tính cách — chưa gắn hiệu ứng)", apply(){} },
+  { id:"hao_phong",  name:"Hào Phóng 🎁",      effect:"Rộng rãi, sẵn tay cho đi. (tính cách — chưa gắn hiệu ứng)", apply(){} },
+  { id:"dung_cam",   name:"Dũng Cảm ⚔️",       effect:"+10 Võ Thuật.",                          apply(p){ p.voThuat=Math.min(100,p.voThuat+10); } },
+  { id:"than_trong", name:"Thận Trọng 🛡️",     effect:"Cẩn trọng, ngại phiêu lưu. (tính cách — chưa gắn hiệu ứng)", apply(){} },
+  { id:"tham_vong",  name:"Tham Vọng 🏆",      effect:"Khát vọng thăng tiến, không cam phận. (tính cách — chưa gắn hiệu ứng)", apply(){} },
+  { id:"gian_xao",   name:"Gian Xảo 🦊",       effect:"+10 Mưu Mẹo. Gian kế trong sự kiện +10% thành công.", apply(p){ p.muuMeo=Math.min(100,p.muuMeo+10); p._traitGianXao=true; } },
+  { id:"cham_chi",   name:"Chăm Chỉ 🌾",       effect:"Sản xuất & khai thác +25% (các nghề sinh kế).", apply(p){ p._traitChamChi=true; } },
+  { id:"hao_hoa",    name:"Hào Hoa 🌸",         effect:"+10 Ngoại Giao.",                        apply(p){ p.ngoaiGiao=Math.min(100,p.ngoaiGiao+10); } },
+  { id:"trung_nghia",name:"Trung Nghĩa 🤝",    effect:"+20 uy tín dân ban đầu.",                  apply(p){ p.uyTinCong+=20; } },
   { id:"a_dao",      name:"Ăn Chơi 🍷",         effect:"Dễ sa đà tửu sắc: event 'giải khuây' mạnh hơn nhưng rủi ro cũng cao.", apply(p){ p._traitADao=true; } },
 ];
 
 const BIRTH_TRAITS = [
-  { id:"dep_trai",     name:"Đẹp Trai/Xinh Gái 💎", effect:"NPC cảm tình +15. Hôn nhân dễ hơn.",      apply(p){ p._birthDepTrai=true; p.ngoaiGiao=Math.min(100,p.ngoaiGiao+5); } },
-  { id:"thien_tai",    name:"Thiên Tài 📚",           effect:"Học Vấn +15. Học nhanh hơn 50%.",         apply(p){ p._birthThienTai=true; p.hocVan=Math.min(100,p.hocVan+15); } },
-  { id:"cuong_trang",  name:"Cường Tráng 💪",         effect:"Võ Thuật +10. Thể lực tối đa 11 buổi.",   apply(p){ p._birthCuongTrang=true; p.voThuat=Math.min(100,p.voThuat+10); p.theLucMax=176; p.theLuc=176; } },
-  { id:"con_nha_giau", name:"Con Nhà Giàu 🏠",        effect:"+150 quan và +30 thóc ban đầu.",           apply(p){ p._birthConNhaGiau=true; p.tien+=150; p.thocCaNhan+=30; } },
-  { id:"ban_han",      name:"Bần Hàn 🪨",             effect:"-5 quan nhưng +30 uy tín dân.",            apply(p){ p._birthBanHan=true; p.tien=Math.max(0,p.tien-5); p.uyTinCong+=30; } },
-  { id:"ky_tuong",     name:"Kỳ Tướng 🗡️",           effect:"Quản Lý +10. Tuyển quân rẻ hơn 15%.",    apply(p){ p._birthKyTuong=true; p.quanLy=Math.min(100,p.quanLy+10); } },
-  { id:"thien_y",      name:"Thiên Y 🌿",             effect:"Hồi thể lực nhanh gấp đôi. Ít ốm.",       apply(p){ p._birthThienY=true; } },
-  { id:"linh_cam",     name:"Linh Cảm 🔮",            effect:"Mưu Mẹo +8. Cảnh báo event nguy hiểm.",   apply(p){ p._birthLinhCam=true; p.muuMeo=Math.min(100,p.muuMeo+8); } },
+  { id:"dep_trai",     name:"Đẹp Trai/Xinh Gái 💎", effect:"+5 Ngoại Giao. Ưu thế trong sự kiện chiêu an / cầu thân.", apply(p){ p._birthDepTrai=true; p.ngoaiGiao=Math.min(100,p.ngoaiGiao+5); } },
+  { id:"thien_tai",    name:"Thiên Tài 📚",           effect:"Học Vấn +15. Dùi mài kinh sử nhanh hơn ~50%.", apply(p){ p._birthThienTai=true; p.hocVan=Math.min(100,p.hocVan+15); } },
+  { id:"cuong_trang",  name:"Cường Tráng 💪",         effect:"Võ Thuật +10. Thể lực tối đa cao hơn.",   apply(p){ p._birthCuongTrang=true; p.voThuat=Math.min(100,p.voThuat+10); p.theLucMax=176; p.theLuc=176; } },
+  { id:"con_nha_giau", name:"Con Nhà Giàu 🏠",        effect:"+150 quan và +30 thóc ban đầu.",           apply(p){ p.tien+=150; p.thocCaNhan+=30; } },
+  { id:"ban_han",      name:"Bần Hàn 🪨",             effect:"-5 quan nhưng +30 uy tín dân.",            apply(p){ p.tien=Math.max(0,p.tien-5); p.uyTinCong+=30; } },
+  { id:"ky_tuong",     name:"Kỳ Tướng 🗡️",           effect:"+10 Quản Lý.",                            apply(p){ p.quanLy=Math.min(100,p.quanLy+10); } },
+  { id:"thien_y",      name:"Thiên Y 🌿",             effect:"Hồi thể lực nhanh gấp đôi. Ít ngã bệnh khi kiệt sức.", apply(p){ p._birthThienY=true; } },
+  { id:"linh_cam",     name:"Linh Cảm 🔮",            effect:"+8 Mưu Mẹo.",                             apply(p){ p.muuMeo=Math.min(100,p.muuMeo+8); } },
 ];
 
 let _ccGender = "nam";

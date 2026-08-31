@@ -42,6 +42,13 @@ function localClanSabotage(state) {
 
 export function collapseFromExhaustion(state, tuChonLog) {
   const p = state.player;
+  // T3.5-3.5d: Thiên Y (_birthThienY) — nửa số lần kiệt sức KHÔNG ngã bệnh, chỉ cạn
+  // thể lực (không mất 15 tiền, không dangOm, không −10 HP).
+  if (p._birthThienY && rng(state) < 0.5) {
+    p.theLuc = 0;
+    logLine(state, "Kiệt sức nhưng thể trạng tốt — chỉ cần nghỉ, không ngã bệnh.");
+    return;
+  }
   p.tien = Math.max(0, p.tien - 15);
   p.dangOm = true;
   p.theLuc = 0;
@@ -101,7 +108,7 @@ export function actionKhaiThacDacSan(state) {
   // T3.4-2b: guard latent throw — 3 nghề kia đều init inventory, hàm này thiếu.
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 25;
-  const bonus = state._quanLyBonus || 1.0;
+  const bonus = (state._quanLyBonus || 1.0) * (p._traitChamChi ? 1.25 : 1.0); // T3.5-3.5d: Chăm Chỉ +25%
   const preset = getClanPressurePreset(state);
   const patronBoost = (p._patronClanId && (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO)) ? preset.specialtyBoost : 1.0;
   // T3.4-2b: mọi nhánh rút từ hồ khai thác chung của xã (bucket theo mặt hàng). GIỮ tất
@@ -144,6 +151,7 @@ export function actionChatGo(state) {
   const regionBoost = p.currentRegion === RegionId.SON_TAY ? 1.35 : 1.0;
   const weatherCut = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.BAO) ? 0.82 : 1.0;
   let qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * regionBoost * weatherCut * (state._quanLyBonus || 1)));
+  if (p._traitChamChi) qty = Math.max(1, Math.round(qty * 1.25)); // T3.5-3.5d: Chăm Chỉ +25%
   if (localClanSabotage(state)) {
     qty = Math.max(1, qty - 1);
     logLine(state, "Dòng họ đối nghịch chặn cửa rừng, chuyến gỗ hụt đi.", true);
@@ -168,6 +176,7 @@ export function actionDetVai(state) {
   let qty = coKhung
     ? Math.max(1, Math.floor((1 + randInt(state, 0, 1)) * regionBoost * (state._quanLyBonus || 1)))
     : 1;
+  if (p._traitChamChi) qty = Math.max(1, Math.round(qty * 1.25)); // T3.5-3.5d: Chăm Chỉ +25%
   if (localClanSabotage(state)) {
     qty = Math.max(1, qty - 1);
     logLine(state, "Dòng họ đối nghịch phá khung, buổi dệt hụt đi.", true);
@@ -189,6 +198,7 @@ export function actionChanNuoiLon(state) {
   p.theLuc -= 18;
   p.tien -= 8;
   let qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * (state._quanLyBonus || 1)));
+  if (p._traitChamChi) qty = Math.max(1, Math.round(qty * 1.25)); // T3.5-3.5d: Chăm Chỉ +25%
   if (localClanSabotage(state)) {
     qty = Math.max(1, qty - 1);
     logLine(state, "Dòng họ đối nghịch thả chó cắn đàn lợn, xuất chuồng hụt đi.", true);
@@ -211,6 +221,7 @@ export function actionNauRuou(state) {
   const coNoi = hasWorkingCapital(p, CapitalKind.NOI_RUOU);
   // Không nồi -> cất chõ tay, 1 hũ/buổi. Có nồi -> mẻ khá hơn, tỉ lệ ra 2 tăng.
   let qty = coNoi ? (1 + (rng(state) < 0.55 ? 1 : 0)) : 1;
+  if (p._traitChamChi) qty = Math.max(1, Math.round(qty * 1.25)); // T3.5-3.5d: Chăm Chỉ +25%
   if (localClanSabotage(state)) {
     qty = Math.max(1, qty - 1);
     logLine(state, "Dòng họ đối nghịch đổ mẻ rượu đang ủ, hụt mất một phần.", true);
@@ -237,6 +248,7 @@ export function actionCauCaSong(state) {
   let qty = boat
     ? Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * weatherMul * (state._quanLyBonus || 1.0)))
     : 1;
+  if (p._traitChamChi) qty = Math.max(1, Math.round(qty * 1.25)); // T3.5-3.5d: Chăm Chỉ +25%
   qty = takeFromExtraction(state.village, "ca", qty); // T3.4-2b: hồ cá chung của xã
   p.inventory.ca = (p.inventory.ca || 0) + qty;
   if (boat) boat.cond = Math.max(0, (boat.cond | 0) - THUYEN_WEAR_PER_TRIP);
@@ -261,6 +273,7 @@ export function actionDanhBatVenBien(state) {
   let qty = boat
     ? Math.max(1, Math.floor((2 + randInt(state, 0, 3)) * seaMul * weatherMul * (state._quanLyBonus || 1.0)))
     : 1;
+  if (p._traitChamChi) qty = Math.max(1, Math.round(qty * 1.25)); // T3.5-3.5d: Chăm Chỉ +25%
   qty = takeFromExtraction(state.village, "ca", qty); // T3.4-2b: hồ cá chung của xã
   p.inventory.ca = (p.inventory.ca || 0) + qty;
   if (boat) boat.cond = Math.max(0, (boat.cond | 0) - THUYEN_WEAR_PER_TRIP);
