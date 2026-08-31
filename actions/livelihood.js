@@ -15,6 +15,25 @@ function hasWorkingCapital(p, kind) {
  *  Bông/tơ thành hàng hoá thật có chuỗi cung ứng: để dành GĐ2b. */
 const DET_VAI_SOI_COST = 6;
 
+/**
+ * T3.4-1b: dòng họ đối nghịch CỤC BỘ phá việc làm ăn tại xã đang đứng (nghề chế biến /
+ * chặt gỗ). Khuôn giống nhánh sabotage của actionCayRuong + processMonthlyFarmRisk:
+ * chỉ rank dân / phú hộ; localHostile = họ cục bộ thù địch (không tính họ bảo trợ);
+ * rng(state) < sabotageChance (preset). KHÔNG patron boost — chốt lượt dò: chỉ đặc sản
+ * giữ patron, tránh "có patron là mọi nghề +15%". Trả true -> nơi gọi tự giảm sản lượng.
+ */
+function localClanSabotage(state) {
+  const p = state.player;
+  if (p.rank !== PlayerRank.DAN_THUONG && p.rank !== PlayerRank.PHU_HO) return false;
+  const localHostile = (localClanIds(state) || []).some(cid => {
+    if (cid === p._patronClanId) return false;
+    const c = state.clans?.find(x => x.id === cid);
+    return c && (isClanHostile(c) || clanAvgOpinionToPlayer(state, cid) < -20);
+  });
+  if (!localHostile) return false;
+  return rng(state) < (getClanPressurePreset(state).sabotageChance || 0);
+}
+
 export function collapseFromExhaustion(state, tuChonLog) {
   const p = state.player;
   p.tien = Math.max(0, p.tien - 15);
@@ -112,7 +131,11 @@ export function actionChatGo(state) {
   p.theLuc -= 22;
   const regionBoost = p.currentRegion === RegionId.SON_TAY ? 1.35 : 1.0;
   const weatherCut = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.BAO) ? 0.82 : 1.0;
-  const qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * regionBoost * weatherCut * (state._quanLyBonus || 1)));
+  let qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * regionBoost * weatherCut * (state._quanLyBonus || 1)));
+  if (localClanSabotage(state)) {
+    qty = Math.max(1, qty - 1);
+    logLine(state, "Dòng họ đối nghịch chặn cửa rừng, chuyến gỗ hụt đi.", true);
+  }
   p.inventory.go = (p.inventory.go || 0) + qty;
   logLine(state, `🪵 Vào rừng đốn gỗ, gom được ${qty} tấm gỗ.`);
   return { ok: true, feedback: [{ text: `+${qty} Gỗ`, tone: "good" }, { text: "-22 TL", tone: "bad" }], sfx: "cay" };
@@ -129,9 +152,13 @@ export function actionDetVai(state) {
   const coKhung = hasWorkingCapital(p, CapitalKind.KHUNG_CUI);
   const regionBoost = (p.currentRegion === RegionId.SON_NAM || p.currentRegion === RegionId.KINH_BAC) ? 1.25 : 1.0;
   // Không khung -> dệt tay, 1 tấm thô/buổi. Có khung -> năng suất đầy đủ (vùng + focus).
-  const qty = coKhung
+  let qty = coKhung
     ? Math.max(1, Math.floor((1 + randInt(state, 0, 1)) * regionBoost * (state._quanLyBonus || 1)))
     : 1;
+  if (localClanSabotage(state)) {
+    qty = Math.max(1, qty - 1);
+    logLine(state, "Dòng họ đối nghịch phá khung, buổi dệt hụt đi.", true);
+  }
   p.inventory.lua = (p.inventory.lua || 0) + qty;
   logLine(state, coKhung
     ? `🧵 Dệt khung cửi cả buổi, được ${qty} tấm vải.`
@@ -147,7 +174,11 @@ export function actionChanNuoiLon(state) {
   if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 18;
   p.tien -= 8;
-  const qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * (state._quanLyBonus || 1)));
+  let qty = Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * (state._quanLyBonus || 1)));
+  if (localClanSabotage(state)) {
+    qty = Math.max(1, qty - 1);
+    logLine(state, "Dòng họ đối nghịch thả chó cắn đàn lợn, xuất chuồng hụt đi.", true);
+  }
   p.inventory.thit_lon = (p.inventory.thit_lon || 0) + qty;
   p.uyTinCong = Math.min(9999, (p.uyTinCong || 0) + (rng(state) < 0.35 ? 1 : 0));
   logLine(state, `🐖 Xuất chuồng lợn, thu được ${qty} mẻ thịt. Mang ra chợ bán sẽ lời hơn.`);
@@ -164,7 +195,11 @@ export function actionNauRuou(state) {
   p.thocCaNhan = Math.max(0, (p.thocCaNhan || 0) - 2);
   const coNoi = hasWorkingCapital(p, CapitalKind.NOI_RUOU);
   // Không nồi -> cất chõ tay, 1 hũ/buổi. Có nồi -> mẻ khá hơn, tỉ lệ ra 2 tăng.
-  const qty = coNoi ? (1 + (rng(state) < 0.55 ? 1 : 0)) : 1;
+  let qty = coNoi ? (1 + (rng(state) < 0.55 ? 1 : 0)) : 1;
+  if (localClanSabotage(state)) {
+    qty = Math.max(1, qty - 1);
+    logLine(state, "Dòng họ đối nghịch đổ mẻ rượu đang ủ, hụt mất một phần.", true);
+  }
   p.inventory.ruou = (p.inventory.ruou || 0) + qty;
   logLine(state, coNoi
     ? `🍶 Cất rượu bằng nồi, ủ được ${qty} hũ.`
