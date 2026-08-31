@@ -346,6 +346,85 @@ Giữ luật này thì lỗ không phình to thêm trong lúc chờ sửa gốc.
 
 ---
 
+## Bổ sung 30/8 (4) — nghèo đi vẫn vô hại, nửa còn thiếu của "kinh tế thật"
+
+Sau khi track T3.3 đóng (ruộng đất thật, rủi ro thật, mất mùa thật), dò lại
+câu hỏi "0 tiền 0 thóc thì sao" — phát hiện: **gần như vô hại tuyệt đối.**
+
+- Đói khi đứng yên: `thocCaNhan` kẹp sàn 0, không mất HP, không ốm, không
+  event. Chỉ khi hành quân mới mất quân/máu.
+- Thuế: không có nợ tích luỹ, không có hạn. Chỉ 1 cú quyết toán/năm — không
+  đủ tiền → mất sạch tiền + uy tín −20 + thể lực −40 (dẫn ốm) → hết, không
+  giam, không truy nã, không mất ruộng, không dồn năm sau.
+- `uyTinCong -= 20` (chỗ phạt thuế) là **chỗ trừ uy tín DUY NHẤT không kẹp
+  sàn** trong toàn engine (~20 chỗ khác đều kẹp 0). **Quyết định: giữ
+  nguyên, không kẹp sàn — uy tín âm mang nghĩa thật (mang tiếng xấu thật,
+  khác "chưa có tiếng" = 0). Chủ ý, cần comment trong code giải thích, không
+  phải ngoại lệ mồ côi.**
+
+**Đây là nửa còn thiếu của lý do làm cả track T3 kinh tế thật** — làm giàu
+khó hơn nhiều rồi, nhưng nghèo vẫn không có giá gì phải trả.
+
+**Quyết định tách làm hai:**
+- **Đói khi đứng yên** — việc nhỏ, độc lập, không phụ thuộc gì, làm được
+  sớm bất cứ lúc nào (0 thóc kéo dài → phạt tăng dần: HP, có thể ốm).
+- **Nợ thuế có răng thật** (hạn, dồn nợ, có thể mất ghế nếu là chức dịch
+  không trả nổi) — GỘP vào "AI dùng ghế thật" (đã hoãn), vì cần đúng máy
+  gỡ occupant khỏi ghế mà mục nợ `seat-occupant-xa` (T3.1) đã treo từ trước.
+  Không làm riêng lẻ, sẽ phải sửa lại khi máy gỡ ghế thật ra đời.
+
+---
+
+## Bổ sung 30/8 (3) — nhãn hiển thị cần giọng, không chỉ đặc tả cơ chế
+
+Phát hiện: 5 nhãn vốn cá nhân T3.2b ("con trâu cày", "chiếc thuyền nan"...)
+đều thêm loại từ (con/chiếc/bộ) máy móc — đúng ngữ pháp nhưng đọc như sách
+giáo khoa, không tự nhiên. Lộ ra vì đứng cạnh "quán trọ" (không loại từ) đọc
+tự nhiên hơn hẳn. Đã sửa (bỏ loại từ, "nấu rượu"→"cất rượu" cho đúng kỹ
+thuật).
+
+**Nguyên nhân:** giao việc T3.2b chỉ có đặc tả cơ chế (loại, giá, hao mòn),
+không có hướng dẫn giọng văn cho nhãn hiển thị. Agent tự điền, mặc định về
+lối viết đúng-ngữ-pháp-nhưng-cứng thay vì tự nhiên.
+
+**Luật rút ra, áp dụng mọi lần giao việc có sinh text hiển thị sau này:**
+kèm theo đặc tả cơ chế, LUÔN kèm hướng dẫn giọng — ít nhất là "khớp giọng đã
+dùng ở [chỗ nào đó đã viết tay, ví dụ quang_oai.md hoặc nhãn UI có sẵn]",
+không để agent tự đoán giọng.
+
+**Nợ chưa làm:** chưa audit các nhãn khác sinh ra trong T3.2/T3.3 (loại cửa
+hàng, tên nút...) xem có dính cùng bệnh không. Để dành lúc dọn nợ chung, không
+chặn T3.3-3.
+
+---
+
+## Bổ sung 30/8 (5) — GĐ2b sẵn sàng mở, kích hoạt bởi câu hỏi "chợ đen"
+
+Lúc gần đóng T3.4, Ha hỏi "có chợ đen chưa" — hoá ra ý định rộng hơn nhiều so
+với người mua muối lậu đang làm ở T3.4-3b: **chợ đen chung cho nhiều hàng
+cấm/đồ trộm**, không phải riêng muối.
+
+**Quyết định:** T3.4-3b giữ hẹp (chỉ muối, đúng kế hoạch cũ). Chợ đen tổng
+quát = đúng nội dung **GĐ2b**, không nhét vào T3.4. GĐ2b cần những thứ chưa
+tồn tại: khái niệm hàng cấm nói chung, cơ chế trộm cắp sinh "đồ trộm", cơ
+chế "có ai nhìn thấy không" (đã có trong mục "Player-generated events qua
+inbox" phía trên, chưa code), chỗ tiêu thụ hàng (có thể tái dùng shop theo
+hướng tham nhũng, chưa quyết).
+
+**Tin quan trọng: GĐ2b giờ mới thực sự SẴN SÀNG để bàn**, không phải tiếp
+tục hoãn. Lý do nó phải chờ tới giờ: cần biết "ai sở hữu cái gì" trước khi
+thiết kế item/vận chuyển — mà dòng họ cục bộ (T3.1), ruộng đất (T3.3), cửa
+hàng (T3.2) giờ đều đã tồn tại và đã test kỹ. Trước đây bàn GĐ2b chỉ là bàn
+trên giấy trắng; giờ bàn trên nền đã có thật.
+
+**Kế hoạch:** đóng nốt T3.4 (chỉ còn 3b) → mở buổi bàn riêng cho GĐ2b, KHÔNG
+code trước, đúng cách đã làm với mọi hệ lớn khác trong track T3. Các mảnh
+đã ghi rải rác trong file này (player-events/witness, dòng họ tách tổ chức,
+hàng ngoại thương — xem các mục "Bổ sung" phía trên) là điểm khởi đầu cho
+buổi bàn đó, không cần tìm lại từ đầu.
+
+---
+
 ## Nguyên tắc, không phải việc — nhớ khi thiết kế mọi thứ sau này
 
 **Mọi hành động mới, tự hỏi: ai sẽ biết chuyện này xảy ra?** Không ai biết thì
