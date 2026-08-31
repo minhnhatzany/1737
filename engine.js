@@ -3771,20 +3771,10 @@ function processMonthlyPropertyAndArmy(state) {
           if (buffKey === "tienMon")    tienKiem += buffVal;
           if (buffKey === "thocMon")    thocKiem += buffVal;
           if (buffKey === "uyTinMon")   uyTinKiem += buffVal;
-          if (buffKey === "hocVanAccum") {
-            state.player._hocThuatAccum = (state.player._hocThuatAccum || 0) + buffVal;
-            if (state.player._hocThuatAccum >= 4) {
-              state.player.hocVan = Math.min(100, state.player.hocVan + 1);
-              state.player._hocThuatAccum -= 4;
-            }
-          }
-          if (buffKey === "voThuatAccum") {
-            state.player._voThuatAccum = (state.player._voThuatAccum || 0) + buffVal;
-            if (state.player._voThuatAccum >= 4) {
-              state.player.voThuat = Math.min(100, state.player.voThuat + 1);
-              state.player._voThuatAccum -= 4;
-            }
-          }
+          // T3.5-3.5c: CẮT handler hocVanAccum / voThuatAccum (cộng điểm thẳng thụ động
+          // từ holding thu_phong/van_chi/lo_ren). Chỉ số giờ chỉ tăng qua hành động thật
+          // (bumpSkill — T3.5-3.5b). Công trình GIỮ NGUYÊN; 2 buff key này thành key chết
+          // (như hocVanMon — sổ nợ, dọn lúc audit holdings).
           if (buffKey === "unrestGiam") state.village.unrest = Math.max(0, state.village.unrest - buffVal);
         }
       }

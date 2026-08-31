@@ -44,14 +44,11 @@ export const LifestyleFocusEffect = {
     }
   },
   [LifestyleId.HOC_THUAT]: {
-    desc: "Mỗi tháng: tự động +1 Học Vấn mỗi 4 tháng, chi phí học giảm 15%",
-    apply(state) {
-      state.player._hocThuatAccum = (state.player._hocThuatAccum || 0) + 1;
-      if (state.player._hocThuatAccum >= 4) {
-        state.player.hocVan = Math.min(100, state.player.hocVan + 1);
-        state.player._hocThuatAccum -= 4;
-      }
-    }
+    // T3.5-3.5c: CẮT "tự động +1 Học Vấn mỗi 4 tháng" (cộng điểm thẳng thụ động).
+    // Học Vấn giờ chỉ tăng qua hành động thật (actionDiHoc — T3.5-3.5b). Focus vẫn
+    // đáng chọn: XP cây Học Thuật +4/tháng (tickLifestyle) -> mở khoá perk ht_* sớm.
+    desc: "Tập trung Học Thuật — XP cây này tăng nhanh, mở khoá perk sớm hơn.",
+    apply() {}
   },
   [LifestyleId.QUAN_SU]: {
     desc: "Mỗi tháng: lương quân giảm 10%, quân đội chiến đấu hiệu quả hơn",
@@ -62,9 +59,10 @@ export const LifestyleFocusEffect = {
     apply(state) { state._quanLyBonus = 1.10; }
   },
   [LifestyleId.AM_MUU]: {
-    desc: "Mỗi tháng: +2 Mưu Mẹo, tỉ lệ gian kế thành công ×1.20",
+    // T3.5-3.5c: CẮT "+2 Mưu Mẹo/tháng" (cộng điểm thẳng thụ động). GIỮ _amMuuBonus
+    // ×1.20 (hệ số tình huống — gian kế / lo lót / buôn lậu tốt hơn NGAY khi làm).
+    desc: "Mỗi tháng: tỉ lệ gian kế / lo lót / buôn lậu thành công ×1.20.",
     apply(state) {
-      state.player.muuMeo = Math.min(100, state.player.muuMeo + 2);
       state._amMuuBonus = 1.20;
     }
   },
