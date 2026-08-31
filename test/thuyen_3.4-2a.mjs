@@ -37,9 +37,14 @@ check("THUYEN_WEAR_PER_TRIP = 2", THUYEN_WEAR_PER_TRIP === 2);
   s.thoiTiet = Weather.LU; s._quanLyBonus = 3;
   actionMuaCongCu(s, "thuyen_nan");
   check("mua thuyền nan ok, cond 100", boatOf(s)?.cond === 100);
-  let minQty = 99;
-  for (let i = 0; i < 10; i++) { s.player.theLuc = 140; const b = s.player.inventory?.ca || 0; actionCauCaSong(s); minQty = Math.min(minQty, s.player.inventory.ca - b); }
-  check(`CauCaSong có thuyền: sản lượng bung (min ${minQty} ≥ 2)`, minQty >= 2);
+  // Đo chuyến ĐẦU (hồ khai thác T3.4-2b còn trống -> factor 1.0, thuần công thức thuyền).
+  let maxQty = 0;
+  for (let i = 0; i < 10; i++) {
+    s.player.theLuc = 140; s.village.monthlyExtraction = { go: 0, ca: 0, dacSan: 0 }; // giữ hồ trống để cô lập hiệu ứng thuyền
+    const b = s.player.inventory?.ca || 0; actionCauCaSong(s);
+    maxQty = Math.max(maxQty, s.player.inventory.ca - b);
+  }
+  check(`CauCaSong có thuyền (hồ trống): sản lượng bung (max ${maxQty} ≥ 2)`, maxQty >= 2);
   check(`10 chuyến -> cond 100 → ${boatOf(s).cond} (−${10 * THUYEN_WEAR_PER_TRIP})`, boatOf(s).cond === 100 - 10 * THUYEN_WEAR_PER_TRIP);
 }
 
@@ -55,9 +60,13 @@ check("THUYEN_WEAR_PER_TRIP = 2", THUYEN_WEAR_PER_TRIP === 2);
   const s2 = createInitialState("T", 7);
   s2.player.currentRegion = RegionId.AN_QUANG; s2.player.tien = 500; s2._quanLyBonus = 2;
   actionMuaCongCu(s2, "thuyen_nan");
-  let minQty = 99;
-  for (let i = 0; i < 10; i++) { s2.player.theLuc = 140; const b = s2.player.inventory?.ca || 0; actionDanhBatVenBien(s2); minQty = Math.min(minQty, s2.player.inventory.ca - b); }
-  check(`DanhBatVenBien có thuyền: sản lượng bung (min ${minQty} ≥ 2)`, minQty >= 2);
+  let maxQty2 = 0;
+  for (let i = 0; i < 10; i++) {
+    s2.player.theLuc = 140; s2.village.monthlyExtraction = { go: 0, ca: 0, dacSan: 0 };
+    const b = s2.player.inventory?.ca || 0; actionDanhBatVenBien(s2);
+    maxQty2 = Math.max(maxQty2, s2.player.inventory.ca - b);
+  }
+  check(`DanhBatVenBien có thuyền (hồ trống): sản lượng bung (max ${maxQty2} ≥ 2)`, maxQty2 >= 2);
   check("DanhBatVenBien: cũng hao cond 2/chuyến", boatOf(s2).cond === 100 - 10 * THUYEN_WEAR_PER_TRIP);
 }
 

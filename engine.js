@@ -3228,6 +3228,7 @@ export function gameTick(state) {
     processMonthlyShopVacancy(state);
     processMonthlyWages(state);
     processMonthlyDraftReclaim(state);
+    processMonthlyExtractionReset(state);
     processMonthlyFarmRisk(state);
     processMonthlyLocRent(state);
     processMonthlyDebts(state);
@@ -3997,6 +3998,13 @@ function processMonthlyDraftReclaim(state) {
   }
 }
 
+// T3.4-2b: hồ khai thác chung theo xã — RESET CỨNG về 0 mỗi lần chuyển tháng (khác
+// processMonthlyDraftReclaim decay dần). Cùng iteration pattern.
+function processMonthlyExtractionReset(state) {
+  const all = [...Object.values(state.villagesByXa || {}), state._fallbackVillage].filter(Boolean);
+  for (const v of all) v.monthlyExtraction = { go: 0, ca: 0, dacSan: 0 };
+}
+
 export function actionJoinBattle(state, battleId, side = "def") {
   const p = state.player;
   if (p.dangOm) return { ok: false, msg: "Đang ốm liệt giường." };
@@ -4391,7 +4399,7 @@ export function checkWantedArrest(state) {
 
 // Internal helpers exported for other modules
 export { clamp, currentYmSerial, ensurePostingIfNeeded, getHuyenGarrisonTroops, getPosting, postingHere, pushCelebration, syncHuyenBannerFromXaBalance, totalDaysAbs, ymKey };
-export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyFarmRisk, processMonthlyLocRent }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
+export { processMonthlyShopIncome, processMonthlyShopVacancy, processMonthlyWages, processMonthlyDraftReclaim, processMonthlyExtractionReset, processMonthlyFarmRisk, processMonthlyLocRent }; // T3.2c/T3.3: export riêng để test cô lập (gameTick tháng đụng rất nhiều state)
 // markShopVacant: đã `export function` tại chỗ (T3.2c-2 hook cho hệ thống cái chết/bỏ nghề + test)
 
 

@@ -1,7 +1,7 @@
 import { rng, rngInt, rngChance, rngChoice } from "../core/rng.js";
 import { clanAvgOpinionToPlayer, getClanPressurePreset, isClanHostile, localClanIds } from "./clan.js";
 import { randInt } from "../engine.js";
-import { Faction, PlayerRank, RegionId, totalPops } from "../models.js";
+import { Faction, PlayerRank, RegionId, totalPops, takeFromExtraction } from "../models.js";
 import { Weather, rollPersonalHarvestThoc } from "../weather.js";
 import { CapitalKind, THUYEN_WEAR_PER_TRIP } from "../core/capital.js";
 import { logLine } from "../log.js";
@@ -96,33 +96,39 @@ export function actionKhaiThacDacSan(state) {
   const p = state.player;
   if (p.faction === Faction.NGHIA_QUAN) return { ok: false, msg: "Đã tạo phản thì không còn đi làm đặc sản vùng như dân thường." };
   if (p.theLuc < 25) return { ok: false, msg: "Không đủ thể lực (< 25)." };
+  // T3.4-2b: guard latent throw — 3 nghề kia đều init inventory, hàm này thiếu.
+  if (!p.inventory) p.inventory = { ruou: 0, tra: 0, lua: 0, muoi: 0, go: 0, ca: 0, thit_lon: 0 };
   p.theLuc -= 25;
   const bonus = state._quanLyBonus || 1.0;
   const preset = getClanPressurePreset(state);
   const patronBoost = (p._patronClanId && (p.rank === PlayerRank.DAN_THUONG || p.rank === PlayerRank.PHU_HO)) ? preset.specialtyBoost : 1.0;
+  // T3.4-2b: mọi nhánh rút từ hồ khai thác chung của xã (bucket theo mặt hàng). GIỮ tất
+  // định (không randInt) — đúng bản chất "đặc sản vùng".
   if (p.currentRegion === RegionId.SON_NAM) {
-    let qty = Math.ceil(1 * bonus * patronBoost);
-    p.inventory.lua += qty;
+    const qty = takeFromExtraction(state.village, "dacSan", Math.ceil(1 * bonus * patronBoost));
+    p.inventory.lua = (p.inventory.lua || 0) + qty;
     logLine(state, `Dệt lanh kéo tơ, thu được ${qty} Tấm Lụa.`);
     return { ok: true, feedback: [{ text: `+${qty} Tấm Lụa`, tone: "good" }], sfx: "cay" };
   }
   if (p.currentRegion === RegionId.HAI_DUONG) {
-    let qty = Math.ceil(2 * bonus * patronBoost);
-    p.inventory.muoi += qty;
+    const qty = takeFromExtraction(state.village, "dacSan", Math.ceil(2 * bonus * patronBoost));
+    p.inventory.muoi = (p.inventory.muoi || 0) + qty;
     logLine(state, `Cào rong nấu muối, thu được ${qty} Gánh Muối.`);
     return { ok: true, feedback: [{ text: `+${qty} Gánh Muối`, tone: "good" }], sfx: "cay" };
   }
   if (p.currentRegion === RegionId.SON_TAY) {
-    let qty = Math.ceil(1 * bonus * patronBoost);
-    p.inventory.go += qty;
+    const qty = takeFromExtraction(state.village, "go", Math.ceil(1 * bonus * patronBoost));
+    p.inventory.go = (p.inventory.go || 0) + qty;
     logLine(state, `Lên mạn ngược phạt rừng, thu được ${qty} Khối Gỗ.`);
     return { ok: true, feedback: [{ text: `+${qty} Khối Gỗ`, tone: "good" }], sfx: "cay" };
   }
   if (p.currentRegion === RegionId.AN_QUANG) {
-    let gain = Math.ceil(20 * bonus * patronBoost);
-    p.tien += gain;
-    logLine(state, `Ra biển đánh cá, bán được ${gain} quan.`);
-    return { ok: true, feedback: [{ text: `+${gain} Quan`, tone: "good" }], sfx: "cay" };
+    // T3.4-2b: sửa bất đối xứng — cho GIỎ CÁ (như các vùng khác cho item), không tiền
+    // thẳng. Base 2 = đúng base muối HẢI_DƯƠNG (không đẻ số mới).
+    const qty = takeFromExtraction(state.village, "ca", Math.ceil(2 * bonus * patronBoost));
+    p.inventory.ca = (p.inventory.ca || 0) + qty;
+    logLine(state, `Ra biển kéo lưới, được ${qty} Giỏ Cá.`);
+    return { ok: true, feedback: [{ text: `+${qty} Giỏ Cá`, tone: "good" }], sfx: "cay" };
   }
   return { ok: false, msg: "Vùng này không có đặc sản khai thác." };
 }
@@ -140,6 +146,7 @@ export function actionChatGo(state) {
     qty = Math.max(1, qty - 1);
     logLine(state, "Dòng họ đối nghịch chặn cửa rừng, chuyến gỗ hụt đi.", true);
   }
+  qty = takeFromExtraction(state.village, "go", qty); // T3.4-2b: hồ gỗ chung của xã
   p.inventory.go = (p.inventory.go || 0) + qty;
   logLine(state, `🪵 Vào rừng đốn gỗ, gom được ${qty} tấm gỗ.`);
   return { ok: true, feedback: [{ text: `+${qty} Gỗ`, tone: "good" }, { text: "-22 TL", tone: "bad" }], sfx: "cay" };
@@ -222,9 +229,10 @@ export function actionCauCaSong(state) {
   const weatherMul = (state.thoiTiet === Weather.LU || state.thoiTiet === Weather.MUA) ? 1.2 : (state.thoiTiet === Weather.HAN ? 0.8 : 1.0);
   const boat = getWorkingCapital(p, CapitalKind.THUYEN_NAN);
   // Không thuyền -> câu tay mép bờ, 1 giỏ/buổi. Có thuyền -> ra sông giăng lưới đầy đủ.
-  const qty = boat
+  let qty = boat
     ? Math.max(1, Math.floor((1 + randInt(state, 0, 2)) * weatherMul * (state._quanLyBonus || 1.0)))
     : 1;
+  qty = takeFromExtraction(state.village, "ca", qty); // T3.4-2b: hồ cá chung của xã
   p.inventory.ca = (p.inventory.ca || 0) + qty;
   if (boat) boat.cond = Math.max(0, (boat.cond | 0) - THUYEN_WEAR_PER_TRIP);
   logLine(state, boat
@@ -245,9 +253,10 @@ export function actionDanhBatVenBien(state) {
   const weatherMul = (state.thoiTiet === Weather.BAO) ? 0.65 : (state.thoiTiet === Weather.MUA ? 1.1 : 1.0);
   const boat = getWorkingCapital(p, CapitalKind.THUYEN_NAN);
   // Không thuyền -> lội ven bờ mò sò bắt cua, 1 giỏ/buổi. Có thuyền -> dong khơi đánh lưới.
-  const qty = boat
+  let qty = boat
     ? Math.max(1, Math.floor((2 + randInt(state, 0, 3)) * seaMul * weatherMul * (state._quanLyBonus || 1.0)))
     : 1;
+  qty = takeFromExtraction(state.village, "ca", qty); // T3.4-2b: hồ cá chung của xã
   p.inventory.ca = (p.inventory.ca || 0) + qty;
   if (boat) boat.cond = Math.max(0, (boat.cond | 0) - THUYEN_WEAR_PER_TRIP);
   logLine(state, boat

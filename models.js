@@ -394,6 +394,7 @@ export class Village {
     drafted = 0,          // T3.3-0: suất đinh đã trưng cho QUÂN (per-xã, thu hồi tháng)
     suatDinh = 0,         // T3.3-2: tổng suất đinh xã (hand-data geo) — dùng tính suất công điền
     congDienTaken = 0,    // T3.3-2: số thửa ruộng công đã chia (POOL RIÊNG với drafted quân)
+    monthlyExtraction = { go: 0, ca: 0, dacSan: 0 }, // T3.4-2b: hồ khai thác chung, reset cứng mỗi tháng
   }) {
     this.name = name;
     this.xaId = xaId;
@@ -405,10 +406,42 @@ export class Village {
     this.drafted = drafted;
     this.suatDinh = suatDinh;
     this.congDienTaken = congDienTaken;
+    this.monthlyExtraction = { go: monthlyExtraction.go | 0, ca: monthlyExtraction.ca | 0, dacSan: monthlyExtraction.dacSan | 0 };
   }
 }
 
 export function totalPops(v) {
   const p = v?.pops || {};
   return (p.nong || 0) + (p.tho || 0) + (p.thuong || 0);
+}
+
+// ── T3.4-2b: hồ khai thác chung theo xã theo tháng ──────────────────────────
+// 3 bucket. go: ChatGo + KhaiThacDacSan(SƠN_TÂY). ca: CauCaSong + DanhBatVenBien
+// + KhaiThacDacSan(AN_QUẢNG). dacSan: lụa + muối (chỉ KhaiThacDacSan).
+export const EXTRACTION_BUCKETS = Object.freeze(["go", "ca", "dacSan"]);
+
+/** Trần khai thác một bucket/tháng theo dân số xã. Sàn 30 để xã nhỏ / _fallbackVillage
+ *  (dân ~115 -> 30, không ~3) vẫn có hồ dùng được. Xã QO đông nhất (~2625) -> ~66. */
+export function extractionCap(v) {
+  return Math.max(30, Math.round(totalPops(v) / 40));
+}
+
+/** Hệ số sản lượng theo mức hồ đã dùng. ĐIỂM GÃY 70%: dưới -> 1.0 (người tới trước
+ *  không bị phạt oan); 70%→100% giảm tuyến tính tới 0.5. Nơi gọi tự Math.max(1, ...)
+ *  -> sàn tuyệt đối 1 đơn vị/buổi ("khổ nhưng không tuyệt đường"). */
+export function extractionFactor(v, bucket) {
+  const cap = extractionCap(v);
+  const used = (v?.monthlyExtraction?.[bucket]) | 0;
+  const r = cap > 0 ? used / cap : 1;
+  return r <= 0.7 ? 1.0 : Math.max(0.5, 1.0 - (r - 0.7) / 0.3 * 0.5);
+}
+
+/** Lấy qty từ hồ: nhân factor (sàn 1), ghi phần THỰC LẤY vào hồ, trả về qty đã throttle.
+ *  Tự khởi tạo v.monthlyExtraction nếu thiếu (save cũ). */
+export function takeFromExtraction(v, bucket, qty) {
+  if (!v) return Math.max(1, qty | 0);
+  if (!v.monthlyExtraction) v.monthlyExtraction = { go: 0, ca: 0, dacSan: 0 };
+  const q = Math.max(1, Math.floor((qty | 0) * extractionFactor(v, bucket)));
+  v.monthlyExtraction[bucket] = ((v.monthlyExtraction[bucket]) | 0) + q;
+  return q;
 }
