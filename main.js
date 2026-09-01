@@ -130,7 +130,7 @@ window.actionAttackVillage = (langId) => {
 // ──────────────────────────────────────────────────
 let state  = null;
 let tickInterval = null;
-const MS_PER_DAY = 1500;
+const MS_PER_DAY = 12000;
 let logFilterMode = "all";
 let _lastHudHeavyRenderAt = 0;
 
@@ -971,6 +971,13 @@ function render() {
   if (hpEl) {
     if ((p.hp ?? 100) <= 30) hpEl.style.color = "#f87171";
     else hpEl.style.color = "";
+  }
+
+  // Low grain visual flash (ngưỡng 3 = 3 ngày ân hạn đói)
+  const thocEl = $("playerThoc");
+  if (thocEl) {
+    if ((p.thocCaNhan ?? 0) <= 3) thocEl.style.color = "#f87171";
+    else thocEl.style.color = "";
   }
 
   if (state.uiShakeProfile) {
@@ -1891,13 +1898,17 @@ function renderCoNghiep() {
     <div style="margin-top:6px;">${laborHtml}</div>
     <p class="muted" style="font-size:0.74rem;margin-top:4px;">Khởi vụ rồi chờ gặt (~99 ngày). Gặt xong: ruộng công nộp ${Math.round(CONG_TO_RATE * 100)}% tô cho kho làng, ruộng tư giữ hết, cấy rẽ chia nửa cho địa chủ. Ruộng lộc theo ghế thu ${LOC_MONTHLY_THOC} thóc/thửa mỗi tháng.</p>`;
 
+  const secHead = (title, blurb, first) => `
+    <div class="gold-text border-bot pb-2${first ? "" : " mt-4"}" style="font-weight:600;margin-bottom:3px;">${title}</div>
+    <p class="muted mb-2" style="font-size:0.8rem;">${blurb}</p>`;
+
   box.innerHTML = `
-    <div style="font-weight:600;margin-bottom:4px;">Vốn cá nhân</div>
+    ${secHead("Vốn cá nhân", "Sắm trâu, thuyền, khung cửi… để mỗi buổi làm nghề ra được nhiều hơn — đồ nghề hao dần, hỏng thì lại về tay không.", true)}
     <div style="display:flex;flex-direction:column;gap:4px;">${capRows}</div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${buyBtns}</div>
-    <div style="font-weight:600;margin:10px 0 4px;">Cửa hàng</div>
+    ${secHead("Cửa hàng", "Đứng ra mở quán trọ trong phủ để có một khoản tô đều mỗi tháng, kể cả những lúc ngươi đi vắng.")}
     ${shopHtml}
-    <div style="font-weight:600;margin:10px 0 4px;">Ruộng đất</div>
+    ${secHead("Ruộng đất", "Có thửa ruộng riêng thì khởi vụ lấy thóc ăn quanh năm; chưa có thì cày thuê hoặc cấy rẽ cho lý trưởng.")}
     ${farmHtml}`;
 }
 
