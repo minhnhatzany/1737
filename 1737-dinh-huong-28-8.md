@@ -500,3 +500,52 @@ GĐ2b), dòng họ/tổ chức (chờ GĐ2b), AI có lịch trình (chờ AI dù
 quân số ×10 (đã hoãn, sổ nợ kỹ thuật), audio (nhỏ, độc lập, làm lúc nào tiện,
 không cần gộp chung một khối với T3.2). Một khối, làm cho xong, kiểm cho
 sạch, rồi mới mở khối tiếp theo.
+
+---
+
+## Bổ sung 31/8 (2) — Xuất thân 4 tầng: chỉ làm tầng 1 đêm nay, ba tầng kia hoãn
+
+Dò kỹ (2 lượt) cho việc "cảnh mở màn theo xuất thân" (ý gốc dùng "Lạc Tứ" chỉ
+là ví dụ minh hoạ hôm bàn thiết kế, không phải xã đã chốt — bốn lựa chọn cụ
+thể hôm đó **chưa từng được ghi vào file nào**, xác nhận bằng grep toàn repo).
+
+**Xã khớp từng tầng (đề xuất, dựa trên `quang_oai.md` thật):**
+- Bần cố nông → **Đại Đồng** (Kẻ Cùng, tổng Lạc Tứ, Minh Nghĩa) — *"nửa số hộ
+  đang cầm ruộng cho nhà giàu bên Tiên Phong"*
+- Trung nông → **Đồng Trúc** (Tiên Phong) — duy nhất trong 27 xã không có hook
+  xung đột, "nghề nhẹ, người hiền"
+- Khá giả → **Cần Kiệm** (Tiên Phong, họ Lê thầu bến bè) hoặc **Phú Cường**
+  (Bất Bạt, họ Trần nắm bến) nếu muốn dàn đều 3 huyện
+- Con quan → **Trạch Mỹ Lộc** (Tiên Phong) — duy nhất có dòng khoa bảng 3 đời
+
+**Vì sao chỉ làm tầng 1 đêm nay:**
+- Tầng 1 (bần cố): 4/4 lựa chọn khớp hành động thật (`actionXinCongDien`,
+  `actionKhaiThacDacSan`, `actionCauCaSong`, `actionCayThue`), chi phí ~0 —
+  **khớp thẳng tài sản mặc định hiện tại** (10Q, 15 thóc). Không cần field
+  mới, không cần sửa `createInitialState` phần tài sản.
+- Tầng 3 (khá giả): cả 4 lựa chọn (mua ruộng tư 200Q, sắm vốn 20-120Q, mộ
+  binh 30Q+20 thóc, mở quán 300Q) **đều vượt ngân sách mặc định** — bắt buộc
+  phải quyết lại tài sản khởi điểm trước, chưa bàn.
+- Tầng 4 (con quan): **chỉ 2/4 hướng có hành động thật** (đi học, luyện võ).
+  "Xin chân trong nha môn" chưa có cơ chế — mọi hành động chức dịch đòi đã
+  giữ ghế sẵn. Nên làm cùng lúc "AI dùng ghế thật" (T2.1 hoãn), lúc đó có
+  đường tự nhiên cho việc "được tiến cử vào một chức nhỏ".
+- Tầng 2 (trung nông): đủ điều kiện làm ngay như tầng 1, nhưng để dành làm
+  cùng đợt khi quay lại xuất thân đầy đủ, tránh dở dang.
+
+**Quyết định:** đêm nay chỉ dựng **một cảnh** — bốn lựa chọn dùng đúng 4 hành
+động đã map ở trên. **Cách hiện thực (chốt 31/8, sau khi Bước 0 phát hiện ràng
+buộc kỹ thuật):** GATE sau tham số mới `opts.xuatThan === "ban_co_nong"` trong
+`createInitialState`, KHÔNG áp vô điều kiện — vì hai test cũ
+(`spawn_quangoai_3.0`, `seats_quangoai_2.1d`) kiểm tra đúng việc spawn phải
+random tới cả 3 huyện, ép cứng vô điều kiện sẽ làm chúng đỏ. Gọi hàm trần
+(không `opts`) giữ byte-identical hành vi cũ — mọi test hiện có không sửa một
+chữ. `main.js` (Bước 2) sẽ **luôn truyền cờ này** cho mọi nhân vật tạo qua UI
+thật — nên trải nghiệm người chơi vẫn đúng "ai cũng thấy cảnh", chỉ khác ở
+tầng kỹ thuật bên dưới. Vị trí ép cứng về Đại Đồng
+(`minh_nghia_t0_x2`/`_l0`, lý trưởng Lê Văn Đắc) — ghi đè SAU khi random xong,
+không đụng logic random. Cắt 2 trang đầu tutorial cẩm nang (lore thuần, cảnh
+mới đã thay thế), giữ nguyên phần còn lại + tutorial tương tác.
+
+**Ba tầng còn lại — việc riêng, sau này**, làm cùng lúc quyết định lại tài
+sản khởi điểm (tầng 3) và "AI dùng ghế thật" (tầng 4).

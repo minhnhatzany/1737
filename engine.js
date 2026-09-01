@@ -395,7 +395,7 @@ export const PropertyDb = {
   },
 };
 
-export function createInitialState(playerName = "Vô Danh", seed = null) {
+export function createInitialState(playerName = "Vô Danh", seed = null, opts = {}) {
   const rngSeed = initSeed(seed !== null ? seed : Date.now());
   const rngState = rngSeed;
   seedRng(rngSeed);
@@ -559,6 +559,32 @@ export function createInitialState(playerName = "Vô Danh", seed = null) {
     xaId: player.currentXa,
     langId: player.currentLang,
   };
+
+  // XUẤT THÂN bần cố nông — ép vị trí xuất phát về xã Đại Đồng (Kẻ Cùng), tổng
+  // Lạc Tứ, huyện Minh Nghĩa. Random tổng/xã/làng ở trên VẪN chạy đủ 3 draw
+  // (536/539/542) — chỉ bỏ kết quả, gán cứng lại. KHÔNG có rng() nào ở đây, nên
+  // rngState/_fallbackSeed bất biến so với nhánh mặc định. Village + lý trưởng
+  // (Lê Văn Đắc) + dòng họ + ghế của xã này đã được dựng sẵn cho cả 27 xã QO ở
+  // các vòng lặp bên dưới, bất kể stream "spawn:" chọn huyện nào. Nhánh không
+  // truyền opts (mọi call cũ) giữ nguyên byte-identical.
+  if (opts.xuatThan === "ban_co_nong") {
+    player.homeRegion = RegionId.SON_TAY;
+    player.homePhu    = "quang_oai";
+    player.homeHuyen  = "minh_nghia";
+    player.homeTong   = "minh_nghia_t0";
+    player.homeXa     = "minh_nghia_t0_x2";
+    player.homeLang   = "minh_nghia_t0_x2_l0";
+    player.currentRegion = RegionId.SON_TAY;
+    player.currentPhu    = "quang_oai";
+    player.currentHuyen  = "minh_nghia";
+    player.currentTong   = "minh_nghia_t0";
+    player.currentXa     = "minh_nghia_t0_x2";
+    player.currentLang   = "minh_nghia_t0_x2_l0";
+    player.location = {
+      regionId: player.currentRegion, phuId: player.currentPhu, huyenId: player.currentHuyen,
+      tongId: player.currentTong, xaId: player.currentXa, langId: player.currentLang,
+    };
+  }
 
   // Personal food adapter (future: tách khỏi hậu cần quân chiến dịch).
   if (typeof player.personalFood !== "number") player.personalFood = player.thocCaNhan;
