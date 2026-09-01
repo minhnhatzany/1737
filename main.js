@@ -268,7 +268,9 @@ function bindCharacterCreationEvents() {
 
   try {
     const name = nameInput.value.trim() || "Dân Đen";
-    state = createInitialState(name);
+    // Bước 2: mọi nhân vật tạo qua giao diện thật đều là xuất thân bần cố nông
+    // -> createInitialState ép vị trí về xã Đại Đồng (gate opts.xuatThan).
+    state = createInitialState(name, null, { xuatThan: "ban_co_nong" });
     ensureUxState();
     ensureActionModeState();
     state.uxFirstPlay = true;
@@ -309,7 +311,7 @@ function bindCharacterCreationEvents() {
     }).catch(() => {});
 
     if (state.uxFirstPlay && state.firstRun) {
-      setTimeout(openTutorial, 800);
+      setTimeout(openOriginScene, 800);
       state.firstRun = false;
     }
   } catch (err) {
@@ -4695,6 +4697,60 @@ function openTutorial() {
   renderTutorialPage();
   $("tutorialModal")?.classList.add("open");
   $("tutorialModal")?.setAttribute("aria-hidden", "false");
+}
+
+// ── Cảnh mở màn (Bước 2): xuất thân bần cố nông, xã Đại Đồng ──────────────
+// Chạy sau btnStartGame, trước cẩm nang. 4 lựa chọn = 4 hành động THẬT đã có.
+// Lời dẫn dùng flavor thật của Đại Đồng + huyện Minh Nghĩa (quang_oai.md).
+const ORIGIN_SCENE = {
+  body: `Ngươi tỉnh giấc trên ổ rơm trong căn nhà tranh ở <strong>Đại Đồng</strong> —
+    dân quanh vùng quen gọi là <em>Kẻ Cùng</em> — xã cuối tổng Lạc Tứ, huyện Minh
+    Nghĩa, chốn nghèo nhất phủ Quảng Oai. Ruộng ít, năm nào cũng đói ba tháng
+    giáp hạt; trai tráng trong xã kẻ bỏ đi làm thuê, kẻ đi làm cướp. Nửa số hộ
+    đã cầm ruộng cho nhà giàu bên Tiên Phong — nhà ngươi nằm trong nửa ấy.
+    Trong thùng còn <strong>15 đấu thóc</strong>, giắt lưng <strong>10 quan</strong>.
+    Sáng nay phải chọn lấy một đường mà sống.`,
+  choices: [
+    { label: "Ra đình xin làng chia cho một suất ruộng công",
+      hint: "Có đất tự cấy, nhưng phải theo trọn vụ ~99 ngày mới gặt.",
+      fn: actionXinCongDien },
+    { label: "Vác rìu lên rừng phạt gỗ đổi lấy tiền",
+      hint: "Kiếm được ngay, nhưng nặng nhọc, bào sức.",
+      fn: actionKhaiThacDacSan },
+    { label: "Cầm cần ra sông thả câu, cốt con cá qua bữa",
+      hint: "Nhẹ nhàng, chỉ lo cái ăn trước mắt.",
+      fn: actionCauCaSong },
+    { label: "Sang nhà lý trưởng Lê Văn Đắc xin vào cày thuê",
+      hint: "Công tháng đều tay, an toàn, nhưng là làm công cho người.",
+      fn: actionCayThue },
+  ],
+};
+
+function openOriginScene() {
+  const modal = $("originSceneModal");
+  const body = $("originSceneBody");
+  const box = $("originSceneChoices");
+  if (!modal || !body || !box) { openTutorial(); return; } // modal vắng DOM -> vào thẳng cẩm nang
+  body.innerHTML = ORIGIN_SCENE.body;
+  box.innerHTML = ORIGIN_SCENE.choices.map((c, i) =>
+    `<button class="btn primary" data-origin-choice="${i}" style="text-align:left;white-space:normal;">
+       ${c.label}<br><span style="font-size:0.78rem;color:var(--text-dim);font-weight:400;">${c.hint}</span>
+     </button>`).join("");
+  box.querySelectorAll("[data-origin-choice]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const c = ORIGIN_SCENE.choices[+btn.dataset.originChoice];
+      try { doAction(c.fn); } catch (e) { console.error("[origin-scene]", e); }
+      closeOriginScene();
+    }, { once: true });
+  });
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeOriginScene() {
+  $("originSceneModal")?.classList.remove("open");
+  $("originSceneModal")?.setAttribute("aria-hidden", "true");
+  openTutorial();
 }
 
 // Settings screen uses inline onclick="openTutorial()"
