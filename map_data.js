@@ -167,46 +167,46 @@ export const MapData = {
             id: "minh_nghia", name: "Huyện Minh Nghĩa", triHuyen: "Nguyễn Hữu Khiêm", quanSo: 60, chatLuong: TroopQuality.O_HOP, desc: "Thung lũng hẹp, đất ít người thưa",
             tong: [
               { name: "Tổng Lạc Tứ", xa: [
-                { name: "Lạc Tứ", tenNom: "Kẻ Lạc", lyTruong: "Trần Văn Ổn", lang: [
+                { name: "Lạc Tứ", tenNom: "Kẻ Lạc", lyTruong: "Trần Văn Ổn", dacDiem: "Ruộng công bị nhà họ Trần lấn dần ba đời. Đơn kiện lên huyện bốn lần, chìm cả bốn.", lang: [
                   { name: "Lạc Thượng", pop: 600 },
                   { name: "Lạc Hạ", pop: 550 },
                   { name: "Đồng Chằm", pop: 350 },
                 ] },
-                { name: "Hưng Đạo", tenNom: "Làng Đình", lyTruong: "Nguyễn Văn Thảo", lang: [
+                { name: "Hưng Đạo", tenNom: "Làng Đình", lyTruong: "Nguyễn Văn Thảo", dacDiem: "Đình làng to nhất tổng, dân góp xây từ đời trước, giờ không ai sửa nổi.", lang: [
                   { name: "Đạo Nội", pop: 600 },
                   { name: "Cầu Đình", pop: 500 },
                 ] },
-                { name: "Đại Đồng", tenNom: "Kẻ Cùng", lyTruong: "Lê Văn Đắc", lang: [
+                { name: "Đại Đồng", tenNom: "Kẻ Cùng", lyTruong: "Lê Văn Đắc", dacDiem: "Nghèo rớt. Nửa số hộ đang cầm ruộng cho nhà giàu bên Tiên Phong.", lang: [
                   { name: "Đại Thôn", pop: 450 },
                   { name: "Xóm Trại", pop: 350 },
                 ] },
               ] },
               { name: "Tổng Yên Duyệt", xa: [
-                { name: "Yên Duyệt", tenNom: "Kẻ Duyệt", lyTruong: "Phạm Văn Kỳ", lang: [
+                { name: "Yên Duyệt", tenNom: "Kẻ Duyệt", lyTruong: "Phạm Văn Kỳ", dacDiem: "Cửa ngõ huyện. Có điếm canh, nhưng lính bỏ về ăn cơm là ai qua cũng được.", lang: [
                   { name: "Duyệt Nội", pop: 500 },
                   { name: "Duyệt Ngoại", pop: 400 },
                   { name: "Điếm Canh", pop: 300 },
                 ] },
-                { name: "Hoà Thạch", tenNom: "Làng Đá", lyTruong: "Đinh Văn Lự", cuaHangSeed: ["xuong_da"], lang: [
+                { name: "Hoà Thạch", tenNom: "Làng Đá", lyTruong: "Đinh Văn Lự", cuaHangSeed: ["xuong_da"], dacDiem: "Đục đá làm cối, làm bia. Nghề độc, ai cũng phải mua.", lang: [
                   { name: "Thạch Thượng", pop: 500 },
                   { name: "Bãi Đá", pop: 400 },
                 ] },
-                { name: "Phú Mãn", tenNom: "Kẻ Mãn", lyTruong: "Bạch Văn Tôn", lang: [
+                { name: "Phú Mãn", tenNom: "Kẻ Mãn", lyTruong: "Bạch Văn Tôn", dacDiem: "Dân gốc Mường xuống định cư. Bị làng dưới coi là người ngoài.", lang: [
                   { name: "Mãn Sơn", pop: 400 },
                   { name: "Xóm Mường", pop: 300 },
                 ] },
               ] },
               { name: "Tổng Thượng Tiết", xa: [
-                { name: "Thượng Tiết", tenNom: "Kẻ Tiết", lyTruong: "Ngô Văn Rậu", lang: [
+                { name: "Thượng Tiết", tenNom: "Kẻ Tiết", lyTruong: "Ngô Văn Rậu", dacDiem: "Cuối đường. Sau lưng là rừng, đi tiếp là sang đất Hưng Hoá.", lang: [
                   { name: "Tiết Nội", pop: 450 },
                   { name: "Hang Chàng", pop: 300 },
                   { name: "Trại Nứa", pop: 150 },
                 ] },
-                { name: "Tân Phong", tenNom: "Làng Nứa", lyTruong: "Đào Văn Chắt", lang: [
+                { name: "Tân Phong", tenNom: "Làng Nứa", lyTruong: "Đào Văn Chắt", dacDiem: "Bốn năm trước mất mùa, một nửa số đinh bỏ đi, chưa về.", lang: [
                   { name: "Phong Thôn", pop: 400 },
                   { name: "Xóm Bỏ", pop: 300 },
                 ] },
-                { name: "Vạn Xuân", tenNom: "Kẻ Vắng", lyTruong: null, lang: [
+                { name: "Vạn Xuân", tenNom: "Kẻ Vắng", lyTruong: null, dacDiem: "Không có lý trưởng. Người cũ chết năm ngoái, chưa ai chịu nhận. Sổ đinh bỏ trống.", lang: [
                   { name: "Vạn Thôn", pop: 300 },
                   { name: "Đồng Hoang", pop: 200 },
                 ] },
@@ -217,47 +217,47 @@ export const MapData = {
             id: "tien_phong", name: "Huyện Tiên Phong", triHuyen: "Phạm Quốc Nhân", quanSo: 45, chatLuong: TroopQuality.THUONG, desc: "Đồi gò, dân làm gỗ và than củi",
             tong: [
               { name: "Tổng Tiên Phong", xa: [
-                { name: "Tây Đằng", tenNom: "Kẻ Tích", lyTruong: "Ngô Văn Hoạch", lang: [
+                { name: "Tây Đằng", tenNom: "Kẻ Tích", lyTruong: "Ngô Văn Hoạch", dacDiem: "Lỵ sở huyện, cũng là lỵ sở cả phủ. Nha môn đóng ở đây. Chợ phiên ngày 4 và ngày 9.", lang: [
                   { name: "Tích Nội", pop: 900 },
                   { name: "Tích Ngoại", pop: 850 },
                   { name: "Cầu Đá", pop: 850 },
                 ] },
-                { name: "Trạch Mỹ Lộc", tenNom: "Kẻ Trạch", lyTruong: "Nguyễn Bá Đôn", lang: [
+                { name: "Trạch Mỹ Lộc", tenNom: "Kẻ Trạch", lyTruong: "Nguyễn Bá Đôn", dacDiem: "Nhà họ Nguyễn có ba đời đỗ hương cống. Coi thường bọn buôn gỗ mới giàu.", lang: [
                   { name: "Trạch Thượng", pop: 800 },
                   { name: "Trạch Hạ", pop: 700 },
                   { name: "Văn Chỉ", pop: 600 },
                 ] },
-                { name: "Phúc Hoà", tenNom: "Làng Vôi", lyTruong: "Vũ Đình Xán", cuaHangSeed: ["lo_voi"], lang: [
+                { name: "Phúc Hoà", tenNom: "Làng Vôi", lyTruong: "Vũ Đình Xán", cuaHangSeed: ["lo_voi"], dacDiem: "Lò vôi, lò gạch. Khói quanh năm.", lang: [
                   { name: "Hoà Thôn", pop: 750 },
                   { name: "Lò Vôi", pop: 650 },
                 ] },
               ] },
               { name: "Tổng Hạ Bằng", xa: [
-                { name: "Hạ Bằng", tenNom: "Kẻ Hạ", lyTruong: "Trịnh Văn Cẩn", cuaHangSeed: ["phuong_than"], lang: [
+                { name: "Hạ Bằng", tenNom: "Kẻ Hạ", lyTruong: "Trịnh Văn Cẩn", cuaHangSeed: ["phuong_than"], dacDiem: "Đầu mối than củi cả huyện. Phường thợ than có luật riêng, quan ít xen vào.", lang: [
                   { name: "Bằng Thượng", pop: 700 },
                   { name: "Bằng Hạ", pop: 600 },
                   { name: "Lò Than", pop: 500 },
                 ] },
-                { name: "Đồng Trúc", tenNom: "Làng Tre", lyTruong: "Kiều Văn Thịnh", lang: [
+                { name: "Đồng Trúc", tenNom: "Làng Tre", lyTruong: "Kiều Văn Thịnh", dacDiem: "Tre nứa, đan lát. Nghề nhẹ, người hiền.", lang: [
                   { name: "Trúc Lâm", pop: 650 },
                   { name: "Cầu Tre", pop: 550 },
                 ] },
-                { name: "Bình Yên", tenNom: "Kẻ Nghèn", lyTruong: "Đỗ Văn Rưỡi", lang: [
+                { name: "Bình Yên", tenNom: "Kẻ Nghèn", lyTruong: "Đỗ Văn Rưỡi", dacDiem: "Tên đẹp mà đất xấu. Ruộng cao, năm nào cũng thiếu ăn ba tháng.", lang: [
                   { name: "Yên Nội", pop: 550 },
                   { name: "Đồng Chó Ngáp", pop: 450 },
                 ] },
               ] },
               { name: "Tổng Cần Kiệm", xa: [
-                { name: "Cần Kiệm", tenNom: "Kẻ Cần", lyTruong: "Lê Đình Đót", cuaHangSeed: ["ben_be"], lang: [
+                { name: "Cần Kiệm", tenNom: "Kẻ Cần", lyTruong: "Lê Đình Đót", cuaHangSeed: ["ben_be"], dacDiem: "Bến bè lớn. Nhà họ Lê thầu hết việc kết bè, ăn hoa hồng mỗi chuyến.", lang: [
                   { name: "Cần Nội", pop: 700 },
                   { name: "Bến Bè", pop: 550 },
                   { name: "Vạn Chài", pop: 350 },
                 ] },
-                { name: "Tuy Lai", tenNom: "Làng Gỗ", lyTruong: "Hoàng Văn Nghiên", cuaHangSeed: ["xuong_cua"], lang: [
+                { name: "Tuy Lai", tenNom: "Làng Gỗ", lyTruong: "Hoàng Văn Nghiên", cuaHangSeed: ["xuong_cua"], dacDiem: "Xưởng cưa. Thợ mộc giỏi nhất vùng, nhưng hay đánh nhau.", lang: [
                   { name: "Lai Xá", pop: 700 },
                   { name: "Xưởng Cưa", pop: 600 },
                 ] },
-                { name: "An Sơn", tenNom: "Kẻ Trên", lyTruong: "Phùng Văn Tá", lang: [
+                { name: "An Sơn", tenNom: "Kẻ Trên", lyTruong: "Phùng Văn Tá", dacDiem: "Trên đồi, nhìn xuống cả khúc sông. Ai đi thuyền qua đều bị nhìn thấy.", lang: [
                   { name: "Sơn Thượng", pop: 500 },
                   { name: "Sơn Hạ", pop: 400 },
                 ] },
@@ -268,46 +268,46 @@ export const MapData = {
             id: "bat_bat",    name: "Huyện Bất Bạt",   triHuyen: "Lê Văn Tú", quanSo: 35, chatLuong: TroopQuality.O_HOP, desc: "Biên giới Sơn Tây–Hưng Hóa",
             tong: [
               { name: "Tổng Cổ Đô", xa: [
-                { name: "Cổ Đô", tenNom: "Kẻ Đô", lyTruong: "Nguyễn Đình Quýnh", lang: [
+                { name: "Cổ Đô", tenNom: "Kẻ Đô", lyTruong: "Nguyễn Đình Quýnh", dacDiem: "Lỵ sở tổng. Chợ phiên ngày 2 và ngày 7. Có điếm tuần ty, lính canh thu thuế qua đò.", lang: [
                   { name: "Đô Thượng", pop: 800 },
                   { name: "Đô Hạ", pop: 700 },
                   { name: "Kẻ Chài", pop: 500 },
                 ] },
-                { name: "Phú Cường", tenNom: "Kẻ Cường", lyTruong: "Trần Văn Bảng", cuaHangSeed: ["ben_do"], lang: [
+                { name: "Phú Cường", tenNom: "Kẻ Cường", lyTruong: "Trần Văn Bảng", cuaHangSeed: ["ben_do"], dacDiem: "Nhà đò lớn nhất bến. Họ Trần nắm hết bến, ai qua sông cũng phải qua tay.", lang: [
                   { name: "Cường Xá", pop: 900 },
                   { name: "Bến Nứa", pop: 450 },
                 ] },
-                { name: "Vĩnh Phệ", tenNom: "Làng Bến Dưới", lyTruong: "Đỗ Văn Miện", lang: [
+                { name: "Vĩnh Phệ", tenNom: "Làng Bến Dưới", lyTruong: "Đỗ Văn Miện", dacDiem: "Bãi bồi, ruộng năm được năm mất. Dân làm phu gánh thuê ở bến.", lang: [
                   { name: "Vĩnh Trung", pop: 600 },
                   { name: "Cồn Vẹt", pop: 300 },
                 ] },
               ] },
               { name: "Tổng Vân Sa", xa: [
-                { name: "Vân Sa", tenNom: "Kẻ Sa", lyTruong: "Phạm Công Đĩnh", cuaHangSeed: ["xuong_det"], lang: [
+                { name: "Vân Sa", tenNom: "Kẻ Sa", lyTruong: "Phạm Công Đĩnh", cuaHangSeed: ["xuong_det"], dacDiem: "Dâu tằm, dệt lụa thô bán về Thăng Long.", lang: [
                   { name: "Sa Đông", pop: 700 },
                   { name: "Sa Đoài", pop: 650 },
                   { name: "Tằm Xá", pop: 550 },
                 ] },
-                { name: "Thanh Chiểu", tenNom: "Làng Đầm", lyTruong: "Lê Văn Trực", lang: [
+                { name: "Thanh Chiểu", tenNom: "Làng Đầm", lyTruong: "Lê Văn Trực", dacDiem: "Đầm lầy, cá và rươi. Tháng chín rươi lên, cả tổng kéo về.", lang: [
                   { name: "Chiểu Thượng", pop: 750 },
                   { name: "Ao Sen", pop: 550 },
                 ] },
-                { name: "Tân Hội", tenNom: "Làng Mới", lyTruong: "Hoàng Văn Nhu", lang: [
+                { name: "Tân Hội", tenNom: "Làng Mới", lyTruong: "Hoàng Văn Nhu", dacDiem: "Lập chưa lâu, dân tứ xứ dồn về. Không ai biết rõ gốc ai.", lang: [
                   { name: "Hội Nội", pop: 500 },
                   { name: "Hội Ngoại", pop: 400 },
                 ] },
               ] },
               { name: "Tổng Thượng Lâm", xa: [
-                { name: "Thượng Lâm", tenNom: "Kẻ Rừng", lyTruong: "Đinh Công Lệ", lang: [
+                { name: "Thượng Lâm", tenNom: "Kẻ Rừng", lyTruong: "Đinh Công Lệ", dacDiem: "Họ Đinh gốc Mường, giữ ghế lý trưởng ba đời. Nói được cả hai thứ tiếng.", lang: [
                   { name: "Lâm Nội", pop: 500 },
                   { name: "Lâm Ngoại", pop: 400 },
                   { name: "Bãi Sậy", pop: 300 },
                 ] },
-                { name: "Khê Thượng", tenNom: "Làng Suối", lyTruong: "Bùi Văn Chấn", lang: [
+                { name: "Khê Thượng", tenNom: "Làng Suối", lyTruong: "Bùi Văn Chấn", dacDiem: "Đãi vàng sa khoáng. Triều đình cấm, dân vẫn làm.", lang: [
                   { name: "Khê Trên", pop: 450 },
                   { name: "Khê Dưới", pop: 350 },
                 ] },
-                { name: "Minh Quang", tenNom: "Kẻ Ngái", lyTruong: "Quách Văn Đôi", lang: [
+                { name: "Minh Quang", tenNom: "Kẻ Ngái", lyTruong: "Quách Văn Đôi", dacDiem: "Xa nhất, đường lên phải qua ba con suối. Trốn lên đây là mất tích.", lang: [
                   { name: "Quang Sơn", pop: 350 },
                   { name: "Hang Đá", pop: 250 },
                 ] },
@@ -988,6 +988,7 @@ function normalizeHandGeo(huyenId, tongArr) {
                 id: xId, name: xSrc.name, tenNom: xSrc.tenNom || null,
                 lyTruong: xSrc.lyTruong === undefined ? null : xSrc.lyTruong,
                 cuaHangSeed: Array.isArray(xSrc.cuaHangSeed) ? xSrc.cuaHangSeed : null,
+                dacDiem: typeof xSrc.dacDiem === "string" ? xSrc.dacDiem : null,
                 lang: {}, pop: 0, suatDinh: 0, control: "trieu_dinh",
             };
             (xSrc.lang || []).forEach((lSrc, li) => {
