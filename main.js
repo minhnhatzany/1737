@@ -4632,22 +4632,9 @@ function startGameLoop() {
 // ──────────────────────────────────────────────────
 // TUTORIAL
 // ──────────────────────────────────────────────────
+// 2 trang đầu ("Chào Mừng" + "Con Đường Của Ngươi") đã cắt — cảnh mở màn Đại Đồng
+// (openOriginScene) kể phần bối cảnh + các hướng đi bằng tình huống, không liệt kê.
 const TUTORIAL_PAGES = [
-  {
-    title: "Chào Mừng, Thị Dân Nhỏ Bé!",
-    content: `Bạn đang sống trong thời Lê Trung Hưng — đất nước chia đôi,
-    Chúa Trịnh nắm quyền, vua Lê chỉ còn hư vị. Năm 1737 đến 1740 là
-    thời điểm hỗn loạn nhất: dân đói, quan tham, nghĩa quân nổi dậy khắp nơi.`
-  },
-  {
-    title: "Con Đường Của Ngươi",
-    content: `Game <strong>KHÔNG có con đường đúng tuyệt đối</strong>. Bạn
-    có thể trở thành:<br><br>
-    🏛 <strong>Quan Văn</strong> — học thi đỗ đạt, leo thang quan lộ<br>
-    ⚔️ <strong>Võ Tướng</strong> — lên lôi đài Bác Cử, dẹp loạn lập công<br>
-    🔥 <strong>Thủ Lĩnh</strong> — dựng nghĩa quân, chống triều đình<br>
-    💰 <strong>Đại Phú Hào</strong> — xây cơ nghiệp, buôn bán giàu sang`
-  },
   {
     title: "Hệ Thống Cơ Bản",
     content: `<strong>Thể Lực (❤️)</strong> — Hành động tiêu thể lực. Hết 0 = ốm liệt giường 1 tháng.<br><br>
