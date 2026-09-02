@@ -562,3 +562,32 @@ nhất, cảnh mở màn cho một tình huống cụ thể thay vì cả hệ t
   trước, cảnh mới làm nó lộ rõ hơn). Đáng nhớ khi chạm lại quest mở đầu.
 - Cẩm nang thi thoảng tự mở lại vài lần render đầu ván — quirk có sẵn của
   tutorial, không phải việc đêm nay.
+
+---
+
+## Bổ sung 2/9 — Tiền khởi điểm lệch sử thật 10-20 lần (chưa sửa)
+
+Phát hiện lúc dò xuất thân 3 tầng. Tiền mặt khởi điểm hiện tại:
+- Bần cố nông (mặc định `createInitialState`): **10 quan**
+- Birth trait Bần Hàn: **5 quan** (10 − 5)
+
+Sử thật (Gemini tra cứu): một **bần nông** Đàng Ngoài thế kỷ 18 cả đời hầu như
+không giữ quá **0,3–0,5 quan tiền mặt** — kinh tế gần như thuần hiện vật
+(thóc, công, đổi chác), tiền đồng là thứ hiếm với tầng đáy. Con số 5–10 quan
+đang **cao gấp 10–20 lần** mức hợp lý cho tầng bần cố.
+
+Trung nông / khá giả **tình cờ đã đúng tầm** — trung nông giữ mặc định
+(10Q + 40 thóc theo kế hoạch tầng), khá giả 250Q/40 thóc (chốt 2/9): một hộ
+khá giả nông thôn giữ vài trăm quan là hợp lý.
+
+**KHÔNG sửa ngay.** Gom làm một cụm với:
+1. Lỗi "giắt lưng 10 quan" trong lời cảnh mở màn Đại Đồng (đã ghi ở mục 3
+   quan sát trên).
+2. **Câu hỏi mở, chưa trả lời:** audit toàn bộ lương/giá khối T3.4 (công
+   nhật, tô, giá nghề, giá công cụ, `RUONG_TU_GIA` 200Q, `SHOP_OPEN_COST`
+   300Q, `JOB_WAGE_BASE`...) xem có lệch sử cùng kiểu không, hay chỉ tiền
+   khởi điểm bần cố bị. Nếu cả thang tiền trong game đang "lạm phát" so với
+   1737 thì sửa mình con số khởi điểm bần cố sẽ tạo lệch mới — phải quyết
+   sửa cục bộ hay hạ cả thang.
+
+Việc riêng, một buổi audit kinh tế — không nhét vào track xuất thân.
