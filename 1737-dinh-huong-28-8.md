@@ -549,3 +549,16 @@ mới đã thay thế), giữ nguyên phần còn lại + tutorial tương tác.
 
 **Ba tầng còn lại — việc riêng, sau này**, làm cùng lúc quyết định lại tài
 sản khởi điểm (tầng 3) và "AI dùng ghế thật" (tầng 4).
+
+**Track đóng 31/8** (4 bước, commit `e052fc7`/`c4731e9`/`f8e369b`). Playtest
+tổng xác nhận: cảm giác "rối, nản" đã hết — đồng hồ chậm lại là đòn bẩy lớn
+nhất, cảnh mở màn cho một tình huống cụ thể thay vì cả hệ thống cùng lúc.
+
+**3 quan sát nhỏ, chưa sửa, để lộ ra khi chơi thật:**
+- Lời cảnh mở màn ghi cứng "giắt lưng 10 quan" — sai với birth trait Bần Hàn
+  (5 quan thật). Sửa bằng cách bỏ số cụ thể khỏi văn hoặc chèn số động.
+- Sứ mệnh khởi đầu "Thép Rèn Thân Xác" tự thưởng 90 quan gần như ngay sau
+  cảnh cố tình kể nghèo khó — lệch tông, không phải bug (quest có sẵn từ
+  trước, cảnh mới làm nó lộ rõ hơn). Đáng nhớ khi chạm lại quest mở đầu.
+- Cẩm nang thi thoảng tự mở lại vài lần render đầu ván — quirk có sẵn của
+  tutorial, không phải việc đêm nay.
